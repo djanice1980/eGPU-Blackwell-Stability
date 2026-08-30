@@ -19,6 +19,20 @@ iGPU. Driving the desktop *from* the eGPU, or hanging a monitor off it, does not
 on Blackwell over a tunnel — that failure is inside GSP firmware and no kernel-side
 patch fixes it.
 
+## Quick start
+
+```sh
+git clone https://github.com/djanice1980/eGPU-Blackwell-Stability
+cd eGPU-Blackwell-Stability
+./install.sh          # interactive; or --all / --patches / --widget / --clocklock
+```
+
+`./install.sh --check` reports what's installed and what's missing without changing
+anything. The installer runs as a normal user and uses sudo only for the module
+install and the clock-lock helper; the widget is entirely user-level. It clones the
+NVIDIA driver source (with confirmation) if you don't already have it, refuses to
+apply patches onto a dirty or mismatched tree, and auto-detects Clang-built kernels.
+
 ## [`patches/`](patches/)
 
 Six patches against open-gpu-kernel-modules 610.57.04 that fix eGPU detection on
