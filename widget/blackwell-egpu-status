@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# Status-only backend for the Blackwell eGPU status widget (stripped from
+# DamianKA1993/blackwell-egpu-manager). Read-only by design: never loads or
+# unloads modules, never writes to PCI remove/rescan, never changes bolt policy.
+set -u
+
+CACHE_DIR="${XDG_RUNTIME_DIR:-/tmp}/blackwell-egpu-status"
+mkdir -p "$CACHE_DIR"
+IGPU_FILE="$CACHE_DIR/igpu_name"
+IGPU2_FILE="$CACHE_DIR/igpu2_name"
+
+# iGPU names are static; detect once and cache
+if [ ! -s "$IGPU_FILE" ]; then
+    lspci 2>/dev/null | grep -iE "VGA|3D|Display" | grep -iE "intel|amd|advanced micro devices" \
+        | head -n1 | cut -d ':' -f3- | xargs > "$IGPU_FILE" || true
+fi
+if [ ! -s "$IGPU2_FILE" ]; then
+    glxinfo -B 2>/dev/null | grep -m1 "Device:" | cut -d: -f2- | sed 's/ (.*//' | xargs > "$IGPU2_FILE" || true
+fi
+IGPU_NAME=$(tr -d '"' < "$IGPU_FILE" 2>/dev/null || true)
+IGPU_NAME2=$(tr -d '"' < "$IGPU2_FILE" 2>/dev/null || true)
+IGPU_NAME=${IGPU_NAME:-Integrated Graphics}
+IGPU_NAME2=${IGPU_NAME2:-Integrated GPU}
+
+# Thunderbolt/USB4 child router: plain N-M entries only (skips domainN, N-0
+# built-in root switches, and N-M:X.Y retimers)
+TB_DEVICE=$(ls -d /sys/bus/thunderbolt/devices/*-* 2>/dev/null \
+    | grep -E '/[0-9]+-[0-9]+$' | grep -vE -- '-0$' | head -n1 || true)
+
+MODE=0
+EGPU_NAME="None"
+EGPU_MODEL="None"
+GPU_UTIL=0; PWR_CURR=0; VRAM_USED=0; VRAM_TOTAL=0; GPU_TEMP=0; PCIE_RX=0; PCIE_TX=0
+
+num() {
+    # keep digits and a single dot, else 0
+    local v="${1//[^0-9.]/}"
+    case "$v" in ''|*.*.*) echo 0 ;; *) echo "${v:-0}" ;; esac
+}
+
+if [ -n "$TB_DEVICE" ]; then
+    if [ -f "$TB_DEVICE/device_name" ]; then
+        EGPU_NAME=$(tr -d '"' < "$TB_DEVICE/device_name" | xargs || true)
+    fi
+    EGPU_NAME=${EGPU_NAME:-eGPU Device}
+
+    AUTH=$(cat "$TB_DEVICE/authorized" 2>/dev/null || echo 0)
+
+    # One query doubles as liveness probe and telemetry fetch.
+    # If the driver has the card, mode 3; a soft loss drops us back to mode 2.
+    TELEMETRY=$(nvidia-smi --query-gpu=name,utilization.gpu,power.draw,memory.used,memory.total,temperature.gpu \
+        --format=csv,noheader,nounits 2>/dev/null | head -n1 || true)
+
+    if [ -n "$TELEMETRY" ]; then
+        MODE=3
+        IFS=',' read -r EGPU_MODEL GPU_UTIL PWR_CURR VRAM_USED VRAM_TOTAL GPU_TEMP <<< "$TELEMETRY"
+        EGPU_MODEL=$(echo "$EGPU_MODEL" | xargs)
+        GPU_UTIL=$(num "$GPU_UTIL"); PWR_CURR=$(num "$PWR_CURR")
+        VRAM_USED=$(num "$VRAM_USED"); VRAM_TOTAL=$(num "$VRAM_TOTAL")
+        GPU_TEMP=$(num "$GPU_TEMP")
+        read -r PCIE_RX PCIE_TX <<< "$(nvidia-smi dmon -s t -c 1 2>/dev/null | awk 'NR>2 {print $2, $3}' | head -n1)" || true
+        PCIE_RX=$(num "${PCIE_RX:-0}"); PCIE_TX=$(num "${PCIE_TX:-0}")
+    elif [ "$AUTH" = "1" ]; then
+        MODE=2
+    else
+        MODE=1
+    fi
+fi
+
+printf '{"mode":%s,"wait":0,"igpu":"%s","igpu2":"%s","egpu":"%s","egpu2":"%s","link":"N/A","gpu_util":%s,"pwr_curr":%s,"vram_used":%s,"vram_total":%s,"temp":%s,"pcie_rx":%s,"pcie_tx":%s}\n' \
+    "$MODE" "$IGPU_NAME" "$IGPU_NAME2" "$EGPU_NAME" "$EGPU_MODEL" \
+    "$GPU_UTIL" "$PWR_CURR" "$VRAM_USED" "$VRAM_TOTAL" "$GPU_TEMP" "$PCIE_RX" "$PCIE_TX"
