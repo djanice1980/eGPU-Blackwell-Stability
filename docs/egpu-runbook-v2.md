@@ -66,6 +66,23 @@ The failures are about *what phase of GPU work* happens over the tunnel, not whi
   drop `__GLX_VENDOR_LIBRARY_NAME`) routes GL through Vulkan — untested; or just run
   older GL titles on the 8060S, which handles them easily.
 
+**Clock-lock mitigation for the GL-context-creation killer (Aug 30 — preliminary, 4/4):**
+Pinning the card in P0 so the fragile phase never crosses a P-state transition:
+```
+sudo nvidia-smi --lock-gpu-clocks=2000,3210 && sudo nvidia-smi --lock-memory-clocks=14001,14001
+```
+(3210/14001 = this card's max clocks; query with `--query-gpu=clocks.max.graphics,clocks.max.memory`.)
+With locks held, Wolfenstein: TNO launched clean **4 times consecutively** — at the ~25%
+baseline survival rate that's p≈0.004 by chance. dmesg fully silent across all four: no
+Xid, no heartbeat, and **no C3 transient-retry lines either** — the failure window is not
+being entered, not merely survived, which is exactly what the P-state-transition theory
+predicts. Cost: idle draw 10.6 W → 30.6 W (card held in P0, VRAM at full clock); load
+behaviour unchanged. Locks do NOT persist across driver reload/reboot and die with any
+GPU loss — reapply before each trial session (verify with `pstate` = P0). Do not enable
+nvidia-persistenced to keep them — it blocks the `modprobe -r` the recovery procedure
+needs. If the tally keeps holding, the ergonomic endgame is a per-game wrapper:
+lock → launch → reset (`--reset-gpu-clocks --reset-memory-clocks`) on exit.
+
 **Recovery procedure after ANY GPU death (learned the hard way, Aug 26):**
 A host reboot alone does NOT reset the card (enclosure keeps it powered; wedged GSP
 persists). An enclosure power-cycle alone does NOT clear the host (driver reuses stale
