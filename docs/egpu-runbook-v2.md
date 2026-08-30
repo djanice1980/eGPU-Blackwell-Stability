@@ -17,6 +17,11 @@ obsolete — apnex's E1 replaces it with a proper fix.
 - No Xid, no GSP heartbeat timeouts, no `RmInitAdapter failed`
 - CUDA / compute
 - PRIME render offload for individual apps
+- **GL titles via PRIME offload — WITH clock locks held (adopted config, Aug 30).**
+  Previously the ~75%-fatal workload; with the card pinned in P0 it has been stable in
+  actual use: 8/8 clean launches, 1h+ sustained play, dmesg silent. Clock locking is
+  now part of the standing stability configuration on this machine (pinned via the
+  widget's clocklock helper), not an experiment.
 - Monitor on the **laptop's** HDMI at 4K120 HDR 10-bit (via DSC), KWin on the AMD 8060S
 
 **CURRENT CONFIGURATION (Aug 26, evening): full display stack loaded.**
