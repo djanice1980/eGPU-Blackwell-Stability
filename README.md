@@ -71,6 +71,14 @@ meaning the failure window is not entered at all. Cost: ~20 W extra at idle (10.
 unchanged. Details, exact commands, and caveats in the
 [runbook](docs/egpu-runbook-v2.md).
 
+Credit: clock-locking for tunnel stability is also what DamianKA1993's manager does in
+its connect path ("clock stabilization … enforces P0") — this result independently
+corroborates that choice on different hardware (AMD Strix Halo + TB5 enclosure here;
+Ryzen mini PC + USB4 AI BOX there). The widget's optional
+[`clocklock/`](widget/clocklock/) helper turns the mitigation into two switches on the
+widget — lock on/off, and "pin" to reapply automatically at boot and on driver attach —
+behind a sudoers entry scoped to four literal commands.
+
 ## Licensing
 
 - `patches/` — **GPL-2.0** (inherited from apnex/nvidia-driver-injector, matching the

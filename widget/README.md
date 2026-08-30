@@ -59,6 +59,39 @@ This fork keeps the excellent status panel and deletes every side effect:
 User-level only; the script prints how to add the widget to a panel (or run it as a
 standalone window with `plasmawindowed`) and how to uninstall.
 
+## Optional: clock-lock toggles (`clocklock/`)
+
+One deliberate exception to "read-only": the widget can show two switches — **Clock
+lock (hold P0)** and **Pin across reboots** — that apply/release
+`nvidia-smi --lock-gpu-clocks` / `--lock-memory-clocks`. Holding the card in P0
+suppresses P-state transitions, which on the reference system was a confirmed
+kill trigger for GL context creation over the tunnel (survival went from ~25% to 8/8
+with locks held — see the repo README). Credit where due: locking clocks for tunnel
+stability is also what DamianKA1993's original manager does in its connect path — this
+result independently corroborates that design choice on different hardware.
+
+The toggles appear only after you install the privileged helper:
+
+```sh
+sudo bash clocklock/install-clocklock.sh
+```
+
+Security design (deliberately unlike a blanket-NOPASSWD wrapper):
+
+- The sudoers entry allows **only four literal commands** (`... on`, `... off`,
+  `... pin`, `... unpin`) of a root-owned script — validated with `visudo -cf`
+  before install.
+- The helper reads no user-controlled paths; state flags live in `/run/blackwell-egpu`
+  and `/etc/blackwell-egpu` (root-owned).
+- "Pin" = a flag plus a oneshot systemd service that re-applies the lock at boot and
+  whenever udev sees the nvidia driver bind a GPU (hotplug/replug) — it survives
+  reboots, driver reloads, and recovery power-cycles.
+- The widget cross-checks: if the lock flag is set but the card is not in P0 (lock
+  lost to a reset), it shows a warning instead of a false "locked" state.
+
+Trade-off: holding P0 costs ~20 W at idle (VRAM at full clock). Uninstall everything
+with `sudo bash clocklock/uninstall-clocklock.sh`.
+
 ## License
 
 MIT, same as upstream — see [LICENSE](LICENSE). Original applet copyright

@@ -31,6 +31,12 @@ MODE=0
 EGPU_NAME="None"
 EGPU_MODEL="None"
 GPU_UTIL=0; PWR_CURR=0; VRAM_USED=0; VRAM_TOTAL=0; GPU_TEMP=0; PCIE_RX=0; PCIE_TX=0
+PSTATE=""
+
+# Clock-lock helper state (see clocklock/ in the repo). helper=0 hides the toggles.
+HELPER=0; [ -x /usr/local/bin/blackwell-egpu-clocklock ] && HELPER=1
+PIN=0; [ -f /etc/blackwell-egpu/clocklock-pinned ] && PIN=1
+LOCK_FLAG=0; [ -f /run/blackwell-egpu/locked ] && LOCK_FLAG=1
 
 num() {
     # keep digits and a single dot, else 0
@@ -48,13 +54,14 @@ if [ -n "$TB_DEVICE" ]; then
 
     # One query doubles as liveness probe and telemetry fetch.
     # If the driver has the card, mode 3; a soft loss drops us back to mode 2.
-    TELEMETRY=$(nvidia-smi --query-gpu=name,utilization.gpu,power.draw,memory.used,memory.total,temperature.gpu \
+    TELEMETRY=$(nvidia-smi --query-gpu=name,utilization.gpu,power.draw,memory.used,memory.total,temperature.gpu,pstate \
         --format=csv,noheader,nounits 2>/dev/null | head -n1 || true)
 
     if [ -n "$TELEMETRY" ]; then
         MODE=3
-        IFS=',' read -r EGPU_MODEL GPU_UTIL PWR_CURR VRAM_USED VRAM_TOTAL GPU_TEMP <<< "$TELEMETRY"
+        IFS=',' read -r EGPU_MODEL GPU_UTIL PWR_CURR VRAM_USED VRAM_TOTAL GPU_TEMP PSTATE <<< "$TELEMETRY"
         EGPU_MODEL=$(echo "$EGPU_MODEL" | xargs)
+        PSTATE=$(echo "$PSTATE" | xargs)
         GPU_UTIL=$(num "$GPU_UTIL"); PWR_CURR=$(num "$PWR_CURR")
         VRAM_USED=$(num "$VRAM_USED"); VRAM_TOTAL=$(num "$VRAM_TOTAL")
         GPU_TEMP=$(num "$GPU_TEMP")
@@ -67,6 +74,14 @@ if [ -n "$TB_DEVICE" ]; then
     fi
 fi
 
-printf '{"mode":%s,"wait":0,"igpu":"%s","igpu2":"%s","egpu":"%s","egpu2":"%s","link":"N/A","gpu_util":%s,"pwr_curr":%s,"vram_used":%s,"vram_total":%s,"temp":%s,"pcie_rx":%s,"pcie_tx":%s}\n' \
+# lock: 0 = off, 1 = active (flag + card in P0), 2 = stale (flag set but card
+# not in P0 or not reachable — lock was lost to a reset/reboot/GPU loss)
+LOCK=0
+if [ "$LOCK_FLAG" = "1" ]; then
+    if [ "$MODE" = "3" ] && [ "$PSTATE" = "P0" ]; then LOCK=1; else LOCK=2; fi
+fi
+
+printf '{"mode":%s,"wait":0,"igpu":"%s","igpu2":"%s","egpu":"%s","egpu2":"%s","link":"N/A","gpu_util":%s,"pwr_curr":%s,"vram_used":%s,"vram_total":%s,"temp":%s,"pcie_rx":%s,"pcie_tx":%s,"helper":%s,"lock":%s,"pin":%s}\n' \
     "$MODE" "$IGPU_NAME" "$IGPU_NAME2" "$EGPU_NAME" "$EGPU_MODEL" \
-    "$GPU_UTIL" "$PWR_CURR" "$VRAM_USED" "$VRAM_TOTAL" "$GPU_TEMP" "$PCIE_RX" "$PCIE_TX"
+    "$GPU_UTIL" "$PWR_CURR" "$VRAM_USED" "$VRAM_TOTAL" "$GPU_TEMP" "$PCIE_RX" "$PCIE_TX" \
+    "$HELPER" "$LOCK" "$PIN"

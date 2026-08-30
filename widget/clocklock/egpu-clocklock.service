@@ -1,0 +1,12 @@
+[Unit]
+Description=Apply pinned eGPU clock locks (hold P0)
+# No-op unless /etc/blackwell-egpu/clocklock-pinned exists.
+# Started at boot and again by udev whenever the nvidia driver binds a GPU
+# (hotplug attach, replug after recovery).
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/blackwell-egpu-clocklock boot-apply
+
+[Install]
+WantedBy=multi-user.target

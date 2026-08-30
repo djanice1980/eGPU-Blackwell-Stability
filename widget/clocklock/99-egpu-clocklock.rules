@@ -1,0 +1,4 @@
+# Re-apply pinned eGPU clock locks whenever the nvidia driver binds a GPU
+# (hotplug attach, or replug after a recovery power-cycle). Read-only with
+# respect to the device: the service it starts only runs nvidia-smi.
+ACTION=="bind", SUBSYSTEM=="pci", DRIVER=="nvidia", TAG+="systemd", ENV{SYSTEMD_WANTS}+="egpu-clocklock.service"
