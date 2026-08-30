@@ -59,15 +59,15 @@ are hazards rather than features. Install is entirely user-level: `widget/instal
   the observed cold-boot USB4 tunnel failures and power-state hangs. Read-only
   intelligence for bug reports and BIOS-update requests.
 
-## Clock-lock mitigation (preliminary result: working)
+## Clock-lock mitigation (confirmed)
 
 Locking GPU clocks (`nvidia-smi --lock-gpu-clocks` / `--lock-memory-clocks`) holds the
 card in P0 and suppresses P-state transitions — one of the two confirmed kill triggers
 (`KPerfBoost` perf-state changes during GL context creation over the tunnel). With
 clocks locked, the GL-via-PRIME workload that previously killed the card on ~75% of
-launches has survived **4/4 consecutive launches** (p≈0.004 by chance) with dmesg
-completely silent — not even transient-retry lines, meaning the failure window is not
-entered at all. Cost: ~20 W extra at idle (10.6 W → 30.6 W measured); load behaviour
+launches survived **8/8 consecutive launches and over an hour of sustained play**
+(p≈1.5e-5 by chance) with dmesg completely silent — not even transient-retry lines,
+meaning the failure window is not entered at all. Cost: ~20 W extra at idle (10.6 W → 30.6 W measured); load behaviour
 unchanged. Details, exact commands, and caveats in the
 [runbook](docs/egpu-runbook-v2.md).
 
