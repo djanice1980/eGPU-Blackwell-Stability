@@ -136,8 +136,15 @@ so Vulkan apps present via AMD.
 - **Driving the KDE/Wayland desktop from the eGPU.** Sparkles and blanking, reproducible.
   Tested against stock driver, a hand-written detection patch, and apnex's 5-patch set.
   Not a cable issue — the same short cable is stable on the AMD iGPU at the same mode.
-  apnex runs compute-only and blacklists `nvidia_drm`/`nvidia_modeset`; the display path
-  over a Thunderbolt tunnel has no known-good report on Blackwell + Linux.
+  apnex runs compute-only and blacklists `nvidia_drm`/`nvidia_modeset`.
+  **Correction (Aug 30):** display over a USB4 tunnel on Blackwell + Linux is NOT
+  universally broken — DamianKA1993 reports working scanout on his Ryzen mini PC +
+  AORUS 5060 Ti AI BOX driving a 2560x1080 ultrawide plugged into the enclosure (AAA
+  gaming, CachyOS forum). That is (a) a different AMD USB4 host, and (b) ~1080p-class
+  bandwidth. So the GZ302EA scanout failure is likely host-platform-specific (consistent
+  with the stale-MPIO finding in the firmware analysis) rather than GSP-universal — and
+  it raises the odds on the still-untested conservative profile (1080p60, no HDR/VRR)
+  from open item 4.
 
 **Cold-boot USB4 tunnel — VERDICT (Aug 25): unfixable locally, live with the replug.**
 Symptom: at cold boot with enclosure attached, both NHIs register (domain0/domain1) but no
