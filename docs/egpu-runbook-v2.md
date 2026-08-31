@@ -181,10 +181,19 @@ stalls). This is a Linux cgroup bug interacting with tasks that died holding a v
 device — reportable to kernel bugzilla, not fixable driver-side.
 
 **Unresolved, unrelated to the GPU**
-- Shutdown does not power off. `echo o > /proc/sysrq-trigger` also fails, so it is
-  ACPI S5 / firmware, not Linux. Reboot works. Check for a BIOS update.
+- ~~Shutdown does not power off.~~ **FIXED by a kernel update (observed Aug 30, on
+  7.2.2-1-cachyos; last known-broken on 7.2.0).** The original attribution — "sysrq-o
+  also fails, so it is ACPI S5 / firmware, not Linux" — was WRONG: a kernel change fixed
+  it, so the trigger was in how Linux prepared the platform for S5 (likely device
+  quiesce/teardown ordering), even though the hang manifested below the sysrq layer.
+  Lesson recorded: "fails below Linux's last visible step" does not mean "not caused by
+  Linux." This also withdraws the S5 leg of the SMU-firmware symptom mapping in
+  `gz302ea-bios311-firmware-analysis.md` — the version-currency facts there stand, but
+  S5 is no longer evidence for them.
 - Suspend enters s2idle and never resumes. Requires hard power-off.
   `amd_pmc` is loaded and bound to `AMDI000B:00`, so not a missing-driver problem.
+  **Worth one retest on ≥7.2.2** — the S5 fix proves this kernel range touched
+  power-state paths relevant to this platform.
 
 ---
 
@@ -466,8 +475,12 @@ a silent no-op here — do not chase it.
    and the sudoers scope. Its "prevent PCIe link stalls / improper driver auto-binding"
    udev rules are the interesting part (adjacent to the GL-context-creation failure);
    avoid Mode 4 entirely.
-6. **S5 poweroff test** with the eGPU cable fully detached — would split USB4-S5
-   sequencing from an independent ACPI bug. Never run.
+6. ~~**S5 poweroff test** with the eGPU cable fully detached~~ — SUPERSEDED: S5
+   poweroff fixed by kernel update (7.2.2), see the Unresolved section. Follow-up
+   worth watching instead: whether the same kernel range changed the **cold-boot
+   tunnel lottery** — the watched fix ("thunderbolt: Fix PCIe device enumeration
+   with delayed rescan") may have landed in this window. Track cold-boot success
+   rate on ≥7.2.2 before concluding the ~70% failure figure still holds.
 7. **Persistent journal** is worth enabling for future crashes:
    `sudo mkdir -p /var/log/journal && sudo systemd-tmpfiles --create --prefix /var/log/journal && sudo systemctl restart systemd-journald`
    Then `journalctl -b -1 -k` reads the previous boot after a hard crash.

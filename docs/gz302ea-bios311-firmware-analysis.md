@@ -39,13 +39,13 @@ tool-side parsing noise for these entry types, not tampering.)
    ships 0.10.2; four revisions of MPIO fixes exist. The unchanged USB4 PHY firmware
    plus changed MPIO firmware matches the symptom: link quality is fine once up; link
    *establishment/bring-up at boot* is what fails.
-2. **s2idle never resumes; S5 poweroff hangs** (sysrq 'o' also fails → firmware-level).
-   **SMU firmware is the power-state-transition processor.** ASUS ships A.64.2; seven
-   revisions of SMU fixes exist in current PI. Additionally, Minisforum's changelog shows
-   they explicitly added a "TBT5 S5 sequence" (v1.0) — evidence that USB4/TB S5
-   sequencing is a real firmware concern on this platform generation.
-   **Untested locally:** whether GZ302EA S5 succeeds with the eGPU cable fully detached —
-   worth one test before attributing the hang solely to stale SMU firmware.
+2. **s2idle never resumes; ~~S5 poweroff hangs~~** — **RETRACTED for S5 (Aug 30):** the
+   S5 poweroff hang was fixed by a Linux kernel update (broken on 7.2.0, fixed by
+   7.2.2-1-cachyos) with no BIOS change, so it was kernel-side despite sysrq 'o' also
+   failing — it is no longer evidence for the SMU-firmware mapping. The s2idle
+   no-resume claim stands but needs a retest on ≥7.2.2 before being cited. The SMU
+   version delta itself (A.64.2 vs A.64.9) remains a fact; only this symptom
+   attribution is withdrawn.
 3. **Vendor-fixable Linux TB bugs are precedented on this platform:** Minisforum 1.05
    changelog: *"Fixup TBT5 device can't use if plug after enter Ubuntu"* — a
    Linux-specific tunnel bug fixed in BIOS, plus firmware-side ASPM disable for TBT5.
