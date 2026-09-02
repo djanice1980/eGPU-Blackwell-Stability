@@ -24,7 +24,7 @@ patch fixes it.
 ```sh
 git clone https://github.com/djanice1980/eGPU-Blackwell-Stability
 cd eGPU-Blackwell-Stability
-./install.sh          # interactive; or --all / --patches / --widget / --clocklock
+./install.sh          # interactive; or --all / --patches / --hook / --widget / --clocklock
 ```
 
 `./install.sh --check` reports what's installed and what's missing without changing
