@@ -15,9 +15,10 @@ driver patches, a read-only Plasma 6 status widget, and the field notes behind t
 **State of play:** eGPU auto-detected as external, clean attach, CUDA and Vulkan
 compute/render-offload stable for hours at full power (~260 W sustained over the
 tunnel). PRIME render offload works per-app while the desktop stays composited on the
-iGPU. Driving the desktop *from* the eGPU, or hanging a monitor off it, does not work
-on Blackwell over a tunnel — that failure is inside GSP firmware and no kernel-side
-patch fixes it.
+iGPU — including GL titles, with the clock locks held (see below). Driving the desktop
+*from* the eGPU, or hanging a monitor off it, fails on this host (sparkles, then GPU
+loss) — but a working scanout report on other AMD USB4 hardware means that failure is
+host-platform-specific, not universal; see the runbook.
 
 ## Quick start
 
