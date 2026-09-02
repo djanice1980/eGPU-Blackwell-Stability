@@ -47,6 +47,20 @@ build instructions (including the Clang/LLVM flags CachyOS-style kernels require
 module options, and the platform flags that break AMD USB4 hosts (`pcie_aspm=off`,
 `pcie_ports=native` — don't).
 
+## [`pacman-hook/`](pacman-hook/)
+
+The patched modules are not DKMS-managed, so a kernel update normally means booting
+driverless until you rebuild. This pacman hook closes that gap: on every
+`linux-cachyos` upgrade it rebuilds and installs the patched modules **for the new
+kernel, inside the pacman transaction**, so the next reboot always has a driver.
+Guards: refuses on `nvidia-utils`/tree version mismatch (modules and userspace must
+match), warns if the patches are missing from the tree, auto-detects Clang-built
+kernels, verifies vermagic, and is a no-op when the modules are already current.
+
+```sh
+sudo bash pacman-hook/install-hook.sh
+```
+
 ## [`widget/`](widget/)
 
 **Blackwell eGPU Status** — a KDE Plasma 6 panel widget with live eGPU telemetry

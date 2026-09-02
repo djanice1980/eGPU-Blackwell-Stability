@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Rebuilds the patched NVIDIA open modules for a newly installed kernel.
+# Invoked by the pacman hook after a linux-cachyos upgrade (also runnable
+# manually: sudo nvidia-egpu-rebuild). Reads /etc/blackwell-egpu/rebuild.conf
+# for TREE (patched open-gpu-kernel-modules checkout) and BUILD_USER.
+set -euo pipefail
+export PATH=/usr/bin:/usr/sbin:/bin:/sbin
+
+CONF=/etc/blackwell-egpu/rebuild.conf
+if [ ! -f "$CONF" ]; then
+    echo "[egpu-rebuild] $CONF missing -- run install-hook.sh again" >&2
+    exit 1
+fi
+# shellcheck disable=SC1090
+. "$CONF"
+: "${TREE:?TREE not set in $CONF}"
+: "${BUILD_USER:?BUILD_USER not set in $CONF}"
+KERNEL_PKG="${KERNEL_PKG:-linux-cachyos}"
+KERNEL_SUFFIX="${KERNEL_SUFFIX:-cachyos}"
+
+fail() { echo "[egpu-rebuild] FAILED: $*" >&2
+         echo "[egpu-rebuild] Fix and rerun manually: sudo nvidia-egpu-rebuild" >&2
+         exit 1; }
+
+PKGVER=$(pacman -Q "$KERNEL_PKG" 2>/dev/null | awk '{print $2}') || fail "$KERNEL_PKG not installed"
+KVER="${PKGVER}-${KERNEL_SUFFIX}"
+
+[ -f "/usr/lib/modules/$KVER/build/Makefile" ] || fail "headers for $KVER missing (install ${KERNEL_PKG}-headers)"
+[ -d "$TREE" ] || fail "driver tree not found at $TREE"
+
+TREEV=$(grep -m1 -oE '[0-9]+\.[0-9]+\.[0-9]+' "$TREE/version.mk" 2>/dev/null || echo unknown)
+UTILS=$(pacman -Q nvidia-utils 2>/dev/null | awk '{print $2}' | cut -d- -f1 || echo none)
+if [ "$TREEV" != "$UTILS" ]; then
+    fail "tree version ($TREEV) != nvidia-utils ($UTILS). Kernel modules and userspace must match. Pin nvidia-utils (IgnorePkg) or port the patches, then rerun."
+fi
+
+grep -q os_pci_is_thunderbolt_attached "$TREE/kernel-open/nvidia/os-pci.c" 2>/dev/null \
+    || echo "[egpu-rebuild] WARNING: eGPU patches not detected in $TREE -- building anyway (stock behavior)" >&2
+
+# Already built for this kernel at the right version? Then nothing to do.
+CUR=$(modinfo -k "$KVER" -F version nvidia 2>/dev/null || true)
+if [ "$CUR" = "$TREEV" ]; then
+    echo "[egpu-rebuild] nvidia $CUR already installed for $KVER -- nothing to do"
+    exit 0
+fi
+
+FLAGS=""
+if grep -qs '^CONFIG_CC_IS_CLANG=y' "/usr/lib/modules/$KVER/build/.config"; then
+    FLAGS="LLVM=1 CC=clang LD=ld.lld"
+fi
+
+echo "[egpu-rebuild] Building nvidia $TREEV for $KVER ($FLAGS) -- takes a few minutes..."
+# shellcheck disable=SC2086
+runuser -u "$BUILD_USER" -- make -C "$TREE" clean >/dev/null 2>&1 || true
+# shellcheck disable=SC2086
+runuser -u "$BUILD_USER" -- make -C "$TREE" -j"$(nproc)" modules KERNEL_UNAME="$KVER" $FLAGS \
+    > /tmp/nvidia-egpu-rebuild.log 2>&1 \
+    || fail "build error -- see /tmp/nvidia-egpu-rebuild.log"
+
+make -C "$TREE" modules_install -j"$(nproc)" KERNEL_UNAME="$KVER" >> /tmp/nvidia-egpu-rebuild.log 2>&1 \
+    || fail "modules_install error -- see /tmp/nvidia-egpu-rebuild.log"
+depmod "$KVER"
+
+VM=$(modinfo -k "$KVER" -F vermagic nvidia 2>/dev/null | awk '{print $1}')
+[ "$VM" = "$KVER" ] || fail "vermagic ($VM) does not match $KVER"
+
+echo "[egpu-rebuild] OK: patched nvidia $TREEV installed for $KVER (loads on next boot into that kernel)"

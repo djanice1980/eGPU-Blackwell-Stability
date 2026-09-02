@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = linux-cachyos
+Target = linux-cachyos-headers
+
+[Action]
+Description = Rebuilding patched NVIDIA eGPU modules for the new kernel...
+When = PostTransaction
+Exec = /usr/local/bin/nvidia-egpu-rebuild
