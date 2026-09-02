@@ -70,6 +70,21 @@ The failures are about *what phase of GPU work* happens over the tunnel, not whi
 - Workarounds for GL titles: Zink (`MESA_LOADER_DRIVER_OVERRIDE=zink GALLIUM_DRIVER=zink`,
   drop `__GLX_VENDOR_LIBRARY_NAME`) routes GL through Vulkan — untested; or just run
   older GL titles on the 8060S, which handles them easily.
+- **Fragile — MMU fault during sustained play (NEW, Sep 1, distinct from the launch
+  killer):** a title that launched clean and ran **over an hour** died mid-session with
+  `Xid 31 … MMU Fault: ENGINE GR_HOST0 HUBCLIENT_ESC0 faulted @ 0x100_00000000 …
+  FAULT_PDE ACCESS_TYPE_VIRT_READ` (Wolfenstein: TNO). ~1 h later the driver declared the
+  GPU lost (`cleanupGpuLostStateAtomic: GPU 0 lost via detector_class=0`, then Xid 154 /
+  PF FLR). This is **not** the P-state context-creation death — it is a virtual-memory
+  page fault deep into a running render, a different and much rarer failure class (same
+  Xid 31 MMU-fault family seen on the scanout path). **Clocks were OFF for this run**, so
+  it does not undercut the clock-lock result, but it also is not yet known whether locks
+  help here — locking targets P-state transitions, and a mid-render MMU fault may be
+  independent of clocks. Open test: a full locked long-session (P0 held) to see whether
+  this fault recurs. C5 contained it cleanly (single detector_class line, no dead-bus
+  cascade, no cgroup/D-state wedge). Recovery notes for this one: see the soft-loss
+  procedure below — the device kept answering config reads (soft loss), and unplugging the
+  cable with `nvidia_drm` still loaded froze the display (KWin held the DRM node).
 
 **Clock-lock mitigation for the GL-context-creation killer (Aug 30 — CONFIRMED, 8/8):**
 Pinning the card in P0 so the fragile phase never crosses a P-state transition:
@@ -90,25 +105,48 @@ nvidia-persistenced to keep them — it blocks the `modprobe -r` the recovery pr
 needs. If the tally keeps holding, the ergonomic endgame is a per-game wrapper:
 lock → launch → reset (`--reset-gpu-clocks --reset-memory-clocks`) on exit.
 
-**Recovery procedure after ANY GPU death (learned the hard way, Aug 26):**
-A host reboot alone does NOT reset the card (enclosure keeps it powered; wedged GSP
-persists). An enclosure power-cycle alone does NOT clear the host (driver reuses stale
-state → AMD-Vi IO_PAGE_FAULT storm at re-probe, repeating identical addresses).
-BOTH sides must reset, in this order:
+**Recovery procedure after ANY GPU death.** A host reboot alone does NOT reset the card
+(enclosure keeps it powered; wedged GSP persists). An enclosure power-cycle alone does NOT
+clear the host (driver reuses stale state → AMD-Vi IO_PAGE_FAULT storm at re-probe,
+repeating identical addresses). BOTH sides must reset — but **the ORDER depends on
+whether it is a soft or hard loss.** Decide first:
+
+```
+setpci -s <gpu-addr> VENDOR_ID     # e.g. 03:00.0
+```
+- Returns `10de` (device still answers config reads, no fault storm in dmesg) = **SOFT
+  loss** — the tunnel stays `authorized`, device still in lspci, only driver-side state
+  died (`nvidia-smi` reports no devices).
+- Returns `ffff`, or dmesg is storming `IO_PAGE_FAULT` = **HARD loss / faulting device.**
+
+**SOFT loss — unload modules BEFORE unplugging (corrected Sep 1, learned the hard way):**
+1. Quit the app holding the GPU (the game window).
+2. `sudo fuser -k /dev/nvidia*` if anything still holds it.
+3. `sudo modprobe -r nvidia_drm nvidia_modeset nvidia_uvm nvidia` — unload the DRM node
+   FIRST, while the device is on the bus but no longer faulting. This releases KWin's
+   handle cleanly. (Module busy = something still holds it; find with `fuser`, don't force.)
+4. THEN unplug the TB cable.
+5. Enclosure power switch off, 15 s, on.
+6. Replug; module autoloads on attach; verify `external GPU detected`, no Xid.
+   **Why this order:** with `nvidia_drm` loaded, KWin holds the card's DRM node open as a
+   *secondary* device even though it composits on the AMD 8060S. Pulling the cable first
+   rips that node out from under the compositor → **both displays freeze** (OS stays
+   responsive underneath; hard power-off required). Confirmed Sep 1.
+
+**HARD loss / faulting device — cable OUT first (original order):**
 1. Unplug the TB cable FIRST (device off the bus).
 2. THEN `sudo modprobe -r nvidia_uvm nvidia` — instant with the device gone.
-   **NEVER rmmod while a faulting device is on the bus** — teardown wedges in-kernel
-   and freezes the session.
+   **NEVER rmmod while a faulting device is on the bus** — teardown wedges in-kernel and
+   freezes the session.
 3. Enclosure power switch off, 15 s, on.
 4. Replug cable; module autoloads on attach; verify no IO_PAGE_FAULT in dmesg.
-Also **NEVER** `echo 1 > .../remove` + rescan on a device the compositor holds open —
-even "holds but not rendering." It freezes KWin. (Two frozen sessions prove both rules.)
 
-**Soft losses.** Some losses are "soft": the tunnel stays `authorized`, the device stays
-enumerated in lspci, and only driver-side state dies (`nvidia-smi` reports no devices).
-The both-sides recovery above applies regardless. Note: PCIe-layer AER visibility for
-these was only ever obtained under `pcie_ports=native`, which is removed — losses are
-silent at the PCIe layer again, and that is the accepted trade.
+Also **NEVER** `echo 1 > .../remove` + rescan on a device the compositor holds open —
+even "holds but not rendering." It freezes KWin. (Frozen sessions prove all these rules.)
+
+Note: PCIe-layer AER visibility for soft losses was only ever obtained under
+`pcie_ports=native`, which is removed — losses are silent at the PCIe layer again, and
+that is the accepted trade.
 
 **Separate issue — external display goes dark after DPMS off (amdgpu, NOT the eGPU).**
 The monitor is on the laptop HDMI driven by the AMD iGPU; this has nothing to do with
