@@ -31,7 +31,13 @@ KVER="${PKGVER}-${KERNEL_SUFFIX}"
 TREEV=$(grep -m1 -oE '[0-9]+\.[0-9]+\.[0-9]+' "$TREE/version.mk" 2>/dev/null || echo unknown)
 UTILS=$(pacman -Q nvidia-utils 2>/dev/null | awk '{print $2}' | cut -d- -f1 || echo none)
 if [ "$TREEV" != "$UTILS" ]; then
-    fail "tree version ($TREEV) != nvidia-utils ($UTILS). Kernel modules and userspace must match. Pin nvidia-utils (IgnorePkg) or port the patches, then rerun."
+    fail "tree version ($TREEV) != nvidia-utils ($UTILS). Kernel modules and userspace must match.
+[egpu-rebuild] To port: cd $TREE && git stash -u && git fetch --tags && git checkout $UTILS
+[egpu-rebuild]          then re-apply the patches (see patches/README.md in the
+[egpu-rebuild]          eGPU-Blackwell-Stability repo; expect rebasing work on C5),
+[egpu-rebuild]          then: sudo nvidia-egpu-rebuild
+[egpu-rebuild] Until then the INSTALLED modules ($TREEV) no longer match userspace ($UTILS):
+[egpu-rebuild] the driver will fail on next reload/reboot. Downgrade nvidia-utils to revert."
 fi
 
 grep -q os_pci_is_thunderbolt_attached "$TREE/kernel-open/nvidia/os-pci.c" 2>/dev/null \

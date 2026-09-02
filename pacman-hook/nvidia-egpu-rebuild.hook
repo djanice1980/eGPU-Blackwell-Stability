@@ -4,6 +4,10 @@ Operation = Upgrade
 Type = Package
 Target = linux-cachyos
 Target = linux-cachyos-headers
+# nvidia-utils is a trigger so a userspace upgrade past the patched tree's
+# version fails LOUDLY at update time (port the patches, then rerun) instead
+# of surfacing later as a broken driver reload.
+Target = nvidia-utils
 
 [Action]
 Description = Rebuilding patched NVIDIA eGPU modules for the new kernel...
