@@ -18,18 +18,73 @@ The comparison below covers only the shared, integrated-USB4-relevant components
 
 ## PSP firmware directory comparison
 
-| Component | ASUS 311 | MF 1.09 (current PI) | Notes |
-|---|---|---|---|
-| SMU firmware (MP1, `SMU_OFFCHIP_FW`) | **A.64.2.0** | **A.64.9.0** | 7 revisions behind |
-| MPIO firmware (`MPIO_FW~0x5d`) | **0.10.2.FA** | **0.10.6.91** | 4 revisions behind |
-| ABL0 (AGESA bootloader) | 53.12.10.12 | 53.12.10.15 | behind |
-| USB4 controller/PHY fw (`USB4~0xa6`) | 3.91.47.47 | 3.91.47.47 | **identical** |
-| USB_TYPEC_DP | 3.77.72.93 | 3.77.72.93 | identical |
-| USB_SS_FW | 3.73.94.20 | 3.73.94.20 | identical |
-| `AmdUsb4Dxe` (AGESA UEFI module) | 132,096 B, md5 22c8137f… | 132,736 B, md5 94baadbc… | different (newer) build |
+| Component | ASUS 311 | **ASUS 314** | MF 1.09 (current PI) | Notes |
+|---|---|---|---|---|
+| SMU firmware (MP1, `SMU_OFFCHIP_FW`) | **A.64.2.0** | **A.64.7.0** | **A.64.9.0** | 311 was 7 behind; 314 is 2 behind (+5) |
+| MPIO firmware (`MPIO_FW~0x5d`) | **0.10.2.FA** | **0.10.4.76** | **0.10.6.91** | 311 was 4 behind; 314 is 2 behind (+2) |
+| ABL0 (AGESA bootloader) | 53.12.10.12 | **53.12.10.15** | 53.12.10.15 | 314 fully caught up |
+| USB4 controller/PHY fw (`USB4~0xa6`) | 3.91.47.47 | 3.91.47.47 | 3.91.47.47 | **identical across all three** |
+| USB_TYPEC_DP | 3.77.72.93 | 3.77.72.93 | 3.77.72.93 | identical |
+| USB_SS_FW | 3.73.94.20 | 3.73.94.20 | 3.73.94.20 | identical |
+| SMU_OFF_CHIP_FW_2 / MP5_FW | (not recorded) | A.64.7.0 | — | move with SMU |
 
-(psptool `sha384_inconsistent` flags on MPIO/ABL entries appear on both images equally —
+(psptool `sha384_inconsistent` flags on MPIO/ABL entries appear on all images equally —
 tool-side parsing noise for these entry types, not tampering.)
+
+## BIOS 314 update (Jul 26 2026 build; analyzed Sep 2 2026)
+
+ASUS 314 (`GZ302EA.314`, 32 MiB + 2 KiB ASUS header, same capsule shape as 311) advances
+exactly the components this analysis fingered, toward the known-good reference:
+
+- **SMU A.64.2.0 → A.64.7.0** (+5 revisions) — the power-state-transition processor;
+  the s2idle-no-resume suspect. Biggest single move in the image.
+- **MPIO 0.10.2.FA → 0.10.4.76** (+2) — IO-die lane/PHY bring-up incl. the USB4 host
+  routers; the primary cold-boot-tunnel-establishment suspect.
+- **ABL0 → 53.12.10.15** — now matches current PI.
+- USB4 PHY / TYPEC / SS firmware unchanged — they were already identical to the working
+  reference, consistent with "link quality is fine, establishment is what fails."
+
+So 314 is directly on-target for the two remaining hardware open items (cold-boot USB4
+lottery, s2idle resume). Same caveat as below still holds: version movement toward the
+reference is not proof these deltas fix these bugs — AMD PI changelogs are NDA'd.
+
+**Pending: flash + retest.** The clean same-board before/after this doc always wanted.
+After flashing, measure (1) cold-boot tunnel success rate with enclosure attached (was
+~70% failure on 311, though re-baseline on kernel 7.2.2 first — see runbook), and
+(2) whether s2idle now resumes. The S5-poweroff hang is NOT a valid 314 test — it was
+already fixed by kernel 7.2.2, not firmware (see runbook retraction).
+
+Capsule SHA-256 (extracted from `ASUS_GZ302EA_314_BIOS_Update.exe`):
+`accf8cad56b556b007689b82b426d27a1e36fc9722508a84a86d99f1c0d22ba7`
+
+## Cross-vendor PI intelligence (Sep 2 2026)
+
+AMD PI (the "StrixHaloPI-FP11" blob carrying SMU/MPIO/AGESA) is shared across all Strix
+Halo vendors, so other OEMs' public changelogs are a proxy for what AMD changed at a given
+PI level — AMD's own notes are NDA'd. Landscape as of this date:
+
+| Vendor BIOS | AMD PI | Relevance |
+|---|---|---|
+| Framework Desktop 3.04 | 1.0.0.2 | baseline PI 1.0.0.2 |
+| Framework Desktop 3.06 | 1.0.0.2c | newest public PI seen |
+| Minisforum SHWSA 1.09 | 1.0.0.2b patchC | the "current PI" reference used above |
+| ASUS GZ302EA 314 | ~1.0.0.2/2a-class (inferred from SMU A.64.7 / MPIO 0.10.4) | still behind Framework/MF |
+
+**Key cross-vendor finding — USB4 tunneling is PI-sensitive in BOTH directions.**
+Framework users reported that the 3.04→3.05 BIOS jump (a PI bump) *broke* USB4 PCIe
+tunneling: a TB/USB4 NVMe enclosure fell back to a SCSI/USB3.2 path (40→10 Gbps), i.e.
+PCIe tunneling stopped establishing. This is direct evidence that AMD PI revisions move
+USB4/Thunderbolt tunnel behavior on this exact silicon — the same subsystem as the
+GZ302EA cold-boot lottery — and that a PI change can regress it, not only fix it.
+
+**Practical consequence for flashing 314:** do not assume it can only help the cold-boot
+tunnel. Treat cold-boot success rate as a metric to re-measure after flashing, in both
+directions, and keep the 311 findings on record in case 314 regresses tunneling the way
+Framework's 3.05 did for some hardware. (The SMU/s2idle side has less regression
+precedent and a bigger version jump, so it's the more likely net win.)
+
+Sources: Framework knowledgebase + community BIOS 3.03–3.06 threads and the
+"USB4 / Thunderbolt issues on Framework Desktop" thread (frame.work), Sep 2026.
 
 ## Mapping to observed GZ302EA-on-Linux failures
 
