@@ -446,6 +446,23 @@ CUDA needs nothing — it targets the card directly regardless of display topolo
 
 Author's own framing: **a mitigation, not a fix.** Behaviour still varies by host.
 
+**Patch-free counterexample (DamianKA1993, Sep 1):** the same JHL9480 bridge
+(`HotPlug- Surprise+`), stock `nvidia-open` DKMS, zero kernel cmdline flags, zero
+modprobe blacklists — stable on his Ryzen mini PC + AORUS 5060 Ti AI BOX, carried by
+userspace alone: `NVreg_DynamicPowerManagement=0` at modprobe + P0 clock locks + his
+udev attach-gating. So the patch set is not *universally* required on this bridge.
+What does NOT transfer to the GZ302EA without retesting: (a) "zero kernel flags" —
+`pcie_port_pm=off` was proven required here (link drops ~1 s after module load without
+it); (b) his udev settling/gating operates at the PCI layer and cannot touch this
+host's below-PCI cold-boot failure; (c) dropping C3/C5 forfeits the loss-containment
+that demonstrably mattered on this tunnel (single-line loss signature vs. dead-bus
+cascade + the cgroup session wedge). His "don't override platform ACPI" advice agrees
+with findings here (`pcie_ports=native` / `pcie_aspm=off` broke MSI-X when *added*).
+If a patch-free trial is ever wanted: one variable at a time — stock modules first with
+the current cmdline intact, full launch gauntlet + attach/detach cycles, and expect
+losses (if any) to be uglier without C5. Not scheduled; current config is validated and
+stable.
+
 **`NVreg_EnableGpuFirmware=0` does NOT apply to Blackwell.** It appears in eGPU guides
 (hvico's GZ302EA+Core X V2 repo with an Ampere 3090, cpburnz's Strix Halo gist) because on
 the proprietary driver through Ada it falls back to legacy CPU-based RM and sidesteps GSP
