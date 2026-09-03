@@ -491,7 +491,13 @@ userspace alone: `NVreg_DynamicPowerManagement=0` at modprobe + P0 clock locks +
 udev attach-gating. So the patch set is not *universally* required on this bridge.
 What does NOT transfer to the GZ302EA without retesting: (a) "zero kernel flags" —
 `pcie_port_pm=off` was proven required here (link drops ~1 s after module load without
-it); (b) his udev settling/gating operates at the PCI layer and cannot touch this
+it). **This is a HOST-PLATFORM difference, not an enclosure one** (correction Sep 3):
+both enclosures are self-powered mains devices that deliver USB-PD *upstream* to the
+host — the Core X V2 supplies up to 100 W to the Z13, just as his AORUS does to his mini
+PC. Neither draws bus power from the host, so the flag requirement is about how the
+GZ302EA / Strix Halo laptop power-manages its own PCIe ports, not about enclosure power
+topology. (An earlier "self-powered vs host-powered" framing was wrong.)
+(b) his udev settling/gating operates at the PCI layer and cannot touch this
 host's below-PCI cold-boot failure; (c) dropping C3/C5 forfeits the loss-containment
 that demonstrably mattered on this tunnel (single-line loss signature vs. dead-bus
 cascade + the cgroup session wedge). His "don't override platform ACPI" advice agrees
