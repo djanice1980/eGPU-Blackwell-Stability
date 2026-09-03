@@ -234,9 +234,17 @@ the PCI layer to see. This is the same shape as Framework's PI-regression report
 router reset at probe, so a port that firmware left in USB3 fallback is never
 renegotiated. `host_reset=1` (the default) resets the router and re-runs link
 negotiation — potentially a software fix for the cold-boot lottery at the cost of the
-~58 s rebuild on boots where firmware had already built a tunnel. Test script:
-reload the thunderbolt module with `host_reset=1` on a failed boot (no child device
-present) and watch whether a router appears without a physical replug.
+~58 s rebuild on boots where firmware had already built a tunnel.
+**Cannot be tested at runtime:** `/sys/module/thunderbolt/parameters/host_reset` is
+read-only (0444) and the module is pinned by `typec` (UCSI), so reloading it means
+tearing down Type-C/PD management — not worth it. The test is a cmdline change:
+drop `thunderbolt.host_reset=0` from `/etc/default/limine`, `sudo limine-update`, then
+tally cold boots with the enclosure attached. Reversible; worst case is the ~58 s
+tunnel rebuild on boots that would have worked anyway.
+
+**Replug data point (Sep 3 13:31, BIOS 314):** physical replug on the failed boot →
+`usb4_port2 link=usb4`, `thunderbolt 0-2: Razer Core X V2`, `external GPU detected`
+3 s later, no Xid. Replug remains 100%.
 
 **GPU-loss → session deadlock (kernel bug, discovered Aug 25).**
 When the GPU drops under display-path load with nvidia_drm loaded, C5 contains the driver
