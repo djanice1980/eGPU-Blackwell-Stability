@@ -215,7 +215,8 @@ The ~70% failure figure above was measured on kernel 7.2.0 + BIOS 311 — re-bas
 |---|---|---|---|---|
 | Aug 30 14:19 | 7.2.2 | 311 | success | tunnel up, card enumerated (driverless boot, see kernel-update trap) |
 | Sep 3 11:06 | 7.2.2 | 311 | success | `thunderbolt 0-2: Razer Core X V2` 6 s after USB init — firmware-prebuilt tunnel preserved by `host_reset=0` |
-| Sep 3 13:19 | 7.2.2 | **314** | FAIL | first boot after the flash (settings reset) — contaminated sample, no TB device lines at all |
+| Sep 3 13:19 | 7.2.2 | **314** | FAIL | first boot after the flash (settings reset) — contaminated sample; `usb4_port link=none`, USB3 fallback |
+| Sep 3 13:5x | 7.2.2 | 314 | **success** | **first boot with `host_reset=1`** (flag removed from cmdline). Firmware had prebuilt the tunnel; the reset tore it down at 7.25 s (`pciehp Link Down`), router back at 7.52 s, PCIe `Link Up` at 18.3 s, `external GPU detected` at 19.65 s. **Rebuild cost ≈ 12 s**, not the ~58 s measured in August. Does not yet prove the reset rescues a `link=none` boot — needs a sample where firmware left the port in USB3 fallback. |
 
 Keep adding rows. Two clean successes on 7.2.2/311 already look better than the old
 ~30%; whether 314 helps or hurts needs several uncontaminated boots.
@@ -281,11 +282,12 @@ device — reportable to kernel bugzilla, not fixable driver-side.
 ```
 gpiolib_acpi.ignore_wake=AMDI0030:00@58
 pcie_aspm.policy=performance
-pcie_ports=native
 thunderbolt.clx=0
 pcie_port_pm=off
 pci=realloc=off
 ```
+(Current as of Sep 3 2026 — `pcie_ports=native` removed Aug 26, `thunderbolt.host_reset=0`
+removed Sep 3; see the bullets for why.)
 
 - `pcie_port_pm=off` — **required.** Without it the PCIe link drops ~1 s after the nvidia
   module loads (`pciehp: Link Down` / `Card not present`).
@@ -297,13 +299,15 @@ pci=realloc=off
   `pci=assign-busses,hpbussize=...,realloc`. An HPE advisory documents `pci=realloc` removing
   BIOS-assigned BARs without reassigning them.
 - `thunderbolt.clx=0` — disables TB low-power lane states.
-- `thunderbolt.host_reset=0` — **STILL ACTIVE** (correction, Aug 26: an earlier edit did
-  not take; every boot in this log has run with `=0`. "Removing host_reset didn't fix cold
-  boot" was therefore never actually tested — treat as an untested variable.)
-  Originally added for: The `=0` advice is for
-  resume-time tunnel protection (irrelevant here, suspend is disabled) and Intel-host ReBAR
-  sizing. Default `true` resets the USB4v2 host router at probe — the kernel's built-in
-  "replug" for boot-present topology. Removal did NOT fix the cold-boot lottery (see below).
+- `thunderbolt.host_reset=0` — **REMOVED Sep 3 2026 (default `=1` now in effect).**
+  History: added in August to preserve firmware-prebuilt tunnels; an Aug 26 attempt to
+  remove it never took, so it was never actually tested until now. Why it was removed:
+  the cold-boot failure fingerprint is a port left in USB3 fallback (`usb4_port link=none`),
+  and `=0` tells the kernel to skip the host-router reset that would renegotiate it. With
+  the default `=1`, the first boot showed the reset tearing down firmware's tunnel at
+  7.25 s and the GPU detected at 19.65 s — a **~12 s rebuild cost**, not the ~58 s measured
+  in August (kernel 7.2.2 / BIOS 314 era). Whether it rescues a genuine fallback boot is
+  still being tallied (see the cold-boot section). Revert = re-append `=0` + `limine-update`.
 - `pcie_ports=native` — **TRIED AND REMOVED (Aug 26). DO NOT RE-ADD.** Forces kernel-native
   PCIe control past the firmware `_OSC` denial. It does buy AER visibility on GPU loss
   (`AER: Uncorrectable (Non-Fatal) error message received from 0000:63:00.0`, previously
