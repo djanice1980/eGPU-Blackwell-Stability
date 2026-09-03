@@ -86,6 +86,49 @@ precedent and a bigger version jump, so it's the more likely net win.)
 Sources: Framework knowledgebase + community BIOS 3.03–3.06 threads and the
 "USB4 / Thunderbolt issues on Framework Desktop" thread (frame.work), Sep 2026.
 
+## Flashing the GZ302EA BIOS from Linux (VERIFIED Sep 3 2026, 311 → 314)
+
+The firmware is **AMI Aptio** (DMI vendor "American Megatrends International", release
+5.36) — Insyde tools (H2OFFT) do not apply. ASUS distributes the BIOS as a **UEFI capsule**
+inside a Windows wrapper; the same capsule works through Linux's standard capsule path.
+
+**Extract the capsule** (the `.exe` is a 7z-in-PE self-extractor):
+```sh
+7z x ASUS_GZ302EA_314_BIOS_Update.exe -o x1      # yields x1/Cabfile/GZ302EA.314
+```
+`GZ302EA.314` = 32 MiB image + 2 KiB ASUS header, outer capsule GUID
+`4a3ca68b-7723-48fb-803d-578cc1fec44d` ("AMI Aptio extended EFI capsule"). The bundled
+`.inf` targets firmware GUID `0640b5c2-f018-5a2f-b136-cb52b2e83238` — identical to the
+ESRT "System Firmware" device fwupd exposes. ASUS's own page notes the update is also
+delivered via Windows Update, i.e. UpdateCapsule — the interface fwupd uses.
+
+**Route A — fwupd capsule-on-disk (verified working):**
+1. Quirk so fwupd passes the raw AMI capsule instead of re-wrapping it under the ESRT
+   GUID — `/etc/fwupd/quirks.d/asus-gz302ea.quirk`:
+   ```
+   [0640b5c2-f018-5a2f-b136-cb52b2e83238]
+   Flags = no-capsule-header-fixup
+   ```
+2. On AC power: `sudo fwupdtool install-blob GZ302EA.314 <device-id>` where the device
+   id comes from `fwupdtool get-devices` (the entry carrying that GUID). fwupd writes the
+   capsule to the ESP (`EFI/UpdateCapsule`) and sets OsIndications; nothing is flashed yet.
+3. Reboot. Firmware verifies the ASUS/AMI signature and applies the update (logo +
+   progress bar, ~1–2 min, may reboot twice).
+4. Verify: `cat /sys/class/dmi/id/bios_version` → `GZ302EA.314`; `fwupdmgr get-devices`
+   System Firmware version 788 (= 0x314; 311 showed as 785).
+
+Preconditions observed on the reference system: fwupd 2.1.7 with `uefi_capsule` plugin
+Ready; ESP = 4 GB vfat at `/boot`; Secure Boot off; efivarfs rw. Failure mode of this
+route is benign (a rejected capsule is simply not applied and fwupd reports an error).
+
+**Route B — ASUS EZ Flash 3 (in-BIOS):** copy `GZ302EA.314` to the ESP or a FAT32 USB
+stick; F2 → Advanced → ASUS EZ Flash 3 Utility → select the file. Vendor-sanctioned;
+use it if Route A ever fails. ASUS also publishes a separate "BIOS for ASUS EZ Flash
+Utility" zip on the ROG support page.
+
+Either route: **BIOS settings reset to defaults** afterwards. Kernel cmdline (limine)
+and manually built kernel modules are on disk and unaffected.
+
 ## Mapping to observed GZ302EA-on-Linux failures
 
 1. **Cold-boot USB4 tunnel never establishes** (~70% of cold boots; hotplug always works;

@@ -207,6 +207,19 @@ Real fixes to watch: kernel "thunderbolt: Fix PCIe device enumeration with delay
 (AceLan/Westerberg/Limonciello, Jan–Feb 2026) landing in a CachyOS kernel; ASUS GZ302EA
 BIOS update (Minisforum shipped a TB fix for the same platform generation in their 1.05).
 
+**Cold-boot tally since kernel 7.2.2 / BIOS 314** (enclosure attached at power-on;
+"success" = child router `N-2` appears and `external GPU detected` without a replug).
+The ~70% failure figure above was measured on kernel 7.2.0 + BIOS 311 — re-baseline here:
+
+| Date | Kernel | BIOS | Result | Notes |
+|---|---|---|---|---|
+| Aug 30 14:19 | 7.2.2 | 311 | success | tunnel up, card enumerated (driverless boot, see kernel-update trap) |
+| Sep 3 11:06 | 7.2.2 | 311 | success | `thunderbolt 0-2: Razer Core X V2` 6 s after USB init — firmware-prebuilt tunnel preserved by `host_reset=0` |
+| Sep 3 13:19 | 7.2.2 | **314** | FAIL | first boot after the flash (settings reset) — contaminated sample, no TB device lines at all |
+
+Keep adding rows. Two clean successes on 7.2.2/311 already look better than the old
+~30%; whether 314 helps or hurts needs several uncontaminated boots.
+
 **GPU-loss → session deadlock (kernel bug, discovered Aug 25).**
 When the GPU drops under display-path load with nvidia_drm loaded, C5 contains the driver
 side (single `cleanupGpuLostStateAtomic: GPU N lost via detector_class=N` line — verified
