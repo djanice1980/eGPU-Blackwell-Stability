@@ -217,6 +217,7 @@ The ~70% failure figure above was measured on kernel 7.2.0 + BIOS 311 — re-bas
 | Sep 3 11:06 | 7.2.2 | 311 | success | `thunderbolt 0-2: Razer Core X V2` 6 s after USB init — firmware-prebuilt tunnel preserved by `host_reset=0` |
 | Sep 3 13:19 | 7.2.2 | **314** | FAIL | first boot after the flash (settings reset) — contaminated sample; `usb4_port link=none`, USB3 fallback |
 | Sep 3 13:5x | 7.2.2 | 314 | **success** | **first boot with `host_reset=1`** (flag removed from cmdline). Firmware had prebuilt the tunnel; the reset tore it down at 7.25 s (`pciehp Link Down`), router back at 7.52 s, PCIe `Link Up` at 18.3 s, `external GPU detected` at 19.65 s. **Rebuild cost ≈ 12 s**, not the ~58 s measured in August. Does not yet prove the reset rescues a `link=none` boot — needs a sample where firmware left the port in USB3 fallback. |
+| Sep 3 (2nd) | 7.2.2 | 314 | **success** | `host_reset=1`, same shape: firmware-prebuilt tunnel reset at 7.37 s, `Link Up` 18.8 s, GPU 20.1 s, no Xid. Still no fallback sample. Note: 2/2 firmware-prebuilt on 314 vs. ~30% on 311 — small n, but consistent with the MPIO bump helping firmware-side link bring-up. |
 
 Keep adding rows. Two clean successes on 7.2.2/311 already look better than the old
 ~30%; whether 314 helps or hurts needs several uncontaminated boots.
