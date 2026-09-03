@@ -220,6 +220,24 @@ The ~70% failure figure above was measured on kernel 7.2.0 + BIOS 311 — re-bas
 Keep adding rows. Two clean successes on 7.2.2/311 already look better than the old
 ~30%; whether 314 helps or hurts needs several uncontaminated boots.
 
+**Failure fingerprint, sharpened (Sep 3):** on the failed boot the enclosure's *USB*
+devices enumerated normally on the xHCI (`Razer Core X V2` HID at `usb 5-1.4`), Type-C
+`port0` showed a partner sourcing power, and both host routers reported
+`usb4_portN/link = none`. I.e. the cable came up as plain **USB 3.x fallback** — the
+USB4 link itself was never negotiated, so there was no router to enumerate and nothing for
+the PCI layer to see. This is the same shape as Framework's PI-regression report
+("degrades from USB4 to USB3.2"). Diagnostic one-liner:
+`for p in /sys/bus/thunderbolt/devices/*-0/usb4_port*; do echo $p $(cat $p/link); done`
+→ `none` with the enclosure's USB gear visible in `lsusb` = USB3 fallback.
+
+**Hypothesis under test:** `thunderbolt.host_reset=0` makes the kernel *skip* the host
+router reset at probe, so a port that firmware left in USB3 fallback is never
+renegotiated. `host_reset=1` (the default) resets the router and re-runs link
+negotiation — potentially a software fix for the cold-boot lottery at the cost of the
+~58 s rebuild on boots where firmware had already built a tunnel. Test script:
+reload the thunderbolt module with `host_reset=1` on a failed boot (no child device
+present) and watch whether a router appears without a physical replug.
+
 **GPU-loss → session deadlock (kernel bug, discovered Aug 25).**
 When the GPU drops under display-path load with nvidia_drm loaded, C5 contains the driver
 side (single `cleanupGpuLostStateAtomic: GPU N lost via detector_class=N` line — verified
