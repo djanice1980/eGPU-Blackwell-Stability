@@ -158,7 +158,24 @@ retrains from scratch and succeeds. Keyboard-driven equivalent workaround:
 `kscreen-doctor output.HDMI-A-1.disable && sleep 2 && kscreen-doctor output.HDMI-A-1.enable`
 Hypothesis under test: the link is marginal because 4K120 + HDR + VRR on an HDMI **2.0**
 cable requires DSC and sits at the bandwidth ceiling, so the fast re-enable fails where a
-cold train succeeds. **Test in flight (from Aug 26 evening): dropped to 4K60**, HDR and
+cold train succeeds.
+**Sep 4 event — the picture changed.** Dark after DPMS again, but this time: (1) the kernel
+logged **nothing** — no `enabling link 1 failed`; (2) powerdevil's libddcutil display
+redetection ran at 08:27 (`Display redetection finished`) and did **not** recover it;
+(3) `kscreen-doctor output.HDMI-A-1.disable/enable` at 08:30 did recover it — kernel showed
+a fresh modeset with `HDR SB:` infoframes. So the failure is not (only) amdgpu link
+training, and the "any udev event fixes it" rule is not reliable. Monitor EDID
+(edid-decode, LG GSM/49352): FRL max **6 Gbps × 4 lanes = 24 Gbps**, **DSC 1.2a**, VRR
+40–120 Hz, 10/12-bit deep color. 4K120 10-bit HDR needs ~40 Gbps uncompressed → the link
+is FRL+DSC, i.e. the most fragile wake negotiation. Active profile at the time: 4K120,
+HDR on, WCG on, VRR Never (the Aug 26 "4K60 test" turns out to live in a *different*
+lid-state entry of `kwinoutputconfig.json`, so it was never actually in effect here).
+Controlled repro is available — no need to wait for idle blanking:
+`kscreen-doctor --dpms off` then wake with input. Ladder, one variable per step:
+(a) reproduce at 4K120+HDR; (b) HDR off (`kscreen-doctor output.HDMI-A-1.hdr.disable`),
+same mode; (c) 4K120 SDR → 4K60 SDR; (d) 1080p60. If (d) still fails → amdgpu/KWin DPMS
+bug independent of bandwidth; if it survives from (b) on → HDR re-enable on wake is the
+trigger; if only (c)/(d) survive → FRL/DSC bandwidth margin. **Test in flight (from Aug 26 evening): dropped to 4K60**, HDR and
 VRR left on, one variable. If stable for a few days → bandwidth confirmed → fix is a
 certified 48 Gbps HDMI 2.1 cable, then 120 Hz + HDR can come back. If still dark at
 60 Hz → drop VRR, then HDR. If none help, it's the amdgpu fast-path bug alone, which is
