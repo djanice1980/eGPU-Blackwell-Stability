@@ -43,8 +43,12 @@ effect so far is unknown — but every result in this runbook was obtained under
 not 0. **Fix applied Sep 5:** override renamed to `zz-nvidia-egpu.conf`; udev rule now forces
 the GPU + HDA function to `power/control=on` (verified `on` immediately, pre-reboot).
 `DynamicPowerManagement: 0` takes effect at the next module load (reboot) — verify with
-`grep DynamicPowerManagement /proc/driver/nvidia/params`. Every stability result after this
-point is under DPM=0; earlier ones were under DPM=2. Upstream context: NVIDIA/open-gpu-kernel-modules
+`grep DynamicPowerManagement /proc/driver/nvidia/params`. **VERIFIED Sep 5 after reboot:
+`DynamicPowerManagement: 0`.** Visible driver-side difference: `/proc/driver/nvidia/gpus/<bdf>/power` now reports `Runtime D3 status: Disabled` (under DPM=2 it said `Not supported`); GPU and HDA function hold `power/control=on` via the udev pin (matched by vendor/class, so it followed the card to `63:00.0`). Every stability result after this point is under DPM=0;
+earlier ones (clock-lock 8/8, sustained-play Xid 31, scanout re-test, all tally rows
+before this one) were under DPM=2. Note the eGPU can enumerate on either USB4 domain
+(`0-2` → GPU `03:00.0` via root port `00:01.1`, or `1-2` → GPU `63:00.0` via `00:01.2`),
+so never hardcode the GPU's bus address — match by vendor/class (the udev rule does). Upstream context: NVIDIA/open-gpu-kernel-modules
 #1228 / #1229 (same GZ302EA + Core X V2 host, RTX 5090).
 
 **The hard compute-only block was tried and REVERTED.** For the record, since it works
@@ -338,6 +342,7 @@ The ~70% failure figure above was measured on kernel 7.2.0 + BIOS 311 — re-bas
 | Sep 4 15:4x | **7.2.3** | 314 | **success** | First boot on a NEW kernel: the pacman hook rebuilt the patched modules in-transaction (39 s build, LLVM flags auto-detected), so the boot had a driver. Firmware-prebuilt tunnel reset at 7.13 s, `Link Up` 18.2 s, GPU 19.5 s, no Xid. External display lit on the greeter this time (the Sep 4 morning dark-greeter was a one-off so far). Tally with `host_reset` default: **3/3**. |
 | Sep 5 | 7.2.3 | 314 | success, **late** | Experiment: `pcie_port_pm=off` REMOVED. Reset at 7.07 s, router 7.34 s — then root port `00:01.1` runtime-suspended (337.5 s in D3) and the PCIe tunnel only came up at **344.7 s, 3 s after login**; GPU at 347 s. No link drop afterwards (August symptom gone). Verdict: port PM must stay off for the two tunnel root ports — narrow udev pin adopted, pending validation. |
 | Sep 5 (2nd) | 7.2.3 | 314 | **success** | `pcie_port_pm` default + udev pin on `00:01.1/.2`: reset 7.03 s, `Link Up` 18.22 s, GPU 19.55 s, login 90 s. `00:01.1` suspended 0 ms. **Pin validated; global flag retired.** Unaided cold boots with `host_reset` default: 5/5 (one late, explained). |
+| Sep 5 (3rd) | 7.2.3 | 314 | **success** | First boot with **DPM=0 actually in effect** + GPU `power/control=on` pin. Enclosure came up on domain **1** (`1-2`, root port `00:01.2`, GPU `63:00.0` — cable moved to the laptop's other USB4 port), proving the udev pin covers both tunnel ports and the GPU rule follows the card; no firmware-prebuilt tunnel this time (no `Link Down`), kernel CM built it fresh: router 6.49 s, `Link Up` 17.16 s, GPU 18.73 s, login 34.5 s. 6/6. |
 
 Keep adding rows. Two clean successes on 7.2.2/311 already look better than the old
 ~30%; whether 314 helps or hurts needs several uncontaminated boots.
