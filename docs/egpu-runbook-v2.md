@@ -67,6 +67,18 @@ The failures are about *what phase of GPU work* happens over the tunnel, not whi
   Practical rule: **the card is reliable as a render device, unreliable as a display
   device.** Untested idea: a conservative output profile (1080p60, no HDR, no VRR) may
   survive session start — would distinguish bandwidth from GSP-side failure.
+  **Re-tested Sep 4 on BIOS 314 / kernel 7.2.3 / host_reset default / port-pin udev:**
+  monitor moved directly to the 5070 Ti, KWin ran it as `HDMI-A-2` at 3840x2160@119.88
+  + HDR + WCG (clock lock OFF; card at P0 from load). Clean for ~90 s with **no sparkles**
+  — then sparkles, and the identical Aug 11 signature: `Xid 56` (display engine) at
+  16:54:21 → `Xid 56` + **`Xid 31` MMU fault by `kwin_wayland`** at 16:55:14 →
+  `Pageflip timed out! This is a bug in the nvidia-drm kernel driver` every second →
+  `Flip event timeout on head 0` / `Lost display notification`. Escape that worked:
+  physically moving the HDMI cable back to the laptop port *before* KWin wedged; KWin
+  re-detected the monitor on amdgpu, the card stayed alive (nvidia-smi answered, P5).
+  Snapshot: `~/egpu-scanout-20260904-165524.log`. **Verdict: unchanged by every platform
+  update since August — do not attach a display to the eGPU.** The conservative-profile
+  (1080p60 SDR) variant remains untested and is the only remaining open question here.
 - Workarounds for GL titles: Zink (`MESA_LOADER_DRIVER_OVERRIDE=zink GALLIUM_DRIVER=zink`,
   drop `__GLX_VENDOR_LIBRARY_NAME`) routes GL through Vulkan — untested; or just run
   older GL titles on the 8060S, which handles them easily.
