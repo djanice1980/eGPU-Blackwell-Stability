@@ -76,6 +76,10 @@ The failures are about *what phase of GPU work* happens over the tunnel, not whi
   `Flip event timeout on head 0` / `Lost display notification`. Escape that worked:
   physically moving the HDMI cable back to the laptop port *before* KWin wedged; KWin
   re-detected the monitor on amdgpu, the card stayed alive (nvidia-smi answered, P5).
+  **Afterwards the card kept working for render offload with NO both-sides reset** — the
+  driver never declared the GPU lost, so a display-path Xid 56/31 is survivable if the
+  output is removed before that happens. First time a GPU-error episode ended without
+  the recovery procedure.
   Snapshot: `~/egpu-scanout-20260904-165524.log`. **Verdict: unchanged by every platform
   update since August — do not attach a display to the eGPU.** The conservative-profile
   (1080p60 SDR) variant remains untested and is the only remaining open question here.
