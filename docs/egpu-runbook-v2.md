@@ -180,15 +180,37 @@ trigger; if only (c)/(d) survive → FRL/DSC bandwidth margin.
 the margin. **But the decisive control is Windows on the same host + same monitor + same
 cable: never fails.** A second monitor/cable at work fails the same way on Linux and never
 did on Windows. Cable and monitor are exonerated; this is Linux's DPMS re-enable path.
-**Why now:** HDMI **FRL + DSC support in amdgpu is new in kernel 7.2** (amd-gfx series
-"HDMI FRL and DSC Support for amdgpu", May 2026). This monitor advertises FRL 24 Gbps +
-DSC 1.2a, so every mode above the TMDS ceiling runs through months-old link-management
-code; the failing modes are precisely the FRL/DSC ones, and Windows has mature FRL/DSC.
-Report target: gitlab.freedesktop.org/drm/amd, referencing that series, with the
-one-command repro (`kscreen-doctor --dpms off` + wake), the Windows control, EDID caps, and
-"no kernel error logged". Mitigation in place: **Meta+Shift+D** runs
-`~/.local/bin/display-rescue` (disable/enable every connected external output → full
-modeset), registered as a Plasma custom command shortcut. **Test in flight (from Aug 26 evening): dropped to 4K60**, HDR and
+**Upstream context (Sep 4, corrected after digging):**
+- Display core: **DCN 3.5.1**, DC v3.2.384, DMUB 0x09004E00. The HDMI port is behind a
+  **DP-to-HDMI FRL PCON** (`[drm] DP-HDMI FRL PCON supported`) — FRL training happens in
+  the converter, driven over DPCD. The work monitor goes through the same PCON.
+- HDMI FRL+DSC support in amdgpu is new in 7.2 (series "HDMI FRL and DSC Support for
+  amdgpu", May 2026) — relevant, but NOT the whole story:
+- A 6.18-era regression, commit 3471b9a31ce3 "drm/amd/display: Rework HDMI data channel
+  reads" (SCDC/scrambling init skipped → LG sink "No Signal" after power-cycle, 7900XTX),
+  was **fixed** by "drm/amd/display: Improve HDMI info retrieval"; the running module
+  already carries the fix's `skip_scdc_overwrite` path, so that one is likely not ours.
+- **Still open and the closest match:** "External HDMI monitor fails to wake up from
+  DPMS/consoleblank since kernel 6.18" (amd-gfx, Jan 2026) — Radeon 880M/890M, i.e.
+  **DCN 3.5 like this machine**, external HDMI dark after DPMS while eDP resumes, 6.17
+  fine. Alex Deucher asked for a bisect + gitlab ticket; none visible. No bisect done.
+- DCN 3.5 has **IPS (idle power states)**, which engages precisely when displays blank.
+  Prime suspect for the APU-specific variant. Testable with one documented flag.
+
+**Decisive test ladder (cmdline, one reboot each, then `kscreen-doctor --dpms off` + wake
+at 4K120/HDR):**
+1. `amdgpu.dcdebugmask=0x800` (DC_DISABLE_IPS). Survives → IPS exit path is the bug.
+2. else `amdgpu.dcdebugmask=0x4` (DC_DISABLE_DSC) — forces non-DSC link; if the driver
+   then can't do 4K120 10-bit, that itself narrows it to the DSC/FRL re-enable path.
+3. else it's PCON FRL re-training on re-enable — report as such.
+(Bit values from `enum DC_DEBUG_MASK`, drivers/gpu/drm/amd/include/amd_shared.h.)
+Runtime check of IPS state (root): `cat /sys/kernel/debug/dri/1/amdgpu_dm_ips_status`.
+
+Report target: gitlab.freedesktop.org/drm/amd (draft in `docs/dpms-wake-bug-report.md`),
+citing the 890M thread as the same bug on DCN 3.5. Mitigation in place: **Meta+Shift+D**
+runs `~/.local/bin/display-rescue` (disable/enable every connected external output → full
+modeset). Registered via KGlobalAccel DBus (`doRegister` + `setShortcut`, key int
+0x12000044 = Meta+Shift+D); on Plasma 6.7 the shortcut daemon lives inside kwin_wayland. **Test in flight (from Aug 26 evening): dropped to 4K60**, HDR and
 VRR left on, one variable. If stable for a few days → bandwidth confirmed → fix is a
 certified 48 Gbps HDMI 2.1 cable, then 120 Hz + HDR can come back. If still dark at
 60 Hz → drop VRR, then HDR. If none help, it's the amdgpu fast-path bug alone, which is
