@@ -40,7 +40,11 @@ addition NVIDIA's own `/usr/lib/udev/rules.d/71-nvidia.rules` sets the GPU's
 (`d3cold_allowed=1`); the driver's own view is `Runtime D3 status: Not supported` and the
 card has never actually runtime-suspended (`runtime_suspended_time=0`), so the practical
 effect so far is unknown — but every result in this runbook was obtained under DPM=2,
-not 0. Fix + retest tracked below; upstream context: NVIDIA/open-gpu-kernel-modules
+not 0. **Fix applied Sep 5:** override renamed to `zz-nvidia-egpu.conf`; udev rule now forces
+the GPU + HDA function to `power/control=on` (verified `on` immediately, pre-reboot).
+`DynamicPowerManagement: 0` takes effect at the next module load (reboot) — verify with
+`grep DynamicPowerManagement /proc/driver/nvidia/params`. Every stability result after this
+point is under DPM=0; earlier ones were under DPM=2. Upstream context: NVIDIA/open-gpu-kernel-modules
 #1228 / #1229 (same GZ302EA + Core X V2 host, RTX 5090).
 
 **The hard compute-only block was tried and REVERTED.** For the record, since it works
