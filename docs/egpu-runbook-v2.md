@@ -149,7 +149,7 @@ the clock lock is still required. Launch 1 (Wolfenstein: TNO, P8 unlocked, Proto
 **`Xid 32`** (invalid/corrupted push buffer stream, pid = the game, channel 0x20) 16 s
 after launch — a corrupted command stream during the P8→P0 ramp. Different and milder
 than the old launch killer: no `BadTimeLo`, no GSP heartbeat timeout, no Xid 154, no GPU
-loss; the card stayed healthy (nvidia-smi fine, P8 afterwards). Only one Xid this boot.
+loss; **the game came up and played fine** — the Xid 32 was non-fatal to both the app and the card (nvidia-smi fine, P8 afterwards). Only one Xid this boot.
 Interpretation so far: DPM=0 did not remove the P-state-transition hazard; the GPU-side
 outcome changed from "card dies" to "channel error". Tally continues below.
 
