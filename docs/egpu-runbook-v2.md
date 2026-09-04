@@ -681,6 +681,15 @@ CUDA needs nothing — it targets the card directly regardless of display topolo
 - PR #981 — closed without merge
 - apnex's repos: `apnex/aorus-5090-egpu` (investigation/forensics),
   `apnex/nvidia-driver-injector` (current, containerized)
+- NVIDIA developer forum, "RTX 5060 Ti eGPU Thunderbolt 4 CUDA hard-lock / GSP firmware
+  hang" (DamianKA1993, Intel ThinkPad TB4 + AORUS AI BOX, 610.43.03): `kfspWaitForResponse:
+  FSP command timed out`, no Xid. His eventual working config there = `setpci` LnkCtl2
+  target-speed lock on the bridge before driver load **plus** `pcie_port_pm=off
+  pcie_aspm.policy=performance thunderbolt.clx=0` (the flags this runbook runs) and
+  `iommu=off` (do NOT copy — it removes DMA protection for a device on an external cable).
+  His named mechanism, bridge speed oscillating Gen3↔Gen4 until GSP locks, is the #1229
+  link-renegotiation class; the clock lock here attacks it from the GPU side, his setpci
+  from the bridge side (virtualized/no-op registers on this tunnel). No NVIDIA reply.
 
 Author's own framing: **a mitigation, not a fix.** Behaviour still varies by host.
 
