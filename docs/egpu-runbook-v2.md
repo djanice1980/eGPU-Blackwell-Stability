@@ -175,7 +175,20 @@ Controlled repro is available — no need to wait for idle blanking:
 (a) reproduce at 4K120+HDR; (b) HDR off (`kscreen-doctor output.HDMI-A-1.hdr.disable`),
 same mode; (c) 4K120 SDR → 4K60 SDR; (d) 1080p60. If (d) still fails → amdgpu/KWin DPMS
 bug independent of bandwidth; if it survives from (b) on → HDR re-enable on wake is the
-trigger; if only (c)/(d) survive → FRL/DSC bandwidth margin. **Test in flight (from Aug 26 evening): dropped to 4K60**, HDR and
+trigger; if only (c)/(d) survive → FRL/DSC bandwidth margin.
+**Ladder result (Sep 4): more stable at lower resolution/refresh** — i.e. bandwidth sets
+the margin. **But the decisive control is Windows on the same host + same monitor + same
+cable: never fails.** A second monitor/cable at work fails the same way on Linux and never
+did on Windows. Cable and monitor are exonerated; this is Linux's DPMS re-enable path.
+**Why now:** HDMI **FRL + DSC support in amdgpu is new in kernel 7.2** (amd-gfx series
+"HDMI FRL and DSC Support for amdgpu", May 2026). This monitor advertises FRL 24 Gbps +
+DSC 1.2a, so every mode above the TMDS ceiling runs through months-old link-management
+code; the failing modes are precisely the FRL/DSC ones, and Windows has mature FRL/DSC.
+Report target: gitlab.freedesktop.org/drm/amd, referencing that series, with the
+one-command repro (`kscreen-doctor --dpms off` + wake), the Windows control, EDID caps, and
+"no kernel error logged". Mitigation in place: **Meta+Shift+D** runs
+`~/.local/bin/display-rescue` (disable/enable every connected external output → full
+modeset), registered as a Plasma custom command shortcut. **Test in flight (from Aug 26 evening): dropped to 4K60**, HDR and
 VRR left on, one variable. If stable for a few days → bandwidth confirmed → fix is a
 certified 48 Gbps HDMI 2.1 cable, then 120 Hz + HDR can come back. If still dark at
 60 Hz → drop VRR, then HDR. If none help, it's the amdgpu fast-path bug alone, which is
