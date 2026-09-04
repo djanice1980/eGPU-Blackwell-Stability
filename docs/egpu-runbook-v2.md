@@ -328,7 +328,11 @@ invisible to PCI-layer udev rules, both look the same from `boltctl`):
    with the enclosure's USB gear enumerated (USB3 fallback). A rescan cannot fix this;
    only a host-router reset (`thunderbolt.host_reset` default) or a physical replug
    renegotiates the link. Diagnostic: the `usb4_port*/link` one-liner below.
-Classify first, then pick the fix — the two are not interchangeable.
+Classify first, then pick the fix — the two are not interchangeable. Verified Sep 5 on the
+GZ302EA: every `0000:00:*` device reports `runtime_status=active` with `power/control=on`
+(`pcie_port_pm=off` in effect), so the Intel root-port wake loop is a guaranteed no-op
+here — and its trailing bare `/sys/bus/pci/rescan` is the operation this runbook warns
+about for stale tunnel devices (re-add without bridge-window resize → `BAR0 is 0M`).
 
 **Hypothesis under test:** `thunderbolt.host_reset=0` makes the kernel *skip* the host
 router reset at probe, so a port that firmware left in USB3 fallback is never
