@@ -218,9 +218,20 @@ functional loss. Meta+Shift+D rescue stays as belt-and-braces. Steps 2/3 of the 
 are moot. This also retro-explains every earlier clue: Windows fine (different IPS exit
 handling), eDP fine (different link), lower modes more tolerant (cheaper re-lock), no
 kernel error (driver believes the exit succeeded).
-Side note seen on the same boot: the external display stayed dark on the plasmalogin
-greeter and only lit after login — being investigated separately (greeter output config),
-not obviously related to IPS.
+Side note seen on the same boot: the external display stayed dark on the **plasmalogin**
+greeter (Plasma's login manager; its own KWin runs as user `plasmalogin`) and only lit
+after login. Diagnosed with `greeter-display-diag.sh`: the greeter's KWin *did* detect and
+configure HDMI-A-1 (its `/var/lib/plasmalogin/.config/kwinoutputconfig.json` holds the LG
+at 3840x2160@120, HDR off) and logged **no** output errors for the whole greeter phase;
+the only error is `atomic commit failed: Permission denied` at login = losing DRM master
+to the user session, expected. So it's the same silent-failure class at *first light-up*
+of a 4K120 FRL/DSC link, not IPS (which was already disabled on that boot). Cosmetic.
+If it recurs: `sudo bash ~/Downloads/greeter-hdmi-4k60.sh` pins the greeter's LG entry to
+3840x2160@60 (backs up the file first); the user session keeps its own 4K120/HDR config.
+Schema note: outputs in `kwinoutputconfig.json` are keyed by `connectorName` +
+`edidIdentifier`/`edidHash`/`uuid`, `mode.refreshRate` is in mHz — the "4K60" entry in
+the user config belongs to a different (office, `YCT 23201`) monitor, which is why the Aug
+26 "4K60 test" on the LG never actually took effect.
 
 Report target: gitlab.freedesktop.org/drm/amd (draft in `docs/dpms-wake-bug-report.md`),
 citing the 890M thread as the same bug on DCN 3.5. Mitigation in place: **Meta+Shift+D**

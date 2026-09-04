@@ -74,6 +74,15 @@ all control actions (mode switching, PCI remove/rescan, udev gating, passwordles
 sudo) for setups where the eGPU is a pure offload/compute device and those operations
 are hazards rather than features. Install is entirely user-level: `widget/install.sh`.
 
+## [`tools/`](tools/)
+
+Helpers from the investigations: a one-keypress external-display rescue, a scripted
+DPMS wake test, and plasmalogin greeter diagnostics. Not eGPU-specific — the big finding
+here is that on this AMD **DCN 3.5.1** iGPU the external HDMI display staying dark after
+DPMS wake is the display core's **IPS** exit path, fixed by `amdgpu.dcdebugmask=0x800`
+(6/6 clean wakes at 4K120+HDR vs. reliable failure without). Details in the runbook and
+`docs/dpms-wake-bug-report.md`.
+
 ## [`docs/`](docs/)
 
 - [`egpu-runbook-v2.md`](docs/egpu-runbook-v2.md) — the full working-config runbook:

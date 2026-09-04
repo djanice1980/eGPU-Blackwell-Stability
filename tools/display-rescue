@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# One-keypress recovery for an external display that stays dark after DPMS
+# wake (amdgpu HDMI FRL/DSC re-enable failure, kernel 7.2+). Disables and
+# re-enables every connected non-internal output, forcing a full modeset /
+# link retrain. Bound to Meta+Shift+D via ~/.local/share/kglobalaccel/.
+set -u
+OUTS=$(kscreen-doctor -o 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' \
+       | awk '/^Output:/{name=$3; getline; en=$1; getline; con=$1; if (con=="connected" && name !~ /^eDP/) print name}')
+[ -n "$OUTS" ] || { notify-send -a "Display rescue" "No external output found" 2>/dev/null; exit 1; }
+for o in $OUTS; do
+    kscreen-doctor "output.$o.disable" >/dev/null 2>&1
+    sleep 2
+    kscreen-doctor "output.$o.enable"  >/dev/null 2>&1
+done
+notify-send -a "Display rescue" "Re-enabled: $OUTS" 2>/dev/null || true
