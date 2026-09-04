@@ -303,6 +303,7 @@ The ~70% failure figure above was measured on kernel 7.2.0 + BIOS 311 — re-bas
 | Sep 3 (2nd) | 7.2.2 | 314 | **success** | `host_reset=1`, same shape: firmware-prebuilt tunnel reset at 7.37 s, `Link Up` 18.8 s, GPU 20.1 s, no Xid. Still no fallback sample. Note: 2/2 firmware-prebuilt on 314 vs. ~30% on 311 — small n, but consistent with the MPIO bump helping firmware-side link bring-up. |
 | Sep 4 15:4x | **7.2.3** | 314 | **success** | First boot on a NEW kernel: the pacman hook rebuilt the patched modules in-transaction (39 s build, LLVM flags auto-detected), so the boot had a driver. Firmware-prebuilt tunnel reset at 7.13 s, `Link Up` 18.2 s, GPU 19.5 s, no Xid. External display lit on the greeter this time (the Sep 4 morning dark-greeter was a one-off so far). Tally with `host_reset` default: **3/3**. |
 | Sep 5 | 7.2.3 | 314 | success, **late** | Experiment: `pcie_port_pm=off` REMOVED. Reset at 7.07 s, router 7.34 s — then root port `00:01.1` runtime-suspended (337.5 s in D3) and the PCIe tunnel only came up at **344.7 s, 3 s after login**; GPU at 347 s. No link drop afterwards (August symptom gone). Verdict: port PM must stay off for the two tunnel root ports — narrow udev pin adopted, pending validation. |
+| Sep 5 (2nd) | 7.2.3 | 314 | **success** | `pcie_port_pm` default + udev pin on `00:01.1/.2`: reset 7.03 s, `Link Up` 18.22 s, GPU 19.55 s, login 90 s. `00:01.1` suspended 0 ms. **Pin validated; global flag retired.** Unaided cold boots with `host_reset` default: 5/5 (one late, explained). |
 
 Keep adding rows. Two clean successes on 7.2.2/311 already look better than the old
 ~30%; whether 314 helps or hurts needs several uncontaminated boots.
@@ -410,8 +411,13 @@ two USB4 tunnel root ports pinned awake by udev instead; see the bullets for why
   DamianKA1993's Intel root-port-D3 mechanism, reproduced on AMD once port PM is enabled.
   **Better fix than the global flag:** pin only the two USB4 tunnel root ports awake via
   udev (`ATTR{power/control}="on"` for `0000:00:01.1` and `0000:00:01.2`), leaving every
-  other port on default runtime PM — see `99-usb4-tunnel-ports-awake.rules`. Status:
-  pending validation on the next cold boots; fallback is restoring `pcie_port_pm=off`.
+  other port on default runtime PM — see `99-usb4-tunnel-ports-awake.rules` (tools/).
+  **VALIDATED Sep 5:** next cold boot with the rule and no flag — reset 7.03 s, `Link Up`
+  18.22 s, GPU 19.55 s, login at 90 s; `00:01.1` runtime_suspended_time = 0 ms. Adopted.
+  Caveat: the rule applies at udev coldplug, so an unused port can nap a few seconds first
+  (`00:01.2` logged 6.4 s); worst case for `00:01.1` is a few seconds' delay, not
+  "until login". Fallback remains restoring `pcie_port_pm=off`. Never adopt the Intel
+  rescan loop here — its global bare rescan is the stale-device `BAR0 is 0M` hazard.
 - `pcie_aspm.policy=performance` — minimizes ASPM transitions.
   **Never use `pcie_aspm=off`** on this AMD platform: it breaks the ACPI `_OSC` handoff
   (`OS requires [ExtendedConfig ASPM ClockPM MSI]`), the OS never takes PCIe ownership,
