@@ -143,6 +143,16 @@ nvidia-persistenced to keep them — it blocks the `modprobe -r` the recovery pr
 needs. If the tally keeps holding, the ergonomic endgame is a per-game wrapper:
 lock → launch → reset (`--reset-gpu-clocks --reset-memory-clocks`) on exit.
 
+**Unlocked-launch gauntlet under DPM=0 (Sep 5, in progress):** with
+`NVreg_DynamicPowerManagement=0` finally in effect (see CORRECTION above), testing whether
+the clock lock is still required. Launch 1 (Wolfenstein: TNO, P8 unlocked, Proton):
+**`Xid 32`** (invalid/corrupted push buffer stream, pid = the game, channel 0x20) 16 s
+after launch — a corrupted command stream during the P8→P0 ramp. Different and milder
+than the old launch killer: no `BadTimeLo`, no GSP heartbeat timeout, no Xid 154, no GPU
+loss; the card stayed healthy (nvidia-smi fine, P8 afterwards). Only one Xid this boot.
+Interpretation so far: DPM=0 did not remove the P-state-transition hazard; the GPU-side
+outcome changed from "card dies" to "channel error". Tally continues below.
+
 **Recovery procedure after ANY GPU death.** A host reboot alone does NOT reset the card
 (enclosure keeps it powered; wedged GSP persists). An enclosure power-cycle alone does NOT
 clear the host (driver reuses stale state → AMD-Vi IO_PAGE_FAULT storm at re-probe,
