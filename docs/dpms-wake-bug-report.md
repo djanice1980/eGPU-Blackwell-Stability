@@ -77,8 +77,15 @@ sleep/DPMS. Never observed in months.
 
 ## Diagnostics tried / planned
 
-- `amdgpu.dcdebugmask=0x800` (DC_DISABLE_IPS): TODO
-- `amdgpu.dcdebugmask=0x4` (DC_DISABLE_DSC): TODO
-- `/sys/kernel/debug/dri/1/amdgpu_dm_ips_status` at failure time: TODO
+- `amdgpu.dcdebugmask=0x800` (DC_DISABLE_IPS): **the repro no longer fails** at
+  3840x2160@120 + HDR (first pass; TODO: number of clean cycles). With the flag,
+  `amdgpu_dm_ips_status` reports `IPS config: 1` (DMUB_IPS_DISABLE_ALL),
+  `entry counts: rcg=0 ips1=0 ips2=0`. This points at IPS entry during DPMS-off and a
+  failed/incomplete exit path for the external (PCON-attached HDMI) link on DCN 3.5.1,
+  while eDP recovers.
+- `amdgpu.dcdebugmask=0x4` (DC_DISABLE_DSC): not needed if the above holds; TODO if
+  requested.
+- `/sys/kernel/debug/dri/1/amdgpu_dm_ips_status` at failure time (IPS enabled): TODO —
+  capture entry/exit counts right after a failed wake, before recovering.
 
 Happy to bisect, test patches, or capture `drm.debug=0x1e` logs around the event.

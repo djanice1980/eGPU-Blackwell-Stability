@@ -205,6 +205,16 @@ at 4K120/HDR):**
 3. else it's PCON FRL re-training on re-enable — report as such.
 (Bit values from `enum DC_DEBUG_MASK`, drivers/gpu/drm/amd/include/amd_shared.h.)
 Runtime check of IPS state (root): `cat /sys/kernel/debug/dri/1/amdgpu_dm_ips_status`.
+**Step 1 result (Sep 4): PASS.** With `amdgpu.dcdebugmask=0x800` on the cmdline
+(`dcdebugmask=2048`; `amdgpu_dm_ips_status` shows `IPS config: 1` = DMUB_IPS_DISABLE_ALL
+and all IPS entry/exit counts 0), the deterministic repro at 4K120 + HDR **survived** —
+the first time it ever has at that mode. n=1 so far; repeat several cycles before calling
+it. If it holds: DCN 3.5 IPS exit is the mechanism, `0x800` is the standing workaround
+(cost: the display core never enters its idle power states — a few hundred mW to ~1 W of
+idle power on the iGPU, no functional loss), and the upstream report gets its key line.
+Side note seen on the same boot: the external display stayed dark on the plasmalogin
+greeter and only lit after login — being investigated separately (greeter output config),
+not obviously related to IPS.
 
 Report target: gitlab.freedesktop.org/drm/amd (draft in `docs/dpms-wake-bug-report.md`),
 citing the 890M thread as the same bug on DCN 3.5. Mitigation in place: **Meta+Shift+D**
