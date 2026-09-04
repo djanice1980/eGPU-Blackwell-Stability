@@ -50,14 +50,18 @@ kscreen-doctor output.HDMI-A-1.disable; sleep 2; kscreen-doctor output.HDMI-A-1.
 
 ## Ladder (one variable at a time) — TODO fill in
 
-| Step | Mode | HDR | Result |
+| Step | Mode | HDR | Result (IPS enabled, i.e. without the workaround) |
 |---|---|---|---|
-| a | 3840x2160@120 | on | FAIL |
-| b | 3840x2160@120 | off | TODO |
-| c | 3840x2160@60 | off | TODO |
-| d | 1920x1080@60 | off | TODO |
+| a | 3840x2160@120 | on (10 bpc) | FAIL, reliably |
+| b | 3840x2160@120 | off | PASS (reporter's recollection from the ladder run; not re-verified) |
+| c | 3840x2160@60 | off | PASS (same caveat) |
+| d | 1920x1080@60 | off | not needed |
 
-Observed trend: lower resolution/refresh = more stable.
+Note: 3840x2160@120 at 8 bpc RGB is still above this sink's 24 Gbps FRL ceiling, so
+steps a and b use the same FRL+DSC (or 4:2:0) link class. The distinguishing factor
+between FAIL and PASS is therefore the **HDR / 10-bpc output configuration**, not link
+bandwidth per se — i.e. the IPS exit path fails to restore the link when HDR metadata /
+deep color is active.
 
 ## Control
 

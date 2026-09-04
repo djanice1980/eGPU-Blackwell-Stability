@@ -177,7 +177,11 @@ same mode; (c) 4K120 SDR → 4K60 SDR; (d) 1080p60. If (d) still fails → amdgp
 bug independent of bandwidth; if it survives from (b) on → HDR re-enable on wake is the
 trigger; if only (c)/(d) survive → FRL/DSC bandwidth margin.
 **Ladder result (Sep 4): more stable at lower resolution/refresh** — i.e. bandwidth sets
-the margin. **But the decisive control is Windows on the same host + same monitor + same
+the margin. Refined from recollection (not re-verified): with IPS still enabled, **4K120
++ HDR failed; 4K120 HDR-off passed; 4K60 passed.** Since 4K120 8-bit is still above the
+sink's 24 Gbps FRL ceiling (same FRL+DSC link class as the HDR mode), the discriminator
+is the HDR/10-bpc configuration, not bandwidth — the IPS exit fails to re-lock the link
+when HDR metadata / deep color is active. **But the decisive control is Windows on the same host + same monitor + same
 cable: never fails.** A second monitor/cable at work fails the same way on Linux and never
 did on Windows. Cable and monitor are exonerated; this is Linux's DPMS re-enable path.
 **Upstream context (Sep 4, corrected after digging):**
