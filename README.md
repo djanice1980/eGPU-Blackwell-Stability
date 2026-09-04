@@ -57,6 +57,9 @@ kernel, inside the pacman transaction**, so the next reboot always has a driver.
 Guards: refuses on `nvidia-utils`/tree version mismatch (modules and userspace must
 match), warns if the patches are missing from the tree, auto-detects Clang-built
 kernels, verifies vermagic, and is a no-op when the modules are already current.
+**Verified in production** on the `linux-cachyos` 7.2.2 → 7.2.3 update: hook ran inside
+the pacman transaction, built in 39 s, and the next boot loaded the patched module with no
+manual step.
 
 ```sh
 sudo bash pacman-hook/install-hook.sh
