@@ -1,0 +1,10 @@
+# Keep the AMD USB4 PCIe-tunnel root ports out of runtime suspend so a tunnel can be
+# established (and hot-plugged) without waiting for something to wake the port.
+# Replaces the global pcie_port_pm=off cmdline flag: every other PCIe port keeps
+# default runtime PM. Bus addresses are for the ASUS GZ302EA (Strix Halo):
+#   0000:00:01.1 / 0000:00:01.2 = PCIe root ports behind which USB4 tunnels appear.
+# Verify yours with: ls /sys/bus/pci/devices/0000:00:01.1/ | grep -c '^0000:'  (children)
+# Install: sudo install -m 644 99-usb4-tunnel-ports-awake.rules /etc/udev/rules.d/ && \
+#          sudo udevadm control --reload && sudo udevadm trigger -c add /sys/bus/pci/devices/0000:00:01.1 /sys/bus/pci/devices/0000:00:01.2
+ACTION=="add", SUBSYSTEM=="pci", KERNEL=="0000:00:01.1", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="pci", KERNEL=="0000:00:01.2", ATTR{power/control}="on"

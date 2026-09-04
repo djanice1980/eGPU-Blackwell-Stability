@@ -13,3 +13,4 @@ The DPMS wake problem on the reference system (AMD DCN 3.5.1 iGPU, HDMI behind a
 DP-HDMI FRL PCON) turned out to be the display core's **IPS** (idle power states) exit
 path; the fix is the kernel parameter `amdgpu.dcdebugmask=0x800` (`DC_DISABLE_IPS`). See
 the runbook's DPMS section and the bug-report draft in `docs/`.
+| `99-usb4-tunnel-ports-awake.rules` | udev rule that pins the two AMD USB4 PCIe-tunnel root ports (`0000:00:01.1/.2` on the GZ302EA) to `power/control=on`, so tunnels can establish without waiting for something to wake a runtime-suspended port — a narrow replacement for the global `pcie_port_pm=off` flag. Adjust the bus addresses for other boards. |

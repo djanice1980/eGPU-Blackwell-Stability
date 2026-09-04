@@ -302,6 +302,7 @@ The ~70% failure figure above was measured on kernel 7.2.0 + BIOS 311 — re-bas
 | Sep 3 13:5x | 7.2.2 | 314 | **success** | **first boot with `host_reset=1`** (flag removed from cmdline). Firmware had prebuilt the tunnel; the reset tore it down at 7.25 s (`pciehp Link Down`), router back at 7.52 s, PCIe `Link Up` at 18.3 s, `external GPU detected` at 19.65 s. **Rebuild cost ≈ 12 s**, not the ~58 s measured in August. Does not yet prove the reset rescues a `link=none` boot — needs a sample where firmware left the port in USB3 fallback. |
 | Sep 3 (2nd) | 7.2.2 | 314 | **success** | `host_reset=1`, same shape: firmware-prebuilt tunnel reset at 7.37 s, `Link Up` 18.8 s, GPU 20.1 s, no Xid. Still no fallback sample. Note: 2/2 firmware-prebuilt on 314 vs. ~30% on 311 — small n, but consistent with the MPIO bump helping firmware-side link bring-up. |
 | Sep 4 15:4x | **7.2.3** | 314 | **success** | First boot on a NEW kernel: the pacman hook rebuilt the patched modules in-transaction (39 s build, LLVM flags auto-detected), so the boot had a driver. Firmware-prebuilt tunnel reset at 7.13 s, `Link Up` 18.2 s, GPU 19.5 s, no Xid. External display lit on the greeter this time (the Sep 4 morning dark-greeter was a one-off so far). Tally with `host_reset` default: **3/3**. |
+| Sep 5 | 7.2.3 | 314 | success, **late** | Experiment: `pcie_port_pm=off` REMOVED. Reset at 7.07 s, router 7.34 s — then root port `00:01.1` runtime-suspended (337.5 s in D3) and the PCIe tunnel only came up at **344.7 s, 3 s after login**; GPU at 347 s. No link drop afterwards (August symptom gone). Verdict: port PM must stay off for the two tunnel root ports — narrow udev pin adopted, pending validation. |
 
 Keep adding rows. Two clean successes on 7.2.2/311 already look better than the old
 ~30%; whether 314 helps or hurts needs several uncontaminated boots.
@@ -386,20 +387,31 @@ device — reportable to kernel bugzilla, not fixable driver-side.
 gpiolib_acpi.ignore_wake=AMDI0030:00@58
 pcie_aspm.policy=performance
 thunderbolt.clx=0
-pcie_port_pm=off
 pci=realloc=off
 amdgpu.dcdebugmask=0x800
 ```
-(Current as of Sep 4 2026 — `pcie_ports=native` removed Aug 26, `thunderbolt.host_reset=0`
-removed Sep 3, `amdgpu.dcdebugmask=0x800` added Sep 4; see the bullets for why.)
+(Current as of Sep 5 2026 — `pcie_ports=native` removed Aug 26, `thunderbolt.host_reset=0`
+removed Sep 3, `amdgpu.dcdebugmask=0x800` added Sep 4, `pcie_port_pm=off` removed Sep 5 with the
+two USB4 tunnel root ports pinned awake by udev instead; see the bullets for why.)
 
 - `amdgpu.dcdebugmask=0x800` — **DC_DISABLE_IPS (added Sep 4).** Not eGPU-related: fixes
   the AMD iGPU's external HDMI display staying dark after DPMS wake (DCN 3.5.1 IPS exit
   bug; 6/6 clean wakes at 4K120+HDR with it vs. reliable failure without). See the DPMS
   section. Bit from `enum DC_DEBUG_MASK` in amd_shared.h.
 
-- `pcie_port_pm=off` — **required.** Without it the PCIe link drops ~1 s after the nvidia
-  module loads (`pciehp: Link Down` / `Card not present`).
+- `pcie_port_pm=off` — was **required** in August: without it the PCIe link dropped ~1 s
+  after the nvidia module loaded (`pciehp: Link Down` / `Card not present`).
+  **Retested Sep 5 (removed, kernel 7.2.3 / BIOS 314):** that post-load drop did NOT
+  recur — the link held. But a different problem appeared: after `host_reset` tears down
+  firmware's tunnel at ~7 s, root port `00:01.1` has no child and runtime-suspends
+  (`power/control=auto`); the PCIe tunnel then cannot come up until something wakes the
+  port. Measured: `runtime_suspended_time` = 337.5 s, `Link Up` at 344.7 s = **3 s after
+  login** (session start touched the bus). eGPU effectively absent until login. This is
+  DamianKA1993's Intel root-port-D3 mechanism, reproduced on AMD once port PM is enabled.
+  **Better fix than the global flag:** pin only the two USB4 tunnel root ports awake via
+  udev (`ATTR{power/control}="on"` for `0000:00:01.1` and `0000:00:01.2`), leaving every
+  other port on default runtime PM — see `99-usb4-tunnel-ports-awake.rules`. Status:
+  pending validation on the next cold boots; fallback is restoring `pcie_port_pm=off`.
 - `pcie_aspm.policy=performance` — minimizes ASPM transitions.
   **Never use `pcie_aspm=off`** on this AMD platform: it breaks the ACPI `_OSC` handoff
   (`OS requires [ExtendedConfig ASPM ClockPM MSI]`), the OS never takes PCIe ownership,
