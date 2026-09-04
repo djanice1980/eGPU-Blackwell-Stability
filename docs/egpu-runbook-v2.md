@@ -205,13 +205,19 @@ at 4K120/HDR):**
 3. else it's PCON FRL re-training on re-enable — report as such.
 (Bit values from `enum DC_DEBUG_MASK`, drivers/gpu/drm/amd/include/amd_shared.h.)
 Runtime check of IPS state (root): `cat /sys/kernel/debug/dri/1/amdgpu_dm_ips_status`.
-**Step 1 result (Sep 4): PASS.** With `amdgpu.dcdebugmask=0x800` on the cmdline
-(`dcdebugmask=2048`; `amdgpu_dm_ips_status` shows `IPS config: 1` = DMUB_IPS_DISABLE_ALL
-and all IPS entry/exit counts 0), the deterministic repro at 4K120 + HDR **survived** —
-the first time it ever has at that mode. n=1 so far; repeat several cycles before calling
-it. If it holds: DCN 3.5 IPS exit is the mechanism, `0x800` is the standing workaround
-(cost: the display core never enters its idle power states — a few hundred mW to ~1 W of
-idle power on the iGPU, no functional loss), and the upstream report gets its key line.
+**Step 1 result (Sep 4): CONFIRMED — 6/6 clean wakes at 4K120 + HDR with IPS disabled.**
+With `amdgpu.dcdebugmask=0x800` on the cmdline (`dcdebugmask=2048`;
+`amdgpu_dm_ips_status` shows `IPS config: 1` = DMUB_IPS_DISABLE_ALL and all IPS
+entry/exit counts 0), the deterministic repro that previously failed at this mode passed
+once by hand and then 5/5 in a scripted run (`dpms-cycle.sh`, log
+`~/dpms-cycle-20260904-1112.log`). **Mechanism: DCN 3.5.1 IPS entry during DPMS-off with
+an exit path that does not bring the PCON-attached HDMI link back**, while eDP recovers
+and the driver logs nothing. **`0x800` is now standing config.** Cost: the iGPU display
+core skips its idle power states — roughly a few hundred mW to ~1 W at idle, no
+functional loss. Meta+Shift+D rescue stays as belt-and-braces. Steps 2/3 of the ladder
+are moot. This also retro-explains every earlier clue: Windows fine (different IPS exit
+handling), eDP fine (different link), lower modes more tolerant (cheaper re-lock), no
+kernel error (driver believes the exit succeeded).
 Side note seen on the same boot: the external display stayed dark on the plasmalogin
 greeter and only lit after login — being investigated separately (greeter output config),
 not obviously related to IPS.
@@ -348,9 +354,15 @@ pcie_aspm.policy=performance
 thunderbolt.clx=0
 pcie_port_pm=off
 pci=realloc=off
+amdgpu.dcdebugmask=0x800
 ```
-(Current as of Sep 3 2026 — `pcie_ports=native` removed Aug 26, `thunderbolt.host_reset=0`
-removed Sep 3; see the bullets for why.)
+(Current as of Sep 4 2026 — `pcie_ports=native` removed Aug 26, `thunderbolt.host_reset=0`
+removed Sep 3, `amdgpu.dcdebugmask=0x800` added Sep 4; see the bullets for why.)
+
+- `amdgpu.dcdebugmask=0x800` — **DC_DISABLE_IPS (added Sep 4).** Not eGPU-related: fixes
+  the AMD iGPU's external HDMI display staying dark after DPMS wake (DCN 3.5.1 IPS exit
+  bug; 6/6 clean wakes at 4K120+HDR with it vs. reliable failure without). See the DPMS
+  section. Bit from `enum DC_DEBUG_MASK` in amd_shared.h.
 
 - `pcie_port_pm=off` — **required.** Without it the PCIe link drops ~1 s after the nvidia
   module loads (`pciehp: Link Down` / `Card not present`).
