@@ -316,6 +316,20 @@ the PCI layer to see. This is the same shape as Framework's PI-regression report
 `for p in /sys/bus/thunderbolt/devices/*-0/usb4_port*; do echo $p $(cat $p/link); done`
 → `none` with the enclosure's USB gear visible in `lsusb` = USB3 fallback.
 
+**Two distinct "no child router at cold boot" mechanisms are now catalogued** (both
+invisible to PCI-layer udev rules, both look the same from `boltctl`):
+1. **Intel (DamianKA1993, Tiger Lake, Sep 5):** the Thunderbolt root ports
+   (`0000:00:07.*`) start runtime-suspended (D3), so the host controller never attempts
+   the tunnel. Fix: runtime-resume them — `echo 1 > /sys/bus/pci/devices/0000:00:*/rescan`
+   (a rescan runtime-resumes the bridge), then a global rescan. Diagnostic:
+   `cat /sys/bus/pci/devices/0000:00:0*/power/runtime_status` → `suspended`.
+2. **AMD GZ302EA (this machine):** root ports are never suspended (`pcie_port_pm=off`),
+   both NHIs are bound, but the USB4 **link** was never negotiated — `usb4_port link=none`
+   with the enclosure's USB gear enumerated (USB3 fallback). A rescan cannot fix this;
+   only a host-router reset (`thunderbolt.host_reset` default) or a physical replug
+   renegotiates the link. Diagnostic: the `usb4_port*/link` one-liner below.
+Classify first, then pick the fix — the two are not interchangeable.
+
 **Hypothesis under test:** `thunderbolt.host_reset=0` makes the kernel *skip* the host
 router reset at probe, so a port that firmware left in USB3 fallback is never
 renegotiated. `host_reset=1` (the default) resets the router and re-runs link
