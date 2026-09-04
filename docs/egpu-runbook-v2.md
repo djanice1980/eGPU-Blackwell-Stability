@@ -28,6 +28,20 @@ obsolete — apnex's E1 replaces it with a proper fix.
 `nvidia_drm` + `nvidia_modeset` load normally. `/etc/modprobe.d/99-nvidia-egpu.conf`
 holds only the three NVreg options + `softdep nvidia post: nvidia-uvm`. No blacklists,
 no EGL/Vulkan pins, no `KWIN_DRM_DEVICES`. Monitor on the laptop HDMI (AMD 8060S).
+**CORRECTION (Sep 5): `NVreg_DynamicPowerManagement=0` was NEVER in effect.** The driver
+reports `DynamicPowerManagement: 2` (`/proc/driver/nvidia/params`). A distro-shipped
+modprobe file carries `options nvidia … NVreg_DynamicPowerManagement=0x02`, and because
+letter-named files sort *after* `99-…` in modprobe.d, its value is passed last and wins
+(kernel module params: last assignment wins). The patches README's "99- prefix matters"
+advice is insufficient — the override file must sort after every letter-named file
+(`zz-nvidia-egpu.conf`) or shadow the distro file by name in `/etc/modprobe.d`. In
+addition NVIDIA's own `/usr/lib/udev/rules.d/71-nvidia.rules` sets the GPU's
+`power/control=auto`, so the kernel is *permitted* to runtime-suspend the card
+(`d3cold_allowed=1`); the driver's own view is `Runtime D3 status: Not supported` and the
+card has never actually runtime-suspended (`runtime_suspended_time=0`), so the practical
+effect so far is unknown — but every result in this runbook was obtained under DPM=2,
+not 0. Fix + retest tracked below; upstream context: NVIDIA/open-gpu-kernel-modules
+#1228 / #1229 (same GZ302EA + Core X V2 host, RTX 5090).
 
 **The hard compute-only block was tried and REVERTED.** For the record, since it works
 and may be wanted later: `blacklist nvidia_drm` + `blacklist nvidia_modeset` alone are

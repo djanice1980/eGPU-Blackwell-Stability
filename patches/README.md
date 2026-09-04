@@ -81,8 +81,15 @@ Notes:
 
 ## Suggested module options
 
-`/etc/modprobe.d/99-nvidia-egpu.conf` (the `99-` prefix matters — distro defaults like
-`NVreg_DynamicPowerManagement=0x02` must not win):
+`/etc/modprobe.d/zz-nvidia-egpu.conf` — **the filename matters, and `99-` is NOT enough.**
+modprobe.d files are applied in plain filename order across `/etc` and `/usr/lib`, and
+for the same module parameter the *last* value wins. Distro files are letter-named
+(CachyOS ships `/usr/lib/modprobe.d/nvidia.conf` with `NVreg_DynamicPowerManagement=0x02`),
+and letters sort after digits — so `99-…` loses to `nvidia.conf`. Name your override
+`zz-…` (verified: the reference system ran with DPM=2 for weeks under a `99-` file).
+Verify with `grep DynamicPowerManagement /proc/driver/nvidia/params`, not with
+`modprobe -c`. If `modconf` is in your initramfs hooks, rebuild the initramfs after
+changing it (`mkinitcpio -P`):
 ```
 options nvidia NVreg_DynamicPowerManagement=0
 options nvidia NVreg_EnableResizableBar=0

@@ -3,8 +3,13 @@
 # Replaces the global pcie_port_pm=off cmdline flag: every other PCIe port keeps
 # default runtime PM. Bus addresses are for the ASUS GZ302EA (Strix Halo):
 #   0000:00:01.1 / 0000:00:01.2 = PCIe root ports behind which USB4 tunnels appear.
-# Verify yours with: ls /sys/bus/pci/devices/0000:00:01.1/ | grep -c '^0000:'  (children)
-# Install: sudo install -m 644 99-usb4-tunnel-ports-awake.rules /etc/udev/rules.d/ && \
-#          sudo udevadm control --reload && sudo udevadm trigger -c add /sys/bus/pci/devices/0000:00:01.1 /sys/bus/pci/devices/0000:00:01.2
 ACTION=="add", SUBSYSTEM=="pci", KERNEL=="0000:00:01.1", ATTR{power/control}="on"
 ACTION=="add", SUBSYSTEM=="pci", KERNEL=="0000:00:01.2", ATTR{power/control}="on"
+
+# The eGPU itself: NVIDIA's shipped 71-nvidia.rules sets power/control=auto on every
+# NVIDIA display device, which permits the kernel to runtime-suspend the card into D3cold
+# (d3cold_allowed=1) — the failure mode discussed in NVIDIA/open-gpu-kernel-modules#1228.
+# An external GPU in a self-powered enclosure must never be D3cold'ed by the host. This
+# runs after 71- and forces it back to "on" for the GPU and its HDA audio function.
+ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x040300", TEST=="power/control", ATTR{power/control}="on"
