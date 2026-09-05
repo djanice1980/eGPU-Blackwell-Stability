@@ -115,6 +115,16 @@ The failures are about *what phase of GPU work* happens over the tunnel, not whi
   Snapshot: `~/egpu-scanout-20260904-165524.log`. **Verdict: unchanged by every platform
   update since August — do not attach a display to the eGPU.** The conservative-profile
   (1080p60 SDR) variant remains untested and is the only remaining open question here.
+  **Bandwidth hypothesis (Sep 5) — quantitative:** with KWin compositing on the AMD iGPU
+  and the monitor on the eGPU, every frame crosses the tunnel to the card that scans it
+  out: 3840×2160×4 B×120 Hz ≈ **4.0 GB/s**, above the measured **~2.8 GB/s** tunnel
+  ceiling (`nvbandwidth`). 4K60 ≈ 2.0 GB/s (marginal), 1440p120 ≈ 1.8 GB/s, 1080p60 ≈
+  0.5 GB/s. Fits the signature (late frames → pageflip timeouts; GPU faults on imported
+  host buffers → `Xid 31 FAULT_PDE` by kwin_wayland) and the "clean until something
+  animates" honeymoon (KWin only pushes frames on damage). Games are fine because
+  finished frames flow the *other* way at game rates. Prediction: 1080p60 SDR works;
+  4K120 never will in this topology. Likely what #1229's reporter does differently: a
+  lower mode, or KWin rendering *on* the 5090 (no per-frame copy) — ask them.
 - Workarounds for GL titles: Zink (`MESA_LOADER_DRIVER_OVERRIDE=zink GALLIUM_DRIVER=zink`,
   drop `__GLX_VENDOR_LIBRARY_NAME`) routes GL through Vulkan — untested; or just run
   older GL titles on the 8060S, which handles them easily.
