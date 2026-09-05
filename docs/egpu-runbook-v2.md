@@ -781,6 +781,18 @@ a silent no-op here — do not chase it.
 
 ## Open items as of Aug 26 evening
 
+**Standing plan (Sep 5):** configuration is stable and frozen — DPM=0 verified, udev pin
+for tunnel ports + GPU, IPS disabled, `host_reset` default, patches in, hook maintaining
+them. The patches are not harming anything; the open question "are they still necessary
+under DPM=0?" is deferred to the **next NVIDIA driver release**, when the patches must be
+ported anyway (the hook will refuse the build until they are). At that point run the stock
+vs. patched launch gauntlet under DPM=0 and decide with data. Only known-unsolved item:
+driving a display from the eGPU (Xid 56/31 + pageflip timeouts). Lead for that:
+NVIDIA/open-gpu-kernel-modules#1229's reporter drives a Plasma Wayland desktop from a 5090
+in the same Core X V2 on the same GZ302EA (610.43.02, kernel 7.0.13, NixOS) — so it is
+not impossible on this host; differences to probe at the next driver release are driver
+version (610.43 vs 610.57), GPU (GB202 vs GB203), and output mode.
+
 1. **HDMI 4K60 test running** — see the amdgpu link-training section. Watch for
    dark-after-blank episodes over the next few days.
 2. **Publish the patch bundle** — `nvidia-610.57.04-egpu-patches.tar.gz` (README + GPL-2.0
