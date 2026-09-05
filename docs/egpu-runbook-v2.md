@@ -122,7 +122,12 @@ The failures are about *what phase of GPU work* happens over the tunnel, not whi
   0.5 GB/s. Fits the signature (late frames → pageflip timeouts; GPU faults on imported
   host buffers → `Xid 31 FAULT_PDE` by kwin_wayland) and the "clean until something
   animates" honeymoon (KWin only pushes frames on damage). Games are fine because
-  finished frames flow the *other* way at game rates. Prediction: 1080p60 SDR works;
+  finished frames flow the *other* way at game rates. **Measured Sep 4 (GPU-PCIe-Test v3.0, Vulkan, 256 MB copies):** CPU→GPU 2.37 GB/s,
+  GPU→CPU 2.35 GB/s, bidirectional 3.44 GB/s — "94% of Thunderbolt 3"; use **2.37 GB/s
+  host→GPU** as the ceiling for display copies. Shares: 1080p60 21%, 1440p60 37%,
+  1080p120 42%, 1440p120 75%, 4K60 85% (too tight), 4K120 168%. The widget's PCIe line
+  (nvidia-smi dmon TLP counters) over-reads ~2× versus measured payload — an activity
+  indicator, not a measurement. Prediction: 1080p60 SDR works;
   4K120 never will in this topology. Likely what #1229's reporter does differently: a
   lower mode, or KWin rendering *on* the 5090 (no per-frame copy) — ask them.
 - Workarounds for GL titles: Zink (`MESA_LOADER_DRIVER_OVERRIDE=zink GALLIUM_DRIVER=zink`,
