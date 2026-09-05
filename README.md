@@ -15,7 +15,7 @@ driver patches, a read-only Plasma 6 status widget, and the field notes behind t
 **State of play:** eGPU auto-detected as external, clean attach, CUDA and Vulkan
 compute/render-offload stable for hours at full power (~260 W sustained over the
 tunnel). PRIME render offload works per-app while the desktop stays composited on the
-iGPU — including GL titles, with the clock locks held (see below). Driving the desktop
+iGPU — including GL titles, now without clock locks once `NVreg_DynamicPowerManagement=0` is genuinely in effect (see the Sep 5 update). Driving the desktop
 *from* the eGPU, or hanging a monitor off it, fails on this host (sparkles, then GPU
 loss) — but a working scanout report on other AMD USB4 hardware means that failure is
 host-platform-specific, not universal; see the runbook.
@@ -121,7 +121,7 @@ clocks locked, the GL-via-PRIME workload that previously killed the card on ~75%
 launches survived **8/8 consecutive launches and over an hour of sustained play**
 (p≈1.5e-5 by chance) with dmesg completely silent — not even transient-retry lines,
 meaning the failure window is not entered at all. On the reference system this is no
-longer an experiment: clock locking is the adopted day-to-day configuration (pinned at
+longer an experiment at the time: clock locking was the adopted day-to-day configuration (pinned at
 boot via the widget's since-removed clock-lock helper) and maintained stability in real gaming use — until the DPM=0 finding above superseded it. Cost: ~20 W extra at idle (10.6 W → 30.6 W measured); load behaviour
 unchanged. Details, exact commands, and caveats in the
 [runbook](docs/egpu-runbook-v2.md).
