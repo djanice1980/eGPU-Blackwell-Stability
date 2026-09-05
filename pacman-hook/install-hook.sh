@@ -20,13 +20,13 @@ TREE="${1:-$USER_HOME/open-gpu-kernel-modules}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 install -o root -g root -m 755 "$SCRIPT_DIR/nvidia-egpu-rebuild" /usr/local/bin/nvidia-egpu-rebuild
-mkdir -p /etc/pacman.d/hooks /etc/blackwell-egpu
+mkdir -p /etc/pacman.d/hooks
 install -o root -g root -m 644 "$SCRIPT_DIR/nvidia-egpu-rebuild.hook" /etc/pacman.d/hooks/nvidia-egpu-rebuild.hook
 printf 'TREE=%s\nBUILD_USER=%s\nKERNEL_PKG=linux-cachyos\nKERNEL_SUFFIX=cachyos\n' \
-    "$TREE" "$TARGET_USER" > /etc/blackwell-egpu/rebuild.conf
-chmod 644 /etc/blackwell-egpu/rebuild.conf
+    "$TREE" "$TARGET_USER" > /etc/nvidia-egpu-rebuild.conf
+chmod 644 /etc/nvidia-egpu-rebuild.conf
 
 echo "[+] Hook installed. Kernel upgrades now rebuild the patched modules in-transaction."
 echo "    Dry-run it now against the current kernel: sudo nvidia-egpu-rebuild"
 echo "    (should report 'already installed -- nothing to do')"
-echo "    Uninstall: sudo rm /etc/pacman.d/hooks/nvidia-egpu-rebuild.hook /usr/local/bin/nvidia-egpu-rebuild /etc/blackwell-egpu/rebuild.conf"
+echo "    Uninstall: sudo rm /etc/pacman.d/hooks/nvidia-egpu-rebuild.hook /usr/local/bin/nvidia-egpu-rebuild /etc/nvidia-egpu-rebuild.conf"

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Rebuilds the patched NVIDIA open modules for a newly installed kernel.
 # Invoked by the pacman hook after a linux-cachyos upgrade (also runnable
-# manually: sudo nvidia-egpu-rebuild). Reads /etc/blackwell-egpu/rebuild.conf
+# manually: sudo nvidia-egpu-rebuild). Reads /etc/nvidia-egpu-rebuild.conf
 # for TREE (patched open-gpu-kernel-modules checkout) and BUILD_USER.
 set -euo pipefail
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin
 
-CONF=/etc/blackwell-egpu/rebuild.conf
+CONF=/etc/nvidia-egpu-rebuild.conf
 if [ ! -f "$CONF" ]; then
     echo "[egpu-rebuild] $CONF missing -- run install-hook.sh again" >&2
     exit 1

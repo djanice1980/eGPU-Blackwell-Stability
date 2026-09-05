@@ -174,6 +174,16 @@ config: **DPM=0 mandatory; clock lock optional.** The Aug 30 "8/8 with locks" re
 stands as a valid observation under DPM=2; it should not be read as "locks are the fix".
 **Sep 5 evening: the widget's lock/pin toggles and the root helper (sudoers entry,
 `egpu-clocklock.service`, its udev rule) were removed** — the widget is read-only again.
+**Gotcha (Sep 5):** the clock-lock uninstaller did `rm -rf /etc/blackwell-egpu`, which also
+deleted the pacman hook's config that lived there. The hook config now lives at
+`/etc/nvidia-egpu-rebuild.conf` (own file, nothing else touches it); after any such
+cleanup re-run `sudo bash pacman-hook/install-hook.sh`, then `sudo nvidia-egpu-rebuild`
+must report "already installed -- nothing to do" — otherwise the next kernel update boots
+driverless.
+**Gotcha:** the clock-lock uninstaller did `rm -rf /etc/blackwell-egpu`, which also deleted
+the pacman hook's `rebuild.conf` (same directory). After removing the helper, re-run
+`sudo bash pacman-hook/install-hook.sh` — otherwise the next kernel update fails with
+"rebuild.conf missing" and boots driverless.
 Manual lock, if ever wanted for a zero-Xid session:
 `sudo nvidia-smi --lock-gpu-clocks=2000,3210 && sudo nvidia-smi --lock-memory-clocks=14001,14001`
 (reset with `--reset-gpu-clocks --reset-memory-clocks`).
