@@ -187,6 +187,17 @@ across the P8→P0 ramp, so the lock remains a legitimate belt-and-braces for a 
 session (at its ~20 W idle cost) — but it is no longer *required* to game. Standing
 config: **DPM=0 mandatory; clock lock optional.** The Aug 30 "8/8 with locks" result
 stands as a valid observation under DPM=2; it should not be read as "locks are the fix".
+**Counter-evidence (Sep 4, 23:41, same 5 h boot, DPM=0, unlocked):** running the latest
+build of the GPU-PCIe-Test tool (Vulkan DMA bandwidth/latency loops, 256 MB copies,
+"CPU round-trip" latency method) produced the **original GSP death**:
+`GSP_LOCKDOWN_NOTICE` → `tmrGetTimeEx_GH100: Consistently Bad TimeLo value ffffffff` →
+`_kgspIsHeartbeatTimedOut` → `LibOS heartbeat timed out` → `Xid 154 (PF FLR)` → teardown
+asserts. Soft loss (device answers config reads, tunnel `link=usb4`, no IO_PAGE_FAULT, no
+D-state). So DPM=0 made **game launches** survivable (5/5 + hours of play), but a
+DMA-hammering test app still reached the GSP-hang class. The hazard is reduced, not
+eliminated; whether the clock lock would have prevented this run is unknown (it was off).
+Precursors in the log: the tester (`AppRun`) threw `Xid 32` (corrupted pushbuffer) at 23:32:10 on an earlier run and again at 23:40:45, five seconds after this run started; the GSP heartbeat died 72 s later. C5 contained it (`cleanupGpuLostStateAtomic: GPU 0 lost via detector_class=0`, single line) and its known cosmetic `nvidia_dev_put` refcount WARN (nv.c:5361) fired in the app's teardown. Log: `~/egpu-gsp-loss-20260904-234430.log`. Practical rule: PCIe stress testers are the
+riskiest workload on this tunnel — lock clocks before running one, or expect a reset.
 **Sep 5 evening: the widget's lock/pin toggles and the root helper (sudoers entry,
 `egpu-clocklock.service`, its udev rule) were removed** — the widget is read-only again.
 **Gotcha (Sep 5):** the clock-lock uninstaller did `rm -rf /etc/blackwell-egpu`, which also
