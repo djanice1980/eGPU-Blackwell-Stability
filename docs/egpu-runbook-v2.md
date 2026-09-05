@@ -198,6 +198,18 @@ DMA-hammering test app still reached the GSP-hang class. The hazard is reduced, 
 eliminated; whether the clock lock would have prevented this run is unknown (it was off).
 Precursors in the log: the tester (`AppRun`) threw `Xid 32` (corrupted pushbuffer) at 23:32:10 on an earlier run and again at 23:40:45, five seconds after this run started; the GSP heartbeat died 72 s later. C5 contained it (`cleanupGpuLostStateAtomic: GPU 0 lost via detector_class=0`, single line) and its known cosmetic `nvidia_dev_put` refcount WARN (nv.c:5361) fired in the app's teardown. Log: `~/egpu-gsp-loss-20260904-234430.log`. Practical rule: PCIe stress testers are the
 riskiest workload on this tunnel — lock clocks before running one, or expect a reset.
+**Deterministic reproducer found (Sep 4, 23:49, fresh boot after the both-sides reset,
+clean attach at 19.3 s):** merely *opening* GPU-PCIe-Test 3.4.0 — no benchmark started —
+produced `Xid 32` on its channel **5 s after launch** (pid = `AppRun`, identical method
+words `8006006c`/`8006005c` as the two hits the night before). The app's Vulkan device is
+lost (its GPU list goes empty — looks like "the 5070 Ti is gone"), but the driver and card
+survive: `nvidia-smi` answers, config reads answer, other clients work. So the tool's
+startup path does something — a probe/warm-up transfer or timestamp query during device
+creation — that corrupts a command stream over the tunnel every time. Same
+"state creation across the tunnel" phase as the GL launch killer; under DPM=0 it stays a
+channel error unless something (the full benchmark last night) escalates it to a GSP
+heartbeat loss. Because the tool is David'"'"'s own, the exact startup operation can be
+identified in its source — a rare chance to pin the fragile operation precisely.
 **Sep 5 evening: the widget's lock/pin toggles and the root helper (sudoers entry,
 `egpu-clocklock.service`, its udev rule) were removed** — the widget is read-only again.
 **Gotcha (Sep 5):** the clock-lock uninstaller did `rm -rf /etc/blackwell-egpu`, which also
