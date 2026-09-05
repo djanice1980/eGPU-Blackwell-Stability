@@ -15,6 +15,11 @@ PlasmoidItem {
         return I18n.t(text, param);
     }
 
+    // PCIe rate label: MB/s below 1000, GB/s (2 decimals) above — keeps 4-digit values from crowding
+    function fmtRate(mb) {
+        return mb >= 1000 ? (mb / 1000).toFixed(2) + " GB/s" : mb + " MB/s";
+    }
+
     preferredRepresentation: compactRepresentation
 
     implicitWidth: Kirigami.Units.gridUnit * 24
@@ -339,7 +344,7 @@ PlasmoidItem {
                     // Prawa strona: Telemetria o stałej szerokości 105px
                     ColumnLayout {
                         visible: root.currentMode >= 3
-                        Layout.minimumWidth: 115
+                        Layout.minimumWidth: 150
                         Layout.rightMargin: Kirigami.Units.gridUnit * 0.25
                         Layout.alignment: Qt.AlignRight | Qt.AlignTop
                         spacing: 2
@@ -439,7 +444,7 @@ PlasmoidItem {
                                 id: rxLabel
                                 anchors.left: parent.left
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: "↓ " + root.pcieTx + " MB/s"
+                                text: "↓ " + root.fmtRate(root.pcieTx)
                                 font.pixelSize: Kirigami.Units.gridUnit * 0.68
                                 opacity: root.pcieTx > 0 ? 1.0 : 0.6
                                 color: root.pcieTx > 100 ? Kirigami.Theme.highlightColor : Kirigami.Theme.textColor
@@ -448,7 +453,7 @@ PlasmoidItem {
                             QQC2.Label {
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: "↑ " + root.pcieRx + " MB/s"
+                                text: "↑ " + root.fmtRate(root.pcieRx)
                                 font.pixelSize: Kirigami.Units.gridUnit * 0.68
                                 opacity: root.pcieRx > 0 ? 1.0 : 0.6
                                 color: root.pcieRx > 100 ? Kirigami.Theme.highlightColor : Kirigami.Theme.textColor
