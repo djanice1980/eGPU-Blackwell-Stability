@@ -127,7 +127,16 @@ The failures are about *what phase of GPU work* happens over the tunnel, not whi
   host→GPU** as the ceiling for display copies. Shares: 1080p60 21%, 1440p60 37%,
   1080p120 42%, 1440p120 75%, 4K60 85% (too tight), 4K120 168%. The widget's PCIe line
   (nvidia-smi dmon TLP counters) over-reads ~2× versus measured payload — an activity
-  indicator, not a measurement. Prediction: 1080p60 SDR works;
+  indicator, not a measurement.
+  **Revised Sep 5 — the 2.37 GB/s figure was contended.** Re-measured with GPU-PCIe-Test
+  v3.4.1 (UI rendered on the iGPU, native Wayland — the tester'"'"'s own window no longer
+  competing on the eGPU): **GPU→CPU 3.91 GB/s, CPU→GPU 3.86 GB/s, bidirectional 5.96
+  GB/s**, two identical runs, zero Xids. That is the 32 Gbps PCIe-tunnel allocation of a
+  40 Gbps USB4 link (~4.0 GB/s cap) — the tunnel is *not* TB3-class after all. Use **3.86
+  GB/s host→GPU** as the display-copy ceiling. Revised shares: 1080p60 13%, 1440p60 23%,
+  1080p120 26%, 1440p120 46%, **4K60 52% (now plausible)**, 4K120 104% (still over).
+  Lesson: any bandwidth number taken while something else was rendering on the eGPU
+  (including the benchmark'"'"'s own GUI) understates the tunnel. Prediction: 1080p60 SDR works;
   4K120 never will in this topology. Likely what #1229's reporter does differently: a
   lower mode, or KWin rendering *on* the 5090 (no per-frame copy) — ask them.
 - Workarounds for GL titles: Zink (`MESA_LOADER_DRIVER_OVERRIDE=zink GALLIUM_DRIVER=zink`,
