@@ -89,3 +89,6 @@ driver default DynamicPowerManagement=2 applied. Snapper snapshot taken first.
 
 ## Totals
 - Cold boots with enclosure attached: 3/3 reached Mode 2 with a clean driver detach (0 Xid each boot). His Mode 3 as shipped: 0/1 (BAR0=0M) plus the compositor kill. Attach via corrected sequence: 3/3. Load: ~50 min, 0 Xid. Mode 6: 1/1 clean, HDA function orphaned.
+
+## Uninstall (16:58)
+- uninstall.sh removed the backend, the udev rule (answered Y) and the applet, but NOT /etc/sudoers.d/blackwell-egpu: its `[ -f ... ]` check runs unprivileged and /etc/sudoers.d is mode 750, so the test is false and the NOPASSWD line stays. Removed by hand afterwards. Finding 6 for Damian: use `sudo test -f`.
