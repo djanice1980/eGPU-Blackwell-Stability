@@ -70,6 +70,12 @@ with locks held — see the repo README). Credit where due: locking clocks for t
 stability is also what DamianKA1993's original manager does in its connect path — this
 result independently corroborates that design choice on different hardware.
 
+**Sep 5 note:** on the reference system the lock turned out to be compensating for a
+silently misapplied `NVreg_DynamicPowerManagement` (distro file re-set it to `0x02`);
+with `=0` truly in effect, unlocked launches stopped being fatal. The lock is now an
+optional zero-Xid comfort rather than a requirement — see the repo README. The toggles
+are still useful for exactly that.
+
 The toggles appear only after you install the privileged helper:
 
 ```sh

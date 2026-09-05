@@ -22,6 +22,10 @@ obsolete — apnex's E1 replaces it with a proper fix.
   actual use: 8/8 clean launches, 1h+ sustained play, dmesg silent. Clock locking is
   now part of the standing stability configuration on this machine (pinned via the
   widget's clocklock helper), not an experiment.
+  **Sep 5 revision:** that 8/8 was measured while `NVreg_DynamicPowerManagement` was
+  silently 2 (see CORRECTION below). With DPM=0 actually in effect, **5 unlocked
+  launches + hours of play = 0 fatal, 1 non-fatal `Xid 32`**. GL titles now work
+  *without* the lock; the lock is optional belt-and-braces. See the gauntlet result.
 - Monitor on the **laptop's** HDMI at 4K120 HDR 10-bit (via DSC), KWin on the AMD 8060S
 
 **CURRENT CONFIGURATION (Aug 26, evening): full display stack loaded.**
@@ -101,7 +105,13 @@ The failures are about *what phase of GPU work* happens over the tunnel, not whi
   **Afterwards the card kept working for render offload with NO both-sides reset** — the
   driver never declared the GPU lost, so a display-path Xid 56/31 is survivable if the
   output is removed before that happens. First time a GPU-error episode ended without
-  the recovery procedure.
+  the recovery procedure. **Precision (from the journal):** zero Xids for the next 14 min
+  of use; but `nvidia-modeset` was still wedged on the dead head — `Error while waiting
+  for GPU progress` every 5 s from 17:09:33 once the session started shutting down — and
+  the reboot's tunnel teardown then produced `Xid 79 GPU has fallen off the bus` +
+  `detector_class=1` at 17:10:07 (reboot.target already queued that second). So: the
+  *render* side survived; the *display-engine* side did not, and would have needed a
+  reboot anyway. Expect a shutdown-time Xid 79 after any such episode; it's not a new loss.
   Snapshot: `~/egpu-scanout-20260904-165524.log`. **Verdict: unchanged by every platform
   update since August — do not attach a display to the eGPU.** The conservative-profile
   (1080p60 SDR) variant remains untested and is the only remaining open question here.
@@ -150,8 +160,18 @@ the clock lock is still required. Launch 1 (Wolfenstein: TNO, P8 unlocked, Proto
 after launch — a corrupted command stream during the P8→P0 ramp. Different and milder
 than the old launch killer: no `BadTimeLo`, no GSP heartbeat timeout, no Xid 154, no GPU
 loss; **the game came up and played fine** — the Xid 32 was non-fatal to both the app and the card (nvidia-smi fine, P8 afterwards). Only one Xid this boot.
-Interpretation so far: DPM=0 did not remove the P-state-transition hazard; the GPU-side
-outcome changed from "card dies" to "channel error". Tally continues below.
+**Result (Sep 5, one 5 h boot, card unlocked throughout, verified P8/300 MHz at idle):**
+~5 distinct Proton launches (17:20, 17:30, 17:39, 21:36, 21:50 — Wolfenstein: TNO
+sessions plus a GPU benchmark), hours of play. **Exactly one Xid the whole boot** — the
+non-fatal `Xid 32` above. No `Xid 154`, no heartbeat timeout, no GPU loss, no
+sustained-play `Xid 31`. Against the ~75%-fatal launch baseline, five clean unlocked
+launches is p≈0.001 by chance. **Conclusion: the DPM=2 misconfiguration was a major
+driver of the launch killer; DPM=0 (properly in effect) removes the *fatal* outcome. The
+clock lock was compensating for it.** The residual `Xid 32` shows the tunnel still glitches
+across the P8→P0 ramp, so the lock remains a legitimate belt-and-braces for a zero-Xid
+session (at its ~20 W idle cost) — but it is no longer *required* to game. Standing
+config: **DPM=0 mandatory; clock lock optional.** The Aug 30 "8/8 with locks" result
+stands as a valid observation under DPM=2; it should not be read as "locks are the fix".
 
 **Recovery procedure after ANY GPU death.** A host reboot alone does NOT reset the card
 (enclosure keeps it powered; wedged GSP persists). An enclosure power-cycle alone does NOT

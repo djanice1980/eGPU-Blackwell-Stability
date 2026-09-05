@@ -100,7 +100,19 @@ DPMS wake is the display core's **IPS** exit path, fixed by `amdgpu.dcdebugmask=
   the observed cold-boot USB4 tunnel failures and power-state hangs. Read-only
   intelligence for bug reports and BIOS-update requests.
 
-## Clock-lock mitigation (confirmed — adopted as standing config)
+## Update Sep 5: the real fix was `NVreg_DynamicPowerManagement=0` — actually in effect
+
+The clock-lock result below is real but was measured while `DynamicPowerManagement` was
+**silently 2**: a distro modprobe file (`nvidia.conf`, letter-named) sorts after `99-…`
+and its `0x02` won. Once the override was renamed to sort last (`zz-nvidia-egpu.conf`)
+and the driver reported `DynamicPowerManagement: 0`, the same launch that killed the card
+~75% of the time was run **5× unlocked with 0 fatal outcomes** (one non-fatal `Xid 32`
+the game never noticed), plus hours of unlocked play — p≈0.001 against the old baseline.
+So: **DPM=0 (verified via `/proc/driver/nvidia/params`, not `modprobe -c`) is mandatory;
+the clock lock is optional belt-and-braces** for a zero-Xid session at ~20 W idle.
+Check your own `/proc/driver/nvidia/params` before concluding "`=0` doesn't help".
+
+## Clock-lock mitigation (confirmed under DPM=2 — now optional)
 
 Locking GPU clocks (`nvidia-smi --lock-gpu-clocks` / `--lock-memory-clocks`) holds the
 card in P0 and suppresses P-state transitions — one of the two confirmed kill triggers
