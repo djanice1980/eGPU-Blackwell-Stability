@@ -237,6 +237,12 @@ setpci -s <gpu-addr> VENDOR_ID     # e.g. 03:00.0
 4. THEN unplug the TB cable.
 5. Enclosure power switch off, 15 s, on.
 6. Replug; module autoloads on attach; verify `external GPU detected`, no Xid.
+   **If you cannot close every holder** (`fuser -v /dev/nvidia*` — e.g. an Electron app
+   you are working in, or anything you'd rather not kill), the unload will fail (`nvidia`
+   stays busy). Use the **reboot both-sides reset** instead: reboot the laptop; while it is
+   down, enclosure power switch off ≥15 s then on; boot with the cable attached. A host
+   reboot alone does NOT reset a wedged GSP — the enclosure cycle is the part that matters.
+   Expect benign shutdown-time noise (`Xid 79` / `detector_class` as the tunnel tears down).
    **Why this order:** with `nvidia_drm` loaded, KWin holds the card's DRM node open as a
    *secondary* device even though it composits on the AMD 8060S. Pulling the cable first
    rips that node out from under the compositor → **both displays freeze** (OS stays
