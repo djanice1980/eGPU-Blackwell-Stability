@@ -208,8 +208,20 @@ startup path does something — a probe/warm-up transfer or timestamp query duri
 creation — that corrupts a command stream over the tunnel every time. Same
 "state creation across the tunnel" phase as the GL launch killer; under DPM=0 it stays a
 channel error unless something (the full benchmark last night) escalates it to a GSP
-heartbeat loss. Because the tool is David'"'"'s own, the exact startup operation can be
-identified in its source — a rare chance to pin the fragile operation precisely.
+heartbeat loss. **Identified (Sep 4/5):** not a startup probe at all. The clean v3.0 run and the faulting
+3.4.0 runs execute the same GUI code; the difference is the binary. The 3.4.0 **AppImage
+bundles GLFW 3.3.6 built X11-only** (no Wayland symbols), so its window is an **XWayland
+client** while the GUI renders on the eGPU (`InitVulkan` picks the first *discrete* GPU
+for the UI) — every frame is presented through Xwayland'"'"'s cross-GPU buffer sharing.
+The v3.0 binary used the system GLFW 3.5.1 with native Wayland, where KWin imports the
+NVIDIA dma-buf directly, and ran a full benchmark with zero Xids. So the reproducer is
+"eGPU-rendered window presented via XWayland" — the same imported-buffer-across-the-tunnel
+family as the monitor-on-eGPU Xid 31/56 failure, at window scale. `vulkaninfo` (no
+window) doesn'"'"'t trigger it. A/B prepared: the AppImage extracted with its bundled GLFW
+removed (`~/Downloads/gpu-pcie-test-3.4.0-sysglfw/squashfs-root/AppRun`) runs native
+Wayland; the v3.0 binary forced to X11 (`WAYLAND_DISPLAY= ~/Downloads/gpu-pcie-test-vulkan`)
+should reproduce. Fix for the tool: ship a Wayland-capable GLFW (≥3.4) in the AppImage,
+and/or render the GUI on the *integrated* GPU when the benchmark target is a tunneled eGPU.
 **Sep 5 evening: the widget's lock/pin toggles and the root helper (sudoers entry,
 `egpu-clocklock.service`, its udev rule) were removed** — the widget is read-only again.
 **Gotcha (Sep 5):** the clock-lock uninstaller did `rm -rf /etc/blackwell-egpu`, which also
