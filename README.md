@@ -122,7 +122,7 @@ launches survived **8/8 consecutive launches and over an hour of sustained play*
 (p≈1.5e-5 by chance) with dmesg completely silent — not even transient-retry lines,
 meaning the failure window is not entered at all. On the reference system this is no
 longer an experiment: clock locking is the adopted day-to-day configuration (pinned at
-boot via the widget's clocklock helper) and has maintained stability in real gaming use. Cost: ~20 W extra at idle (10.6 W → 30.6 W measured); load behaviour
+boot via the widget's since-removed clock-lock helper) and maintained stability in real gaming use — until the DPM=0 finding above superseded it. Cost: ~20 W extra at idle (10.6 W → 30.6 W measured); load behaviour
 unchanged. Details, exact commands, and caveats in the
 [runbook](docs/egpu-runbook-v2.md).
 
