@@ -25,12 +25,12 @@ host-platform-specific, not universal; see the runbook.
 ```sh
 git clone https://github.com/djanice1980/eGPU-Blackwell-Stability
 cd eGPU-Blackwell-Stability
-./install.sh          # interactive; or --all / --patches / --hook / --widget / --clocklock
+./install.sh          # interactive; or --all / --patches / --hook / --widget
 ```
 
 `./install.sh --check` reports what's installed and what's missing without changing
 anything. The installer runs as a normal user and uses sudo only for the module
-install and the clock-lock helper; the widget is entirely user-level. It clones the
+install and the pacman hook; the widget is entirely user-level. It clones the
 NVIDIA driver source (with confirmation) if you don't already have it, refuses to
 apply patches onto a dirty or mismatched tree, and auto-detects Clang-built kernels.
 
@@ -129,10 +129,10 @@ unchanged. Details, exact commands, and caveats in the
 Credit: clock-locking for tunnel stability is also what DamianKA1993's manager does in
 its connect path ("clock stabilization … enforces P0") — this result independently
 corroborates that choice on different hardware (AMD Strix Halo + TB5 enclosure here;
-Ryzen mini PC + USB4 AI BOX there). The widget's optional
-[`clocklock/`](widget/clocklock/) helper turns the mitigation into two switches on the
-widget — lock on/off, and "pin" to reapply automatically at boot and on driver attach —
-behind a sudoers entry scoped to four literal commands.
+Ryzen mini PC + USB4 AI BOX there). The widget briefly carried lock/pin switches for
+this (v1.1–v1.4); they were removed in v1.5.0 once DPM=0 proved to be the actual fix,
+returning the widget to strictly read-only with no privileged component. The manual
+`nvidia-smi` lock commands remain in the runbook for anyone who wants a zero-Xid session.
 
 ## Licensing
 

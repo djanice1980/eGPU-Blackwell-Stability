@@ -172,6 +172,11 @@ across the P8→P0 ramp, so the lock remains a legitimate belt-and-braces for a 
 session (at its ~20 W idle cost) — but it is no longer *required* to game. Standing
 config: **DPM=0 mandatory; clock lock optional.** The Aug 30 "8/8 with locks" result
 stands as a valid observation under DPM=2; it should not be read as "locks are the fix".
+**Sep 5 evening: the widget's lock/pin toggles and the root helper (sudoers entry,
+`egpu-clocklock.service`, its udev rule) were removed** — the widget is read-only again.
+Manual lock, if ever wanted for a zero-Xid session:
+`sudo nvidia-smi --lock-gpu-clocks=2000,3210 && sudo nvidia-smi --lock-memory-clocks=14001,14001`
+(reset with `--reset-gpu-clocks --reset-memory-clocks`).
 
 **Recovery procedure after ANY GPU death.** A host reboot alone does NOT reset the card
 (enclosure keeps it powered; wedged GSP persists). An enclosure power-cycle alone does NOT

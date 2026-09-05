@@ -59,44 +59,19 @@ This fork keeps the excellent status panel and deletes every side effect:
 User-level only; the script prints how to add the widget to a panel (or run it as a
 standalone window with `plasmawindowed`) and how to uninstall.
 
-## Optional: clock-lock toggles (`clocklock/`)
+## Clock-lock toggles — removed (v1.5.0)
 
-One deliberate exception to "read-only": the widget can show two switches — **Clock
-lock (hold P0)** and **Pin across reboots** — that apply/release
-`nvidia-smi --lock-gpu-clocks` / `--lock-memory-clocks`. Holding the card in P0
-suppresses P-state transitions, which on the reference system was a confirmed
-kill trigger for GL context creation over the tunnel (survival went from ~25% to 8/8
-with locks held — see the repo README). Credit where due: locking clocks for tunnel
-stability is also what DamianKA1993's original manager does in its connect path — this
-result independently corroborates that design choice on different hardware.
-
-**Sep 5 note:** on the reference system the lock turned out to be compensating for a
-silently misapplied `NVreg_DynamicPowerManagement` (distro file re-set it to `0x02`);
-with `=0` truly in effect, unlocked launches stopped being fatal. The lock is now an
-optional zero-Xid comfort rather than a requirement — see the repo README. The toggles
-are still useful for exactly that.
-
-The toggles appear only after you install the privileged helper:
-
-```sh
-sudo bash clocklock/install-clocklock.sh
-```
-
-Security design (deliberately unlike a blanket-NOPASSWD wrapper):
-
-- The sudoers entry allows **only four literal commands** (`... on`, `... off`,
-  `... pin`, `... unpin`) of a root-owned script — validated with `visudo -cf`
-  before install.
-- The helper reads no user-controlled paths; state flags live in `/run/blackwell-egpu`
-  and `/etc/blackwell-egpu` (root-owned).
-- "Pin" = a flag plus a oneshot systemd service that re-applies the lock at boot and
-  whenever udev sees the nvidia driver bind a GPU (hotplug/replug) — it survives
-  reboots, driver reloads, and recovery power-cycles.
-- The widget cross-checks: if the lock flag is set but the card is not in P0 (lock
-  lost to a reset), it shows a warning instead of a false "locked" state.
-
-Trade-off: holding P0 costs ~20 W at idle (VRAM at full clock). Uninstall everything
-with `sudo bash clocklock/uninstall-clocklock.sh`.
+Versions 1.1–1.4 of this fork carried an optional pair of switches (lock the card in P0,
+pin across reboots) behind a scoped root helper, because holding P0 was the only thing
+that made GL launches over the tunnel survivable on the reference system. It turned out
+the lock was compensating for `NVreg_DynamicPowerManagement` being **silently 2** (a
+distro modprobe file sorted after the override). With `=0` genuinely in effect, unlocked
+launches stopped being fatal — so the toggles, the helper, the sudoers entry, the
+systemd unit and the udev rule are gone, and the widget is read-only again with **no
+privileged component at all**. If you still want a manual lock for a zero-Xid session,
+the two `nvidia-smi` commands are in the runbook; the widget's telemetry will show P0.
+Credit stands: locking clocks for tunnel stability was DamianKA1993's design choice
+first, and it worked for the right reason on his hardware.
 
 ## License
 

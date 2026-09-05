@@ -2,15 +2,14 @@
 # eGPU-Blackwell-Stability unified installer.
 #
 #   ./install.sh              interactive: offers each component
-#   ./install.sh --all        patches + pacman hook + widget + clocklock helper
+#   ./install.sh --all        patches + pacman hook + widget
 #   ./install.sh --patches    patched driver modules only
 #   ./install.sh --hook       pacman hook only (auto-rebuild on kernel updates)
 #   ./install.sh --widget     Plasma 6 status widget only (user-level, no root)
-#   ./install.sh --clocklock  clock-lock helper only (root, scoped sudoers)
 #   ./install.sh --check      report system state, change nothing
 #
 # Run as a normal user. Root is requested per-step via sudo only where needed
-# (module install, clocklock helper). Verified on CachyOS/Arch; other distros
+# (module install, pacman hook). Verified on CachyOS/Arch; other distros
 # should work for the driver build but package checks degrade to warnings.
 set -euo pipefail
 
@@ -76,7 +75,6 @@ check_state() {
     fi
     if [ -x "$HOME/.local/bin/blackwell-egpu-status" ]; then ok "Widget backend installed"; else note "Widget backend not installed"; fi
     if [ -d "$HOME/.local/share/plasma/plasmoids/com.github.blackwellegpu.status" ]; then ok "Widget applet installed"; else note "Widget applet not installed"; fi
-    if [ -x /usr/local/bin/blackwell-egpu-clocklock ]; then ok "Clock-lock helper installed"; else note "Clock-lock helper not installed"; fi
     if [ -f /etc/pacman.d/hooks/nvidia-egpu-rebuild.hook ]; then ok "Pacman rebuild hook installed"; else note "Pacman rebuild hook not installed"; fi
     if [ -f /etc/blackwell-egpu/clocklock-pinned ]; then
         ok "Clock lock is PINNED (applies at boot/attach)"
@@ -84,7 +82,7 @@ check_state() {
 }
 
 install_patches() {
-    msg "1/4 Patched driver modules ($DRIVER_VERSION)"
+    msg "1/3 Patched driver modules ($DRIVER_VERSION)"
 
     if [ ! -f "/lib/modules/$(uname -r)/build/Makefile" ]; then
         warn "Kernel headers missing for $(uname -r). Install them first (Arch: linux-<flavor>-headers)."
@@ -182,7 +180,7 @@ install_patches() {
 }
 
 install_hook() {
-    msg "2/4 Pacman hook (rebuild patched modules on kernel updates)"
+    msg "2/3 Pacman hook (rebuild patched modules on kernel updates)"
     if command -v pacman >/dev/null 2>&1; then
         sudo bash "$REPO_DIR/pacman-hook/install-hook.sh" "$TREE"
     else
@@ -191,14 +189,10 @@ install_hook() {
 }
 
 install_widget() {
-    msg "3/4 Plasma 6 status widget (user-level)"
+    msg "3/3 Plasma 6 status widget (user-level)"
     bash "$REPO_DIR/widget/install.sh"
 }
 
-install_clocklock() {
-    msg "4/4 Clock-lock helper (root; sudoers scoped to 4 literal commands)"
-    sudo bash "$REPO_DIR/widget/clocklock/install-clocklock.sh"
-}
 
 case "${1:-}" in
     --check)
@@ -213,14 +207,10 @@ case "${1:-}" in
     --widget)
         install_widget
         ;;
-    --clocklock)
-        install_clocklock
-        ;;
     --all)
         install_patches
         install_hook
         install_widget
-        install_clocklock
         ;;
     "")
         check_state
@@ -228,7 +218,6 @@ case "${1:-}" in
         ask "Install patched driver modules?" && install_patches || true
         ask "Install the pacman hook (auto-rebuild on kernel updates)?" && install_hook || true
         ask "Install the Plasma 6 status widget?" && install_widget || true
-        ask "Install the clock-lock helper (widget toggles + boot pin)?" && install_clocklock || true
         ok "Done."
         ;;
     *)

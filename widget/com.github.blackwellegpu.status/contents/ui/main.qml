@@ -41,12 +41,6 @@ PlasmoidItem {
     property int pcieRx: 0
     property int pcieTx: 0
 
-    // Clock-lock helper state (0/1; lock: 2 = stale flag, lock was lost)
-    property int helperPresent: 0
-    property int lockState: 0
-    property int pinState: 0
-    signal statusUpdated()
-
     P5Support.DataSource {
         id: backend
         engine: "executable"
@@ -75,38 +69,16 @@ PlasmoidItem {
                     root.pcieRx = parsed.pcie_rx || 0;
                     root.pcieTx = parsed.pcie_tx || 0;
 
-                    root.helperPresent = parsed.helper || 0;
-                    root.lockState = parsed.lock || 0;
-                    root.pinState = parsed.pin || 0;
-
                     root.initialLoaded = true;
-                    root.statusUpdated();
                 } catch(e) {
                     console.log("JSON Parse Error:", e);
                 }
-            }
-            // Refresh state as soon as a clocklock action finishes
-            if (sourceName.indexOf("blackwell-egpu-clocklock") !== -1) {
-                disconnectSource(sourceName);
-                refresh();
-                return;
             }
             disconnectSource(sourceName);
         }
 
         function refresh() {
             connectSource("__HOME__/.local/bin/blackwell-egpu-status");
-        }
-
-        // sudo -n: succeeds passwordless via the scoped sudoers entry that
-        // clocklock/install-clocklock.sh installs; fails cleanly (no hang)
-        // if that entry is missing.
-        function setLock(enable) {
-            connectSource("sudo -n /usr/local/bin/blackwell-egpu-clocklock " + (enable ? "on" : "off"));
-        }
-
-        function setPin(enable) {
-            connectSource("sudo -n /usr/local/bin/blackwell-egpu-clocklock " + (enable ? "pin" : "unpin"));
         }
     }
 
@@ -510,71 +482,6 @@ PlasmoidItem {
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                }
-
-                // === Clock-lock controls (visible only when the root helper is installed) ===
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: Kirigami.Units.smallSpacing
-                    visible: root.helperPresent === 1
-
-                    // Keep switches in sync with polled state without a
-                    // continuous binding (which would fight user toggles).
-                    Connections {
-                        target: root
-                        function onStatusUpdated() {
-                            lockSwitch.checked = (root.lockState >= 1);
-                            pinSwitch.checked = (root.pinState === 1);
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Kirigami.Units.smallSpacing
-
-                        QQC2.Label {
-                            text: root.tr("Clock lock (hold P0)")
-                            font.pixelSize: Kirigami.Units.gridUnit * 0.75
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        QQC2.Switch {
-                            id: lockSwitch
-                            enabled: root.currentMode >= 3
-                            onToggled: backend.setLock(checked)
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Kirigami.Units.smallSpacing
-
-                        QQC2.Label {
-                            text: root.tr("Pin across reboots")
-                            font.pixelSize: Kirigami.Units.gridUnit * 0.75
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        QQC2.Switch {
-                            id: pinSwitch
-                            onToggled: backend.setPin(checked)
-                        }
-                    }
-
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        wrapMode: Text.Wrap
-                        font.pixelSize: Kirigami.Units.gridUnit * 0.65
-                        font.italic: true
-                        opacity: 0.6
-                        visible: root.lockState !== 0 || root.pinState === 1
-                        color: root.lockState === 2 ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor
-                        text: root.lockState === 2
-                              ? root.tr("Lock flag set but card is not in P0 — lock was lost, toggle to reapply")
-                              : root.tr("Locked in P0: crash-safe launches, ~20 W extra at idle")
-                    }
                 }
             }
         }
