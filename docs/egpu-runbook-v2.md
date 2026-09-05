@@ -453,6 +453,7 @@ The ~70% failure figure above was measured on kernel 7.2.0 + BIOS 311 — re-bas
 | Sep 5 | 7.2.3 | 314 | success, **late** | Experiment: `pcie_port_pm=off` REMOVED. Reset at 7.07 s, router 7.34 s — then root port `00:01.1` runtime-suspended (337.5 s in D3) and the PCIe tunnel only came up at **344.7 s, 3 s after login**; GPU at 347 s. No link drop afterwards (August symptom gone). Verdict: port PM must stay off for the two tunnel root ports — narrow udev pin adopted, pending validation. |
 | Sep 5 (2nd) | 7.2.3 | 314 | **success** | `pcie_port_pm` default + udev pin on `00:01.1/.2`: reset 7.03 s, `Link Up` 18.22 s, GPU 19.55 s, login 90 s. `00:01.1` suspended 0 ms. **Pin validated; global flag retired.** Unaided cold boots with `host_reset` default: 5/5 (one late, explained). |
 | Sep 5 (3rd) | 7.2.3 | 314 | **success** | First boot with **DPM=0 actually in effect** + GPU `power/control=on` pin. Enclosure came up on domain **1** (`1-2`, root port `00:01.2`, GPU `63:00.0` — cable moved to the laptop's other USB4 port), proving the udev pin covers both tunnel ports and the GPU rule follows the card; no firmware-prebuilt tunnel this time (no `Link Down`), kernel CM built it fresh: router 6.49 s, `Link Up` 17.16 s, GPU 18.73 s, login 34.5 s. 6/6. |
+| Sep 5 16:49 | 7.2.3 | 314 | success | blackwell-egpu-manager test, root-port pin and DPM=0 file moved aside: `00:01.2` runtime-suspended at boot, tunnel `Link Up` ~30 s wall, GPU bound at +1 s, then the manager's udev rule detached the tree (clean, 0 Xid). Same shape 15:33 and 16:52 — 3/3 for the day, see the manager section. |
 
 Keep adding rows. Two clean successes on 7.2.2/311 already look better than the old
 ~30%; whether 314 helps or hurts needs several uncontaminated boots.
@@ -844,6 +845,53 @@ a silent no-op here — do not chase it.
 
 ---
 
+## blackwell-egpu-manager v1.5.5 tested on this host (Sep 5)
+
+DamianKA1993 asked for an out-of-the-box test on other hardware. Done snapshot-protected
+on the live install (snapper + limine-snapper-sync) rather than a fresh CachyOS, with our
+DPM=0 modprobe file and the root-port udev pin moved aside, patches and cmdline left in
+place and disclosed. Full timestamped notes: `docs/blackwell-egpu-manager-test-2026-09-05.md`;
+helpers in `tools/manager-test/`. Summary:
+
+- **Its udev rule does not gate attach here.** nvidia autoloads by modalias; the tunnel
+  rebuilds ~30 s into boot; the driver binds and boots GSP; the rule PCI-removes the
+  5786 tree ~2 s later. Teardown was orderly (gpuLost=false) on 3/3 cold boots, 0 Xid, so
+  the intended Mode 2 end state is reached — but as a post-init detach, not a pre-attach
+  block. On an Intel host stuck in `kgspInitRm` the remove would land on a hung probe.
+- **Mode 3 as shipped failed** (`NVRM: BAR0 is 0M @ 0x0`). Journal: two-phase enumeration.
+  Its root-port rescan sizes the switch windows while the GPU port (62:00.0, `HotPlug-`)
+  link is still down → 6 MB for three empty ports; the GPU appears moments later needing
+  ~640 MB → every BAR "can't assign; no space". Not the driver, not its setpci work, and
+  not `pci=realloc=off`: a full pass with the GPU present sizes correctly under it.
+- **Working attach (3/3):** after the rescan check `/sys/bus/pci/devices/<gpu>/resource`
+  line 1; if BAR0 is 0, remove the 5786 upstream port, wait ~8 s (link retrains 3–5 s
+  after re-enable; poll `setpci CAP_EXP+12.w` bit 13), rescan the root port again.
+  Timing-dependent: 1 of 3 immediate rescans happened to work (22 s after the detach).
+- **`fuser -k /dev/nvidia*` in set3 SIGKILLed kwin_wayland.** KWin holds `/dev/nvidiactl`
+  whenever the module is loaded, GPU present or not. Plasma 6 respawned it; every Wayland
+  client that could not reconnect died. Reported.
+- **Its DPM=0x00 modprobe was a no-op:** udev autoload had already loaded the module with
+  the distro default (2) during the rescan. Same trap as our own Sep 5 finding, different
+  route. Verify with `/proc/driver/nvidia/params`, always.
+- **Load:** ~50 min game with its clock lock (DPM=2 in effect), 0 Xid — consistent with
+  the lock-under-DPM=2 gauntlet above.
+- **Mode 6 safe detach: clean.** Software PCI removal of a GPU the compositor had open
+  did NOT freeze the display (contrast: the Sep 2 cable-pull freeze). KWin, plasmashell,
+  Xwayland kept their PIDs. Leftover: the HDA function 63:00.1 stays bound to
+  snd_hda_intel (only the VGA function is removed) — likely his known audio issue.
+  Caveat: the removal ran through the patched teardown path (C5), so this does not prove
+  a stock driver unwinds identically.
+- Mode 4 not tested (removes the 8060S = the only panel path). Never press it here.
+- Side observation: with the root-port pin absent, `00:01.2` was runtime-suspended at
+  boot and the tunnel came up at ~30–35 s uptime on all three boots vs ~18 s with the pin
+  (n=3, same kernel/BIOS) — consistent with the pin's purpose, not proof.
+
+Net for this host: the manager's working ingredients reduce to ASPM/L1SS off, locked
+clocks, and DPM=0 actually in effect — the same set already adopted here. Its value is
+the attach/detach state machine, and Mode 6 is genuinely useful; Mode 3 needs the BAR0
+check and the compositor guard before it is safe on KDE Wayland hosts that autoload
+nvidia. Config restored and the manager uninstalled afterwards (snapshot kept).
+
 ## Open items as of Aug 26 evening
 
 **Standing plan (Sep 5):** configuration is stable and frozen — DPM=0 verified, udev pin
@@ -872,10 +920,10 @@ version (610.43 vs 610.57), GPU (GB202 vs GB203), and output mode.
 4. **Untested variables** — `thunderbolt.host_reset` has never actually been tested
    removed (the earlier edit didn't take). A conservative eGPU display profile
    (1080p60, no HDR/VRR) has never been tried. Zink for GL titles is untested.
-5. **Audit before installing** blackwell-egpu-manager: read `install.sh`, its udev rules,
-   and the sudoers scope. Its "prevent PCIe link stalls / improper driver auto-binding"
-   udev rules are the interesting part (adjacent to the GL-context-creation failure);
-   avoid Mode 4 entirely.
+5. ~~**Audit before installing** blackwell-egpu-manager~~ — DONE Sep 5: audited and
+   tested v1.5.5 snapshot-protected, see the section above. Its udev rule cannot gate
+   attach on this host (driver autoloads first); Mode 3 needs a BAR0 check and a
+   compositor guard; Mode 6 works. Findings reported to the author. Mode 4 still never.
 6. ~~**S5 poweroff test** with the eGPU cable fully detached~~ — SUPERSEDED: S5
    poweroff fixed by kernel update (7.2.2), see the Unresolved section. Follow-up
    worth watching instead: whether the same kernel range changed the **cold-boot
