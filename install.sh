@@ -76,9 +76,6 @@ check_state() {
     if [ -x "$HOME/.local/bin/blackwell-egpu-status" ]; then ok "Widget backend installed"; else note "Widget backend not installed"; fi
     if [ -d "$HOME/.local/share/plasma/plasmoids/com.github.blackwellegpu.status" ]; then ok "Widget applet installed"; else note "Widget applet not installed"; fi
     if [ -f /etc/pacman.d/hooks/nvidia-egpu-rebuild.hook ]; then ok "Pacman rebuild hook installed"; else note "Pacman rebuild hook not installed"; fi
-    if [ -f /etc/blackwell-egpu/clocklock-pinned ]; then
-        ok "Clock lock is PINNED (applies at boot/attach)"
-    fi
 }
 
 install_patches() {
@@ -156,9 +153,9 @@ install_patches() {
         return 1
     fi
 
-    if [ ! -f /etc/modprobe.d/99-nvidia-egpu.conf ]; then
+    if [ ! -f /etc/modprobe.d/zz-nvidia-egpu.conf ]; then
         echo ""
-        note "Suggested /etc/modprobe.d/99-nvidia-egpu.conf (see patches/README.md):"
+        note "Suggested /etc/modprobe.d/zz-nvidia-egpu.conf (zz- so it sorts after distro files; see patches/README.md):"
         echo "    options nvidia NVreg_DynamicPowerManagement=0"
         echo "    options nvidia NVreg_EnableResizableBar=0"
         echo "    options nvidia NVreg_InitializeSystemMemoryAllocations=0"
@@ -169,8 +166,8 @@ install_patches() {
                 "options nvidia NVreg_EnableResizableBar=0" \
                 "options nvidia NVreg_InitializeSystemMemoryAllocations=0" \
                 "softdep nvidia post: nvidia-uvm" \
-                | sudo tee /etc/modprobe.d/99-nvidia-egpu.conf >/dev/null
-            ok "Wrote /etc/modprobe.d/99-nvidia-egpu.conf"
+                | sudo tee /etc/modprobe.d/zz-nvidia-egpu.conf >/dev/null
+            ok "Wrote /etc/modprobe.d/zz-nvidia-egpu.conf"
         fi
     fi
 
