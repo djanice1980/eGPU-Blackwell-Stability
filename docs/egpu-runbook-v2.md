@@ -134,6 +134,17 @@ The failures are about *what phase of GPU work* happens over the tunnel, not whi
     VRR-auto as the trigger — none of them is the cause.
   - 4K60 HDR and 1440p120 deliberately NOT run: 4K60 SDR already froze, and the stable runs
     isolate the variable without them.
+  **Config confirmed (Sep 6, KWin supportInformation):** the compositor renders on the
+  **AMD iGPU** (`OpenGL renderer: AMD Radeon 8060S Graphics`, radeonsi/Mesa); card0=nvidia
+  drives `HDMI-A-2` as **scanout-only** (0%% render util, ~30 W). So the whole ladder is
+  iGPU-rendered frames copied across the tunnel for the 5070 Ti to scan out — and the 4K60
+  freeze happened with the card **compute-idle**. It is the tunnel scanout-copy path that
+  hits the ceiling, not GPU load. Corollary: a game run in THIS config renders on the iGPU
+  and gets iGPU performance — the card does no rendering. The untested alternative is a game
+  rendered ON the 5070 Ti with the monitor also on it: finished 4K frames then never cross
+  the tunnel (only assets/commands do), so it may survive 4K where iGPU-render->eGPU-scanout
+  froze. That is a separate test worth running before concluding the card can't be a 4K
+  gaming display.
   **Refined verdict (Sep 6): the trigger is pixel THROUGHPUT on the real-time scanout path,
   not resolution/refresh/HDR/VRR per se.** Stable: 1080p60 (~0.5 GB/s), 1080p120+HDR
   (~1.2 GB/s). Freezes: 4K60 (~2.0 GB/s). The boundary sits ~1.2-2.0 GB/s — far below the
