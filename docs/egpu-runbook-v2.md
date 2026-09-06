@@ -112,9 +112,28 @@ The failures are about *what phase of GPU work* happens over the tunnel, not whi
   `detector_class=1` at 17:10:07 (reboot.target already queued that second). So: the
   *render* side survived; the *display-engine* side did not, and would have needed a
   reboot anyway. Expect a shutdown-time Xid 79 after any such episode; it's not a new loss.
-  Snapshot: `~/egpu-scanout-20260904-165524.log`. **Verdict: unchanged by every platform
-  update since August — do not attach a display to the eGPU.** The conservative-profile
-  (1080p60 SDR) variant remains untested and is the only remaining open question here.
+  Snapshot: `~/egpu-scanout-20260904-165524.log`. **Verdict (Sep 6): the display limit is
+  sustained scanout stability, NOT bandwidth — and 1080p60 is the stable ceiling.**
+  Ladder test Sep 6 (clocks locked 2000-max/14001, DPM=0, eDP kept as fallback,
+  `tools/egpu-display-test.sh` v2 which refuses to run unlocked and disables the output on
+  mismatch/first Xid):
+  - **1080p60 SDR: STABLE.** 12 min sustained motion, 0 Xid, 0 pageflip. First proof the
+    cross-GPU real-time scanout path works at all on this host. Usable as a daily config.
+  - **1440p60: not offered** by the test monitor over the eGPU HDMI (only 1440p120 exists).
+  - **4K60 SDR: LIT CLEAN, then HARD-FROZE ~5 min into real load.** The modeset itself
+    committed with zero kernel errors (contrast the Aug/Sep 4 attempts that sparkled
+    immediately), so 4K60 is within link margin — 3840×2160×4 B×60 Hz ≈ 2.0 GB/s, ~52% of
+    the 3.86 GB/s tunnel. It is sustained scanout that fails, not the initial mode. The
+    freeze was a full hard lock (no journal Xid captured — journald died with it); reboot
+    left the GPU off-bus behind a healthy tunnel (card GSP wedged, enclosure fine).
+    Recovery: enclosure power-cycle (15 s) resets the card, then `echo 1 >
+    /sys/bus/pci/devices/0000:62:00.0/rescan`; the laptop EC drain was NOT needed (that is
+    only for when the *tunnel* is also dead — see [[z13-egpu-freeze-ec-recovery]]).
+  - 4K60 HDR and 1440p120 deliberately NOT run: same or higher pixel rate, would repeat the
+    hard freeze, and each freeze risks a deeper wedge.
+  So: 1080p60 SDR is safe and usable; anything at 4K hard-freezes under load on this host.
+  Do not attach a 4K display to the eGPU for real use. The old blanket "do not attach a
+  display" is now narrowed to "4K scanout under load is the failing case."
   **Bandwidth hypothesis (Sep 5) — quantitative:** with KWin compositing on the AMD iGPU
   and the monitor on the eGPU, every frame crosses the tunnel to the card that scans it
   out: 3840×2160×4 B×120 Hz ≈ **4.0 GB/s**, above the measured **~2.8 GB/s** tunnel
@@ -899,8 +918,10 @@ for tunnel ports + GPU, IPS disabled, `host_reset` default, patches in, hook mai
 them. The patches are not harming anything; the open question "are they still necessary
 under DPM=0?" is deferred to the **next NVIDIA driver release**, when the patches must be
 ported anyway (the hook will refuse the build until they are). At that point run the stock
-vs. patched launch gauntlet under DPM=0 and decide with data. Only known-unsolved item:
-driving a display from the eGPU (Xid 56/31 + pageflip timeouts). Lead for that:
+vs. patched launch gauntlet under DPM=0 and decide with data. Display-from-eGPU is now
+characterised (Sep 6): 1080p60 SDR is stable (12 min soak, usable daily); 4K60 lights
+cleanly but hard-freezes ~5 min into load, so the limit is sustained scanout stability, not
+bandwidth. Remaining lead for pushing 4K:
 NVIDIA/open-gpu-kernel-modules#1229's reporter drives a Plasma Wayland desktop from a 5090
 in the same Core X V2 on the same GZ302EA (610.43.02, kernel 7.0.13, NixOS) — so it is
 not impossible on this host; differences to probe at the next driver release are driver
