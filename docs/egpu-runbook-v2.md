@@ -129,8 +129,17 @@ The failures are about *what phase of GPU work* happens over the tunnel, not whi
     Recovery: enclosure power-cycle (15 s) resets the card, then `echo 1 >
     /sys/bus/pci/devices/0000:62:00.0/rescan`; the laptop EC drain was NOT needed (that is
     only for when the *tunnel* is also dead — see [[z13-egpu-freeze-ec-recovery]]).
-  - 4K60 HDR and 1440p120 deliberately NOT run: same or higher pixel rate, would repeat the
-    hard freeze, and each freeze risks a deeper wedge.
+  - **1080p120 + HDR + VRR auto: STABLE.** 10 min sustained motion, 0 Xid (Sep 6, log
+    `egpu-display-test-20260906-010518.log`). This clears refresh rate (120 Hz), HDR, and
+    VRR-auto as the trigger — none of them is the cause.
+  - 4K60 HDR and 1440p120 deliberately NOT run: 4K60 SDR already froze, and the stable runs
+    isolate the variable without them.
+  **Refined verdict (Sep 6): the trigger is pixel THROUGHPUT on the real-time scanout path,
+  not resolution/refresh/HDR/VRR per se.** Stable: 1080p60 (~0.5 GB/s), 1080p120+HDR
+  (~1.2 GB/s). Freezes: 4K60 (~2.0 GB/s). The boundary sits ~1.2-2.0 GB/s — far below the
+  3.86 GB/s the tunnel does for BULK copies, because the display engine's latency-sensitive
+  real-time path has a much lower usable ceiling than render-and-hand-off. Practical: any
+  1080p mode (incl. 120 Hz + HDR) is usable as a daily eGPU display; 4K is not.
   So: 1080p60 SDR is safe and usable; anything at 4K hard-freezes under load on this host.
   Do not attach a 4K display to the eGPU for real use. The old blanket "do not attach a
   display" is now narrowed to "4K scanout under load is the failing case."
