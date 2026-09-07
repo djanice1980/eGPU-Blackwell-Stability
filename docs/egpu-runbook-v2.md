@@ -589,6 +589,20 @@ two USB4 tunnel root ports pinned awake by udev instead; see the bullets for why
   bug; 6/6 clean wakes at 4K120+HDR with it vs. reliable failure without). See the DPMS
   section. Bit from `enum DC_DEBUG_MASK` in amd_shared.h.
 
+- `/etc/modprobe.d/99-amdgpu-hdmi-frl.conf` → `options amdgpu dcfeaturemask=0x402` —
+  **HDMI 2.1 FRL re-enabled (added Sep 7).** Not eGPU-related. linux-cachyos 7.2.3 ships the
+  upstream default `dcfeaturemask=2` (DC_FRL_MASK 0x400 off, because HDMI VRR is unfinished);
+  7.2.0–7.2.2 had 0x402. With FRL off the laptop HDMI (a DP-HDMI FRL **PCON** — the flag
+  gates that path too) silently ran 4K120 HDR as **8-bit YCbCr 4:2:0** (limited range,
+  banding). With 0x402: **10-bit BT2020 RGB**. The file is baked into the initramfs by the
+  `modconf` hook → `sudo limine-mkinitcpio` after editing. Verify live (root):
+  `grep -A2 HDMI-A-1 /sys/kernel/debug/dri/1/state` for the crtc, then
+  `dri/1/<crtc>/amdgpu_current_bpc` + `amdgpu_current_colorspace` (want `Current: 10`,
+  `BT2020_RGB`). The connector-level `output_bpc`/`output_format` in the state dump are NOT
+  live on amdgpu, and the `hdmi_frl_status_polling_workqueue` exists either way. Keep
+  `HDMI-A-1` at `Vrr: Never` while this is forced. Drop the file once upstream flips the
+  default back. Source: discuss.cachyos.org/t/35350.
+
 - `pcie_port_pm=off` — was **required** in August: without it the PCIe link dropped ~1 s
   after the nvidia module loaded (`pciehp: Link Down` / `Card not present`).
   **Retested Sep 5 (removed, kernel 7.2.3 / BIOS 314):** that post-load drop did NOT
@@ -815,7 +829,10 @@ echo 1 | sudo tee /sys/bus/pci/devices/$UP/remove; sleep 3; echo 1 | sudo tee /s
 - PowerDevil logs `There are no outputs - creating placeholder screen` constantly. It's a generic
   Qt Wayland message emitted during output reconfiguration by many processes — cosmetic.
 - 4K120 HDR 10-bit works on the laptop HDMI over a **2.0** cable via DSC (~32 Gbps payload,
-  ~18 Gbps link). The certified 48 Gbps **10-foot** cable was *less* stable — it advertised
+  ~18 Gbps link). **Caveat (Sep 7):** that was true on 7.2.0–7.2.2; on 7.2.3 the driver
+  default dropped FRL and the same mode silently became 8-bit 4:2:0 until
+  `dcfeaturemask=0x402` was set (see Current configuration). The Sep 4 DPMS 6/6 wakes were
+  measured on the 4:2:0 link — re-validate with `tools/dpms-cycle.sh` at full FRL. The certified 48 Gbps **10-foot** cable was *less* stable — it advertised
   enough bandwidth to attempt uncompressed, then couldn't deliver at that length.
 - Requesting **16 bpc** reproducibly triggers `amdgpu ... enabling link 1 failed: 19`.
   HDMI carries 8/10/12 bpc only. Stay at 10.
