@@ -401,7 +401,9 @@ With `amdgpu.dcdebugmask=0x800` on the cmdline (`dcdebugmask=2048`;
 `amdgpu_dm_ips_status` shows `IPS config: 1` = DMUB_IPS_DISABLE_ALL and all IPS
 entry/exit counts 0), the deterministic repro that previously failed at this mode passed
 once by hand and then 5/5 in a scripted run (`dpms-cycle.sh`, log
-`~/dpms-cycle-20260904-1112.log`). **Mechanism: DCN 3.5.1 IPS entry during DPMS-off with
+`~/dpms-cycle-20260904-1112.log`). **Re-validated Sep 7 at full-rate FRL** (10-bit BT2020 RGB, after
+`dcfeaturemask=0x402` — the Sep 4 runs were unknowingly on the 8-bit 4:2:0 link): **5/5**,
+log `~/dpms-cycle-20260907-1020.log`. The IPS fix holds on the heavier link. **Mechanism: DCN 3.5.1 IPS entry during DPMS-off with
 an exit path that does not bring the PCON-attached HDMI link back**, while eDP recovers
 and the driver logs nothing. **`0x800` is now standing config.** Cost: the iGPU display
 core skips its idle power states — roughly a few hundred mW to ~1 W at idle, no
@@ -832,7 +834,8 @@ echo 1 | sudo tee /sys/bus/pci/devices/$UP/remove; sleep 3; echo 1 | sudo tee /s
   ~18 Gbps link). **Caveat (Sep 7):** that was true on 7.2.0–7.2.2; on 7.2.3 the driver
   default dropped FRL and the same mode silently became 8-bit 4:2:0 until
   `dcfeaturemask=0x402` was set (see Current configuration). The Sep 4 DPMS 6/6 wakes were
-  measured on the 4:2:0 link — re-validate with `tools/dpms-cycle.sh` at full FRL. The certified 48 Gbps **10-foot** cable was *less* stable — it advertised
+  measured on the 4:2:0 link — re-validated Sep 7 with `tools/dpms-cycle.sh` at full FRL: 5/5.
+  The certified 48 Gbps **10-foot** cable was *less* stable — it advertised
   enough bandwidth to attempt uncompressed, then couldn't deliver at that length.
 - Requesting **16 bpc** reproducibly triggers `amdgpu ... enabling link 1 failed: 19`.
   HDMI carries 8/10/12 bpc only. Stay at 10.
