@@ -837,11 +837,7 @@ pciehp/thunderbolt/AER event at that instant; config space still answered `10de`
 The RPC history before the hang is 100% that thread's i2c controls. No monitor was on the
 eGPU. First event of this kind in the persisted journal. Collateral: KWin `atomic commit
 failed`, then the amdgpu HDMI FRL wake failure 8 s later (separate mechanism, see the FRL
-notes). Mitigation (udev, reversible): `tools/61-ddcutil-skip-egpu-i2c.rules` removes the
-`uaccess` tag from NVIDIA i2c adapters so the user session cannot open them and libddcutil
-skips them; the iGPU HDMI monitor keeps DDC/CI. Alternative, blunter: `POWERDEVIL_NO_DDCUTIL=1`
-in `~/.config/environment.d/` disables PowerDevil's DDC backend entirely. Hypothesis strength:
-strong single-event evidence; confirm by absence of recurrence at lock/wake with the rule in.
+notes). A udev mitigation was tried and then removed once the hypothesis failed (see below).
 Recovery for this loss: KWin holds the dead card's DRM node → reboot-both-sides.
 **Reproduction attempts (Sep 8 13:xx, eGPU healthy):** `sudo i2cdetect -y 24..28` — all five
 NVIDIA adapters scanned (~120 transactions each through the same `rm_i2c_transfer → GSP RPC`
@@ -849,8 +845,9 @@ path), and `kscreen-doctor --dpms off; sleep 1; i2cdetect -y 24` to mimic the lo
 ordering: **0 Xid, GPU fine every time.** So the i2c probe is not sufficient to hang the GSP,
 alone or during a DPMS-off. Reclassified: the 11:17 event is a GSP death of the known Xid 154
 class in which an i2c RPC happened to be the request in flight — the probe is the witness,
-not the trigger. The udev rule stays as a harmless precaution (this LG TV has no DDC/CI, so
-PowerDevil's DDC backend has no value here anyway). Nothing to post from this.
+not the trigger. The udev rule (`61-ddcutil-skip-egpu-i2c.rules`) was **removed the same day** at
+David's request — a hardware-specific rule guarding a non-cause is a future trap. Standing state
+is stock ddcutil access to all i2c buses. Nothing to post from this.
 
 ## Recovery
 
