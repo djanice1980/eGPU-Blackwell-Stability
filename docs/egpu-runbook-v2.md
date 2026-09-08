@@ -826,7 +826,7 @@ ls /lib/modules/$(uname -r)/updates/dkms/ 2>/dev/null
 
 ---
 
-## GPU loss triggered by a DDC/CI brightness probe (Sep 8)
+## GPU loss observed through a DDC/CI brightness probe (Sep 8) — probe NOT the cause
 
 11:17:46 lock screen → DPMS off. 11:17:47: PowerDevil's libddcutil `watch_displays` thread ran
 an i2c transaction on one of the eGPU's five i2c adapters (`NVIDIA i2c adapter 2..6 at
@@ -843,6 +843,14 @@ skips them; the iGPU HDMI monitor keeps DDC/CI. Alternative, blunter: `POWERDEVI
 in `~/.config/environment.d/` disables PowerDevil's DDC backend entirely. Hypothesis strength:
 strong single-event evidence; confirm by absence of recurrence at lock/wake with the rule in.
 Recovery for this loss: KWin holds the dead card's DRM node → reboot-both-sides.
+**Reproduction attempts (Sep 8 13:xx, eGPU healthy):** `sudo i2cdetect -y 24..28` — all five
+NVIDIA adapters scanned (~120 transactions each through the same `rm_i2c_transfer → GSP RPC`
+path), and `kscreen-doctor --dpms off; sleep 1; i2cdetect -y 24` to mimic the lock-screen
+ordering: **0 Xid, GPU fine every time.** So the i2c probe is not sufficient to hang the GSP,
+alone or during a DPMS-off. Reclassified: the 11:17 event is a GSP death of the known Xid 154
+class in which an i2c RPC happened to be the request in flight — the probe is the witness,
+not the trigger. The udev rule stays as a harmless precaution (this LG TV has no DDC/CI, so
+PowerDevil's DDC backend has no value here anyway). Nothing to post from this.
 
 ## Recovery
 
