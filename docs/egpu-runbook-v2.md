@@ -621,6 +621,21 @@ two USB4 tunnel root ports pinned awake by udev instead; see the bullets for why
   `amdgpu_dm_debugfs.c` exposes no FRL knob (`trigger_hotplug` only re-detects). The fix is
   a few lines in `link_hdmi_frl.c` (longer wait when SCDC is unresponsive, or arm polling on
   failure). Validation of the workaround pending the next real occurrence.
+  **Sep 8 — the same failure in two more places, and the workaround validated once:**
+  (a) 11:17 lock-screen wake: `enabling link 1 failed: 19` again; `hdmi-link-retry` fired at
+  +8 s (`retry 1/3`), the hotkey fired 35 s later too, both modesets reported success — and the
+  monitor still stayed dark for minutes before lighting on its own with no logged trigger.
+  (b) Boot with the folio closed: the greeter's lid-closed layout is correct (eDP off, LG
+  enabled at its stored 3840x2160@120), it tried the FRL modeset, no error, no picture; the
+  user session's modeset 9 s after login lit it. So the sharper description is: **the first
+  FRL modeset after the monitor has been in standby can come up dark while DC reports
+  success** (`hdmi_frl_poll_start` waits only 200 ms for the sink's FRL_START and proceeds
+  regardless); a later modeset lights it. Workarounds now in place for both entry points:
+  the retry service for in-session wakes, and `tools/greeter-hdmi-4k60.sh` pinning the
+  greeter's LG entry to 3840x2160@60 SDR (TMDS, no FRL) — applied Sep 8, verify on the next
+  lid-closed boot; the greeter's KWin rewrites that file, so check with
+  `tools/kwin-outputconfig-dump.py` if it regresses. The monitor is an **LG TV (`LG TV
+  SSCR2`) with no DDC/CI**, so PowerDevil's DDC backend has no value on this display.
 
 - `pcie_port_pm=off` — was **required** in August: without it the PCIe link dropped ~1 s
   after the nvidia module loaded (`pciehp: Link Down` / `Card not present`).
