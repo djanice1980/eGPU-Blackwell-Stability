@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# WORKAROUND (not a fix): amdgpu logs "enabling link N failed: <code>" once when the external
+# HDMI (DP-HDMI FRL PCON, 4K120 10-bit RGB) is re-enabled at DPMS/lock-screen wake, and never
+# retries — the monitor stays dark until the next modeset (lid event, cable move, or the
+# display-rescue keystroke, which the lock screen may block). This follows the kernel journal
+# and forces ONE modeset a few seconds after that message, via KScreen over DBus, so it works
+# even while locked. Root cause (first link enable after wake fails, no driver retry) belongs
+# upstream in amdgpu/DC. First seen 2026-09-07 23:15:44 on kernel 7.2.3 with dcfeaturemask=0x402.
+set -u
+COOLDOWN=20   # seconds; never fire twice for one episode
+last=0
+journalctl -k -f -o cat -n 0 2>/dev/null \
+  | grep --line-buffered -E "enabling link [0-9]+ failed" \
+  | while read -r line; do
+        now=$(date +%s)
+        [ $(( now - last )) -lt "$COOLDOWN" ] && continue
+        last=$now
+        sleep 3
+        if "$HOME/.local/bin/display-rescue"; then
+            logger -t hdmi-link-retry "forced modeset after: $line"
+        else
+            logger -t hdmi-link-retry "display-rescue failed after: $line"
+        fi
+    done

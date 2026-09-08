@@ -1,0 +1,14 @@
+[Unit]
+Description=Retry the external HDMI link when amdgpu fails to enable it at wake (workaround)
+Documentation=file://%h/.local/bin/hdmi-link-retry
+After=graphical-session.target plasma-kwin_wayland.service
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/hdmi-link-retry
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

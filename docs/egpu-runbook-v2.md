@@ -604,6 +604,17 @@ two USB4 tunnel root ports pinned awake by udev instead; see the bullets for why
   live on amdgpu, and the `hdmi_frl_status_polling_workqueue` exists either way. Keep
   `HDMI-A-1` at `Vrr: Never` while this is forced. Drop the file once upstream flips the
   default back. Source: discuss.cachyos.org/t/35350.
+  **Cost of FRL (Sep 7 23:15):** first-ever `amdgpu: enabling link 1 failed: 19` at a
+  lock-screen wake with the lid closed. `dc_status` 19 = `DC_FAIL_HDMI_FRL_LINK_TRAINING`
+  (core_status.h) — the FRL link training itself failed once (sink not ready ~7 s after the
+  wake keypress) and DC never retried; the monitor stayed dark until the next modeset (a
+  lid close/open 2 min later re-applied the layout). Never seen on the 4:2:0 TMDS link
+  (journal total before this: 0). The Meta+Shift+D rescue is a global shortcut and may be
+  blocked on the lock screen. **Workaround (not a fix):** user service
+  `hdmi-link-retry.service` (`tools/hdmi-link-retry{,.service}`) follows the kernel journal
+  and forces one modeset via `display-rescue` (KScreen over DBus, works while locked) 3 s
+  after that message, 20 s cooldown. Root cause (no FRL LT retry after a wake) is an
+  amdgpu/DC matter. Validation pending the next real occurrence.
 
 - `pcie_port_pm=off` — was **required** in August: without it the PCIe link dropped ~1 s
   after the nvidia module loaded (`pciehp: Link Down` / `Card not present`).
