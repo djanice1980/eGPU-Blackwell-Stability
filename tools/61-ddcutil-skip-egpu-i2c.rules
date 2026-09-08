@@ -1,0 +1,19 @@
+# Keep libddcutil (PowerDevil's DDC/CI brightness backend) off the eGPU's i2c adapters.
+#
+# Every DDC probe on an NVIDIA i2c adapter is an RM control RPC to the card's GSP firmware,
+# here over a USB4 tunnel. On 2026-09-08 11:17:47 one such probe, issued by PowerDevil's
+# libddcutil "watch_displays" thread at a lock-screen DPMS-off transition, never returned:
+# registers read all-ones, the GSP heartbeat timed out, Xid 154, GPU lost (soft loss, card
+# fine). No monitor was on the eGPU; the thread walks every display-class i2c bus.
+#
+# ddcutil's 60-ddcutil-i2c.rules tags every display-class i2c bus "uaccess" (logind then
+# grants the seat user an ACL). This strips that tag from NVIDIA adapters only and closes
+# the node, so the user session cannot open them and libddcutil skips them. The monitor on
+# the AMD iGPU HDMI keeps DDC/CI on its own bus. Cost: no DDC brightness for a monitor
+# plugged into the eGPU itself.
+#
+# Install: sudo cp 61-ddcutil-skip-egpu-i2c.rules /etc/udev/rules.d/
+#          sudo udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=i2c-dev
+#          sudo setfacl -b /dev/i2c-*   # drop ACLs already granted on existing nodes; the
+#                                       # amdgpu buses get theirs back on the trigger
+SUBSYSTEM=="i2c-dev", ATTR{name}=="NVIDIA i2c adapter*", TAG-="uaccess", MODE="0600", GROUP="root"

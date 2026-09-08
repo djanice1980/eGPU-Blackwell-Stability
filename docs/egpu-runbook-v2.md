@@ -811,6 +811,24 @@ ls /lib/modules/$(uname -r)/updates/dkms/ 2>/dev/null
 
 ---
 
+## GPU loss triggered by a DDC/CI brightness probe (Sep 8)
+
+11:17:46 lock screen → DPMS off. 11:17:47: PowerDevil's libddcutil `watch_displays` thread ran
+an i2c transaction on one of the eGPU's five i2c adapters (`NVIDIA i2c adapter 2..6 at
+63:00.0`, the card's empty physical connectors). On the open driver that is an RM control RPC
+to the GSP (`rm_i2c_transfer → rmapiControl → _issueRpcAndWait`, stack in the journal); it
+never returned, PTIMER read `ffffffff`, heartbeat timed out → **Xid 154, GPU lost**. No
+pciehp/thunderbolt/AER event at that instant; config space still answered `10de` → soft loss.
+The RPC history before the hang is 100% that thread's i2c controls. No monitor was on the
+eGPU. First event of this kind in the persisted journal. Collateral: KWin `atomic commit
+failed`, then the amdgpu HDMI FRL wake failure 8 s later (separate mechanism, see the FRL
+notes). Mitigation (udev, reversible): `tools/61-ddcutil-skip-egpu-i2c.rules` removes the
+`uaccess` tag from NVIDIA i2c adapters so the user session cannot open them and libddcutil
+skips them; the iGPU HDMI monitor keeps DDC/CI. Alternative, blunter: `POWERDEVIL_NO_DDCUTIL=1`
+in `~/.config/environment.d/` disables PowerDevil's DDC backend entirely. Hypothesis strength:
+strong single-event evidence; confirm by absence of recurrence at lock/wake with the rule in.
+Recovery for this loss: KWin holds the dead card's DRM node → reboot-both-sides.
+
 ## Recovery
 
 **Card missing after boot:**
