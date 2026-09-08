@@ -612,9 +612,15 @@ two USB4 tunnel root ports pinned awake by udev instead; see the bullets for why
   (journal total before this: 0). The Meta+Shift+D rescue is a global shortcut and may be
   blocked on the lock screen. **Workaround (not a fix):** user service
   `hdmi-link-retry.service` (`tools/hdmi-link-retry{,.service}`) follows the kernel journal
-  and forces one modeset via `display-rescue` (KScreen over DBus, works while locked) 3 s
-  after that message, 20 s cooldown. Root cause (no FRL LT retry after a wake) is an
-  amdgpu/DC matter. Validation pending the next real occurrence.
+  and forces a modeset via `display-rescue` (KScreen over DBus, works while locked) **8 s**
+  after that message (the monitor's own HPD pulse arrived at +8 s), up to 3 rounds per
+  episode. Why no driver-side option: `enable_link_hdmi_frl()` retries only 3×200 ms,
+  `link_set_dpms_on_enable_link()` then returns `DC_DPMS_SUCCESS` regardless ("some DP
+  monitors will recover and show the stream"), so DRM/KWin see success; the SCDC polling
+  worker that re-trains an established link is armed only on success; and
+  `amdgpu_dm_debugfs.c` exposes no FRL knob (`trigger_hotplug` only re-detects). The fix is
+  a few lines in `link_hdmi_frl.c` (longer wait when SCDC is unresponsive, or arm polling on
+  failure). Validation of the workaround pending the next real occurrence.
 
 - `pcie_port_pm=off` — was **required** in August: without it the PCIe link dropped ~1 s
   after the nvidia module loaded (`pciehp: Link Down` / `Card not present`).
