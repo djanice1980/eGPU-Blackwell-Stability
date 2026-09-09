@@ -814,6 +814,47 @@ To pin instead, add to `/etc/pacman.conf`:
 IgnorePkg = nvidia-utils lib32-nvidia-utils opencl-nvidia lib32-opencl-nvidia nvidia-settings
 ```
 
+### 615.71.09 status (Sep 9) — the next-driver gate has opened, but only halfway
+
+NVIDIA published `NVIDIA-Linux-x86_64-615.71.09.run` (packaged Sep 5; in `~/Downloads`). As
+of Sep 9: Arch `extra` still ships `nvidia-utils 610.57.04-1` (nothing in `extra-testing`),
+and `NVIDIA/open-gpu-kernel-modules` has **no 615 tag yet** (latest 610.57.04). Do NOT run the
+`.run` on this system: it would replace pacman's userspace, install unpatched modules outside
+the hook, and it ships the RM only as `nv-kernel.o_binary` — the `src/nvidia` tree our E1/C3/C5
+patches modify is not in it. Wait for both the Arch package and the GitHub tag.
+
+**Pre-check done from the `.run`'s `kernel-open/` tree** (`sh ... --extract-only`, then
+`git apply --check --include='kernel-open/*'` per patch; RM-side hunks not checkable yet):
+
+| Patch | kernel-open hunks vs 615 | Notes |
+|---|---|---|
+| 01 E1 egpu-detection | apply clean | RM hunks (`osinit.c`, `os-interface.h`) pending tag |
+| 02 C2 AER unmask | **fail** at `nv-pci.c:1759` | context drift only — see below |
+| 03 C3 gpu-lost retry | n/a (RM-only) | pending tag |
+| 04 C4 err-handlers scaffold | **fail** at `nv-pci.c:2810` | context drift only |
+| 05 C6 rwlock fix | apply clean | `os-interface.c` changed 367 lines but not there |
+| 06 C5 crash-safety | **fail** in `nv.h`, `os-interface.h`, `nv-pci.c`, `os-pci.c` | plus ~30 RM files pending tag |
+
+`nv-pci.c` changed by ~1070 lines between 610.57.04 and 615.71.09, but **none of it is error
+handling**: no new `pci_error_handlers`/AER/`slot_reset`/hotplug code (keyword counts
+unchanged); the additions are Tegra devfreq plumbing and `nv_pci_wait_for_probe_complete()`.
+So C2 and C4 are not obsoleted upstream — they need re-basing, not rethinking. `drm_dev_unplug`
+in `nvidia-drm-drv.c` was already present in 610; NVIDIA added no lost-GPU teardown, so C5's
+G10 path is still the only one. Changelog items worth a look at test time: "Fixed a bug that
+could cause corruption when display output scaling is used on Blackwell GPUs" (possible
+relevance to the eGPU-display Xid 56 sparkles — retest the ladder), the new
+`RmDisableDisplayGlitchPerfLimit` registry token (memory-clock switching while display is
+using memory — leave off; our lock pins mclk anyway), and PR #1199 (resume after hibernate).
+
+**Recommended now:** pin userspace so a routine `-Syu` cannot strand the eGPU before the port
+is ready (the hook refuses to build a mismatched tree):
+```
+IgnorePkg = nvidia-utils lib32-nvidia-utils opencl-nvidia lib32-opencl-nvidia nvidia-settings
+```
+in `/etc/pacman.conf`. Lift it deliberately when the tag exists and the six patches are
+re-based and `git apply --check` clean against it. Then run the standing plan: stock 615 vs
+patched 615 under DPM=0 (launch gauntlet + display ladder), decide with data.
+
 ### Never install nvidia-open-dkms
 
 It builds an **unpatched** module into `/lib/modules/$(uname -r)/updates/dkms/`, which takes
