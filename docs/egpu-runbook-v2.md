@@ -846,8 +846,11 @@ relevance to the eGPU-display Xid 56 sparkles — retest the ladder), the new
 `RmDisableDisplayGlitchPerfLimit` registry token (memory-clock switching while display is
 using memory — leave off; our lock pins mclk anyway), and PR #1199 (resume after hibernate).
 
-**Recommended now:** pin userspace so a routine `-Syu` cannot strand the eGPU before the port
-is ready (the hook refuses to build a mismatched tree):
+**Pin declined (Sep 9):** David prefers not to add standing customisations that can bite
+later; he watches the `-Syu` package list for `nvidia-utils` and stops before confirming the
+upgrade. If an update ever does slip through, the symptom is the hook refusing the build and
+`nvidia-smi` failing after reboot; recovery is `pacman -U` the cached 610.57.04 packages from
+`/var/cache/pacman/pkg/` (or the port). The pin, if ever wanted:
 ```
 IgnorePkg = nvidia-utils lib32-nvidia-utils opencl-nvidia lib32-opencl-nvidia nvidia-settings
 ```
