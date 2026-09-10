@@ -22,11 +22,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 install -o root -g root -m 755 "$SCRIPT_DIR/nvidia-egpu-rebuild" /usr/local/bin/nvidia-egpu-rebuild
 mkdir -p /etc/pacman.d/hooks
 install -o root -g root -m 644 "$SCRIPT_DIR/nvidia-egpu-rebuild.hook" /etc/pacman.d/hooks/nvidia-egpu-rebuild.hook
-printf 'TREE=%s\nBUILD_USER=%s\nKERNEL_PKG=linux-cachyos\nKERNEL_SUFFIX=cachyos\n' \
-    "$TREE" "$TARGET_USER" > /etc/nvidia-egpu-rebuild.conf
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"   # the eGPU-Blackwell-Stability checkout: patches/ and patches-<ver>/ live here
+# values are double-quoted: the file is sourced by the hook and paths may contain spaces
+printf 'TREE="%s"\nBUILD_USER="%s"\nPATCHES="%s"\nKERNEL_PKG="linux-cachyos"\nKERNEL_SUFFIX="cachyos"\nFALLBACK_UNPATCHED="yes"\n' \
+    "$TREE" "$TARGET_USER" "$REPO_DIR" > /etc/nvidia-egpu-rebuild.conf
 chmod 644 /etc/nvidia-egpu-rebuild.conf
 
-echo "[+] Hook installed. Kernel upgrades now rebuild the patched modules in-transaction."
+echo "[+] Hook installed. Kernel upgrades rebuild the patched modules in-transaction;"
+echo "    nvidia-utils upgrades port the tree to the new version automatically when a"
+echo "    matching patches-<version>/ set exists in $REPO_DIR (else builds pristine, with a warning)."
+echo "    Plan-only test: sudo nvidia-egpu-rebuild --check"
 echo "    Dry-run it now against the current kernel: sudo nvidia-egpu-rebuild"
 echo "    (should report 'already installed -- nothing to do')"
 echo "    Uninstall: sudo rm /etc/pacman.d/hooks/nvidia-egpu-rebuild.hook /usr/local/bin/nvidia-egpu-rebuild /etc/nvidia-egpu-rebuild.conf"

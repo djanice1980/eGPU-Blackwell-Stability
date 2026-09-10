@@ -1,12 +1,44 @@
 #!/usr/bin/env bash
-# Rebuilds the patched NVIDIA open modules for a newly installed kernel.
-# Invoked by the pacman hook after a linux-cachyos upgrade (also runnable
-# manually: sudo nvidia-egpu-rebuild). Reads /etc/nvidia-egpu-rebuild.conf
-# for TREE (patched open-gpu-kernel-modules checkout) and BUILD_USER.
+# Rebuilds the patched NVIDIA open modules for the installed kernel, and ports the tree to a
+# new driver version automatically when nvidia-utils moves.
+#
+# Invoked by the pacman hook after a kernel or nvidia-utils upgrade (PostTransaction, i.e.
+# before the reboot). Also runnable manually: sudo nvidia-egpu-rebuild
+#
+# Config: /etc/nvidia-egpu-rebuild.conf
+#   TREE=...        open-gpu-kernel-modules git checkout to build from
+#   BUILD_USER=...  owner of TREE; git and make run as this user
+#   PATCHES=...     eGPU-Blackwell-Stability checkout holding patches/ and patches-<ver>/
+#   KERNEL_PKG / KERNEL_SUFFIX (default linux-cachyos / cachyos)
+#   FALLBACK_UNPATCHED=yes|no (default yes): if no patch set exists for the new driver
+#                   version, build the pristine tag so the machine still has a working
+#                   driver after reboot (stock behaviour, loud warning) instead of nothing.
+#
+# Flow when nvidia-utils version != tree version:
+#   1. find the patch set for the new version: $PATCHES/patches-<ver>/ (or patches/ whose
+#      VERSION file matches); if none, try a fast-forward pull of $PATCHES and look again
+#   2. require a clean tree, fetch tags, verify NVIDIA tagged <ver>
+#   3. git checkout -B egpu-<ver>-auto <ver>; apply the patches in order; commit
+#   4. build + install as usual (kernel-only updates never reach step 1)
+#
+# Flags (for testing / manual use):
+#   --check            print the plan and exit before changing anything
+#   --utils <ver>      pretend nvidia-utils is <ver> (test the port path without installing it)
+#   --no-install       build but skip modules_install/depmod (result stays in $TREE/kernel-open)
 set -euo pipefail
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin
 
-CONF=/etc/nvidia-egpu-rebuild.conf
+CONF="${NVIDIA_EGPU_REBUILD_CONF:-/etc/nvidia-egpu-rebuild.conf}"   # env override is for testing only
+CHECK=0; NOINSTALL=0; UTILS_OVERRIDE=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --check)      CHECK=1 ;;
+        --no-install) NOINSTALL=1 ;;
+        --utils)      UTILS_OVERRIDE="${2:-}"; shift ;;
+        *) echo "[egpu-rebuild] unknown flag: $1" >&2; exit 2 ;;
+    esac; shift
+done
+
 if [ ! -f "$CONF" ]; then
     echo "[egpu-rebuild] $CONF missing -- run install-hook.sh again" >&2
     exit 1
@@ -15,38 +47,106 @@ fi
 . "$CONF"
 : "${TREE:?TREE not set in $CONF}"
 : "${BUILD_USER:?BUILD_USER not set in $CONF}"
+PATCHES="${PATCHES:-}"
 KERNEL_PKG="${KERNEL_PKG:-linux-cachyos}"
 KERNEL_SUFFIX="${KERNEL_SUFFIX:-cachyos}"
+FALLBACK_UNPATCHED="${FALLBACK_UNPATCHED:-yes}"
+LOG=/tmp/nvidia-egpu-rebuild.log
 
+say()  { echo "[egpu-rebuild] $*"; }
+warn() { echo "[egpu-rebuild] WARNING: $*" >&2; }
 fail() { echo "[egpu-rebuild] FAILED: $*" >&2
          echo "[egpu-rebuild] Fix and rerun manually: sudo nvidia-egpu-rebuild" >&2
          exit 1; }
+# run a command as the tree's owner (or directly when not root, e.g. testing with --no-install)
+as_user() { if [ "$EUID" -eq 0 ]; then runuser -u "$BUILD_USER" -- "$@"; else "$@"; fi; }
+tree_version() { grep -m1 -oE '[0-9]+\.[0-9]+\.[0-9]+' "$TREE/version.mk" 2>/dev/null || echo unknown; }
+patches_present() { grep -q os_pci_is_thunderbolt_attached "$TREE/kernel-open/nvidia/os-pci.c" 2>/dev/null; }
 
 PKGVER=$(pacman -Q "$KERNEL_PKG" 2>/dev/null | awk '{print $2}') || fail "$KERNEL_PKG not installed"
 KVER="${PKGVER}-${KERNEL_SUFFIX}"
-
 [ -f "/usr/lib/modules/$KVER/build/Makefile" ] || fail "headers for $KVER missing (install ${KERNEL_PKG}-headers)"
-[ -d "$TREE" ] || fail "driver tree not found at $TREE"
+git -C "$TREE" rev-parse --git-dir >/dev/null 2>&1 || fail "driver tree not found (or not a git checkout/worktree) at $TREE"
 
-TREEV=$(grep -m1 -oE '[0-9]+\.[0-9]+\.[0-9]+' "$TREE/version.mk" 2>/dev/null || echo unknown)
-UTILS=$(pacman -Q nvidia-utils 2>/dev/null | awk '{print $2}' | cut -d- -f1 || echo none)
+UTILS="${UTILS_OVERRIDE:-$(pacman -Q nvidia-utils 2>/dev/null | awk '{print $2}' | cut -d- -f1 || echo none)}"
+TREEV=$(tree_version)
+
+# ---------------------------------------------------------------- find a patch set for $UTILS
+find_patch_set() {   # prints the directory, or nothing
+    local v="$1" d
+    [ -n "$PATCHES" ] || return 0
+    d="$PATCHES/patches-$v"; [ -d "$d" ] && { echo "$d"; return 0; }
+    d="$PATCHES/patches"
+    if [ -d "$d" ] && [ "$(cat "$d/VERSION" 2>/dev/null)" = "$v" ]; then echo "$d"; return 0; fi
+    return 0
+}
+
 if [ "$TREEV" != "$UTILS" ]; then
-    fail "tree version ($TREEV) != nvidia-utils ($UTILS). Kernel modules and userspace must match.
-[egpu-rebuild] To port: cd $TREE && git stash -u && git fetch --tags && git checkout $UTILS
-[egpu-rebuild]          then re-apply the patches (see patches/README.md in the
-[egpu-rebuild]          eGPU-Blackwell-Stability repo; expect rebasing work on C5),
-[egpu-rebuild]          then: sudo nvidia-egpu-rebuild
-[egpu-rebuild] Until then the INSTALLED modules ($TREEV) no longer match userspace ($UTILS):
-[egpu-rebuild] the driver will fail on next reload/reboot. Downgrade nvidia-utils to revert."
+    say "nvidia-utils is $UTILS, tree is $TREEV -- porting the tree to $UTILS"
+    PSET=$(find_patch_set "$UTILS")
+    if [ -z "$PSET" ] && [ -n "$PATCHES" ] && git -C "$PATCHES" rev-parse --git-dir >/dev/null 2>&1; then
+        say "no patch set for $UTILS in $PATCHES -- trying a fast-forward pull"
+        as_user git -C "$PATCHES" pull -q --ff-only 2>>"$LOG" || warn "pull of $PATCHES failed (offline?)"
+        PSET=$(find_patch_set "$UTILS")
+    fi
+    if [ -n "$PSET" ]; then
+        say "patch set: $PSET ($(ls "$PSET"/*.patch 2>/dev/null | wc -l) patches)"
+    elif [ "$FALLBACK_UNPATCHED" = "yes" ]; then
+        warn "NO patch set for $UTILS. Will build the PRISTINE $UTILS tree so the driver still works after reboot."
+        warn "The eGPU patches will be ABSENT until a patches-$UTILS/ set exists. Re-run when it does."
+    else
+        fail "no patch set for $UTILS and FALLBACK_UNPATCHED=no. Port the patches (see patches/README.md) or downgrade nvidia-utils."
+    fi
+
+    if [ "$CHECK" = 1 ]; then
+        say "--check: would fetch tag $UTILS into $TREE, checkout egpu-$UTILS-auto, apply ${PSET:-nothing}, build for $KVER"
+        exit 0
+    fi
+
+    [ -z "$(as_user git -C "$TREE" status --porcelain)" ] || fail "tree $TREE has uncommitted changes; commit/stash them first (refusing to touch your work)"
+    say "fetching tags from origin..."
+    as_user git -C "$TREE" fetch -q --tags origin 2>>"$LOG" || warn "git fetch failed (offline?) -- trying with local tags"
+    as_user git -C "$TREE" rev-parse -q --verify "refs/tags/$UTILS^{commit}" >/dev/null \
+        || fail "NVIDIA has not published tag $UTILS in open-gpu-kernel-modules yet. Downgrade nvidia-utils (pacman -U /var/cache/pacman/pkg/nvidia-utils-$TREEV-*) until they do."
+    say "checking out $UTILS on branch egpu-$UTILS-auto"
+    as_user git -C "$TREE" checkout -q -B "egpu-$UTILS-auto" "refs/tags/$UTILS" 2>>"$LOG" || fail "git checkout $UTILS failed -- see $LOG"
+
+    if [ -n "$PSET" ]; then
+        applied=0
+        for p in "$PSET"/[0-9]*.patch; do
+            if as_user git -C "$TREE" apply "$p" 2>>"$LOG"; then
+                applied=$((applied+1))
+            else
+                warn "patch $(basename "$p") does not apply to $UTILS (see $LOG)"
+                as_user git -C "$TREE" checkout -q -- . ; as_user git -C "$TREE" clean -qfd
+                if [ "$FALLBACK_UNPATCHED" = "yes" ]; then
+                    warn "building PRISTINE $UTILS instead (eGPU patches ABSENT). The set in $PSET needs re-basing."
+                    applied=0; break
+                else
+                    fail "patch set $PSET needs re-basing for $UTILS; FALLBACK_UNPATCHED=no"
+                fi
+            fi
+        done
+        if [ "$applied" -gt 0 ]; then
+            as_user git -C "$TREE" add -A
+            as_user git -C "$TREE" -c user.name=nvidia-egpu-rebuild -c user.email=egpu-rebuild@localhost \
+                commit -q -m "eGPU patches from $PSET applied to $UTILS by nvidia-egpu-rebuild" 2>>"$LOG" || true
+            say "applied $applied patches and committed on egpu-$UTILS-auto"
+        fi
+    fi
+    TREEV=$(tree_version)
+    [ "$TREEV" = "$UTILS" ] || fail "tree reports $TREEV after checkout of $UTILS -- inconsistent tree"
+elif [ "$CHECK" = 1 ]; then
+    say "--check: tree $TREEV matches nvidia-utils $UTILS; would build for $KVER if not already installed"
+    exit 0
 fi
 
-grep -q os_pci_is_thunderbolt_attached "$TREE/kernel-open/nvidia/os-pci.c" 2>/dev/null \
-    || echo "[egpu-rebuild] WARNING: eGPU patches not detected in $TREE -- building anyway (stock behavior)" >&2
+patches_present || warn "eGPU patches not detected in $TREE -- building anyway (stock behavior)"
 
 # Already built for this kernel at the right version? Then nothing to do.
 CUR=$(modinfo -k "$KVER" -F version nvidia 2>/dev/null || true)
-if [ "$CUR" = "$TREEV" ]; then
-    echo "[egpu-rebuild] nvidia $CUR already installed for $KVER -- nothing to do"
+if [ "$CUR" = "$TREEV" ] && [ "$NOINSTALL" = 0 ]; then
+    say "nvidia $CUR already installed for $KVER -- nothing to do"
     exit 0
 fi
 
@@ -55,19 +155,23 @@ if grep -qs '^CONFIG_CC_IS_CLANG=y' "/usr/lib/modules/$KVER/build/.config"; then
     FLAGS="LLVM=1 CC=clang LD=ld.lld"
 fi
 
-echo "[egpu-rebuild] Building nvidia $TREEV for $KVER ($FLAGS) -- takes a few minutes..."
+say "Building nvidia $TREEV for $KVER ($FLAGS) -- takes a few minutes..."
 # shellcheck disable=SC2086
-runuser -u "$BUILD_USER" -- make -C "$TREE" clean >/dev/null 2>&1 || true
+as_user make -C "$TREE" clean >/dev/null 2>&1 || true
 # shellcheck disable=SC2086
-runuser -u "$BUILD_USER" -- make -C "$TREE" -j"$(nproc)" modules KERNEL_UNAME="$KVER" $FLAGS \
-    > /tmp/nvidia-egpu-rebuild.log 2>&1 \
-    || fail "build error -- see /tmp/nvidia-egpu-rebuild.log"
+as_user make -C "$TREE" -j"$(nproc)" modules KERNEL_UNAME="$KVER" $FLAGS > "$LOG" 2>&1 \
+    || fail "build error -- see $LOG"
 
-make -C "$TREE" modules_install -j"$(nproc)" KERNEL_UNAME="$KVER" >> /tmp/nvidia-egpu-rebuild.log 2>&1 \
-    || fail "modules_install error -- see /tmp/nvidia-egpu-rebuild.log"
+if [ "$NOINSTALL" = 1 ]; then
+    say "--no-install: built OK, modules left in $TREE/kernel-open ($(modinfo "$TREE/kernel-open/nvidia.ko" -F version 2>/dev/null))"
+    exit 0
+fi
+[ "$EUID" -eq 0 ] || fail "modules_install needs root (or use --no-install)"
+make -C "$TREE" modules_install -j"$(nproc)" KERNEL_UNAME="$KVER" >> "$LOG" 2>&1 \
+    || fail "modules_install error -- see $LOG"
 depmod "$KVER"
 
 VM=$(modinfo -k "$KVER" -F vermagic nvidia 2>/dev/null | awk '{print $1}')
 [ "$VM" = "$KVER" ] || fail "vermagic ($VM) does not match $KVER"
 
-echo "[egpu-rebuild] OK: patched nvidia $TREEV installed for $KVER (loads on next boot into that kernel)"
+say "OK: nvidia $TREEV installed for $KVER (loads on next boot into that kernel)$(patches_present || echo ' -- UNPATCHED')"

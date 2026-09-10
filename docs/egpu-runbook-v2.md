@@ -869,12 +869,26 @@ tag) and exported to `patches-615.71.09/` in this repo with port notes; the set 
 sequence on a pristine tag and **builds clean** for `7.2.3-1-cachyos` with the hook's Clang
 flags (39 s, 0 errors, modinfo 615.71.09). Not runtime-tested yet.
 
-**Switch-over procedure (when ready to move to 615):**
-1. Make sure the kernel side is current first: `sudo pacman -Syu --ignore nvidia-utils,lib32-nvidia-utils,opencl-nvidia,lib32-opencl-nvidia,nvidia-settings,libxnvctrl`, reboot, confirm the eGPU on 610 still works on the new kernel.
-2. Point the hook's tree at the ported branch: in `~/open-gpu-kernel-modules`, `git fetch --tags && git checkout -b egpu-615-patched egpu-615.71.09`... or simpler: edit `/etc/nvidia-egpu-rebuild.conf` `TREE=/home/davidj/open-gpu-kernel-modules-615` (the worktree already IS the ported tree). The hook compares `version.mk` (615.71.09) with `nvidia-utils`, so it refuses until step 3.
-3. `sudo pacman -Syu` (no --ignore): nvidia-utils moves to 615.71.09; the hook builds and installs the ported modules for the running kernel in-transaction (check `/tmp/nvidia-egpu-rebuild.log`).
-4. Reboot with the enclosure attached. Verify: `nvidia-smi` (615.71.09), `/proc/driver/nvidia/params` DPM=0, `external GPU detected` in dmesg, launch a game, then the display ladder rung 1080p60 (changelog mentions a Blackwell display-scaling corruption fix worth a 4K60 retry, clocks locked).
-5. Rollback if anything is wrong: `sudo pacman -U /var/cache/pacman/pkg/nvidia-utils-610.57.04-3-*.pkg.tar.zst` (and the lib32/opencl/settings siblings), set `TREE` back to `~/open-gpu-kernel-modules`, `sudo nvidia-egpu-rebuild`, reboot.
+**Switch-over is now automatic (hook v2, Sep 10).** `nvidia-egpu-rebuild` ports the tree
+itself when `nvidia-utils` changes: finds `patches-<ver>/` in the repo (pulls the repo if
+missing), fetches the tag, `checkout -B egpu-<ver>-auto`, applies, commits, builds, installs —
+all inside the pacman transaction, before the reboot. Tested end-to-end with
+`--utils 615.71.09 --no-install` on a scratch worktree (6/6 applied, built 615.71.09 in 39 s);
+missing-tag case fails cleanly with the tree untouched; no-patch-set case builds the pristine
+tag with a loud warning (`FALLBACK_UNPATCHED=yes`). Two real bugs found by the test and fixed:
+the config is sourced by shell and paths with spaces broke it (values now quoted by
+install-hook.sh), and `-d .git` rejected git worktrees (now `git rev-parse --git-dir`).
+
+Procedure for this machine:
+1. Re-install the hook once so the config gains `PATCHES=` and quoted values:
+   `sudo bash pacman-hook/install-hook.sh` (keeps `TREE=~/open-gpu-kernel-modules`).
+2. Preview: `sudo nvidia-egpu-rebuild --check --utils 615.71.09`.
+3. Kernel first, driver second (so a failure is attributable): `sudo pacman -Syu --ignore nvidia-utils,lib32-nvidia-utils,opencl-nvidia,lib32-opencl-nvidia,nvidia-settings,libxnvctrl`, reboot, confirm the eGPU on 610.
+4. Then a plain `sudo pacman -Syu`: nvidia-utils → 615.71.09, the hook ports and builds in-transaction (`/tmp/nvidia-egpu-rebuild.log`), reboot with the enclosure attached.
+5. Verify: `nvidia-smi` 615.71.09, `/proc/driver/nvidia/params` DPM=0, `external GPU detected`, a game, then the display ladder rung 1080p60 (and one 4K60 retry, clocks locked — the 615 changelog has a Blackwell display-scaling corruption fix).
+6. Rollback: `sudo pacman -U /var/cache/pacman/pkg/nvidia-utils-610.57.04-3-*.pkg.tar.zst` + the lib32/opencl/settings siblings; the hook then auto-ports back to 610 (patches/VERSION = 610.57.04), reboot.
+The separate worktree `~/open-gpu-kernel-modules-615` is now just the reference port; it can be
+removed after the real switch succeeds.
 
 **Pin declined (Sep 9):** David prefers not to add standing customisations that can bite
 later; he watches the `-Syu` package list for `nvidia-utils` and stops before confirming the

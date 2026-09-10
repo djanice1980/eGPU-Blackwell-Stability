@@ -54,12 +54,21 @@ The patched modules are not DKMS-managed, so a kernel update normally means boot
 driverless until you rebuild. This pacman hook closes that gap: on every
 `linux-cachyos` upgrade it rebuilds and installs the patched modules **for the new
 kernel, inside the pacman transaction**, so the next reboot always has a driver.
-Guards: refuses on `nvidia-utils`/tree version mismatch (modules and userspace must
-match), warns if the patches are missing from the tree, auto-detects Clang-built
-kernels, verifies vermagic, and is a no-op when the modules are already current.
-**Verified in production** on the `linux-cachyos` 7.2.2 → 7.2.3 update: hook ran inside
-the pacman transaction, built in 39 s, and the next boot loaded the patched module with no
-manual step.
+**Driver upgrades are handled too.** When `nvidia-utils` moves to a new version, the hook
+ports the tree in the same transaction: it looks for a matching patch set in this repo
+(`patches-<version>/`, or `patches/` whose `VERSION` matches; it fast-forward-pulls the repo
+if it has none), fetches NVIDIA's tag, checks it out on `egpu-<version>-auto`, applies the
+patches in order, commits, and builds. So a plain `pacman -Syu` takes you from 610.57.04 to
+615.71.09 with nothing to edit. If NVIDIA has not tagged the version yet it fails loudly and
+leaves the tree untouched; if no patch set exists (or one no longer applies) it builds the
+pristine tag so the next boot still has a working driver, with an unmissable warning
+(`FALLBACK_UNPATCHED=no` in the config turns that into a refusal). Other guards: warns if the
+patches are missing from the tree, auto-detects Clang-built kernels, verifies vermagic, and is
+a no-op when the modules are already current. Test the plan without changing anything:
+`sudo nvidia-egpu-rebuild --check` (add `--utils 615.71.09` to preview a port).
+**Verified in production** on the `linux-cachyos` 7.2.2 → 7.2.3 update (built in 39 s inside
+the transaction, next boot loaded the patched module), and the automatic port was exercised
+end-to-end for 610.57.04 → 615.71.09 with `--no-install`: six patches applied, built clean.
 
 ```sh
 sudo bash pacman-hook/install-hook.sh
