@@ -897,6 +897,29 @@ untouched (good), but the transaction had already replaced the userspace with 61
 the 7.2.3 module directory, so the system was one reboot away from a driverless kernel. Fixed:
 root logs to `/var/log/nvidia-egpu-rebuild.log`, non-root to `$XDG_RUNTIME_DIR/…-<uid>.log`.
 Recovery = reinstall hook (install-hook.sh) and run `sudo nvidia-egpu-rebuild` before rebooting.
+Done at 16:5x: the real hook run ported and built 615.71.09 for 7.2.4 in 40 s.
+
+**First boot on 615.71.09 (Sep 10 16:59) — GSP death at +18 s, then a hard reset.**
+Journal (boot -1): 16:59:42 the usual host_reset tunnel teardown; 16:59:53 pciehp Link Up,
+GPU re-enumerated, `AER: unmasked … at probe` (C2 alive), `external GPU detected` (E1 alive),
+`NVRM: loading … 615.71.09`. 17:00:11, card idle at the greeter: `GspMsgQueueReceiveStatus:
+Incorrect message length 6/0`, `Read failed after 3 retries`, every RPC status 0x3a
+(GSP_RM_CONTROL/ALLOC from the greeter's KWin allocating VA spaces), then C5's detector:
+`cleanupGpuLostStateAtomic: GPU 0 lost via detector_class=0` + `Xid 154 … PF FLR`. **No
+IOMMU faults, no link/pciehp events** after the probe: the tunnel stayed up; the GSP died on
+its own. Same class as the 610 losses (Sep 5 under load, Sep 8 at lock). The RPC/GSP hunks of
+C5 are byte-identical between the 610 and 615 trees, and boot 2 on 615 is clean (0 Xid,
+P8, Gen4 x4) — so not a port defect, one more sample of the known GSP-death class.
+**New and worse:** 17:00:21 David logged in (greeter session exited normally); the user
+session's KWin started with the dead NVIDIA DRM device still present (no `Removing device`
+ran — soft loss, device on bus); 17:01:07 `amdgpu: Fence fallback timer expired on ring
+gfx_0.0.0 / sdma0` → black screen; 17:01:09 last journal line, then a **hard reset with no
+shutdown or panic text** (kernel.panic=0, nowatchdog; journald likely lost the final
+seconds). Hypothesis: the new compositor blocked on a dma-fence from the dead GPU and the
+iGPU's rings starved; on Sep 8 (610) the same loss did NOT hang amdgpu because KWin was
+already running. Check `/sys/fs/pstore` (root) for a panic record. Verdict so far: 615 +
+ported patches work (E1/C2/C5 all visibly active); whether 615 changes the GSP-death rate
+needs days of samples (610: ~2 in 5 days).
 
 **Pin declined (Sep 9):** David prefers not to add standing customisations that can bite
 later; he watches the `-Syu` package list for `nvidia-utils` and stops before confirming the
