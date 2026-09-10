@@ -636,6 +636,22 @@ two USB4 tunnel root ports pinned awake by udev instead; see the bullets for why
   lid-closed boot; the greeter's KWin rewrites that file, so check with
   `tools/kwin-outputconfig-dump.py` if it regresses. The monitor is an **LG TV (`LG TV
   SSCR2`) with no DDC/CI**, so PowerDevil's DDC backend has no value on this display.
+  **Sep 10 00:13 — third instance, and a sibling upstream bug.** DPMS wake with the screen
+  locked: no FRL failure logged at all; PowerDevil's ddcutil watcher saw the LG's EDID appear
+  on **i2c-13 (a DP AUX bus)** at +2 s and move to **i2c-5 (HDMI DDC)** at +11 s — the PCON
+  re-detected first in active FRL mode, then in HDMI passthrough — and the TV showed nothing
+  through either. Six hotkey presses over 22 s eventually lit it. The rescue's 2 s off-time is
+  the suspect: `display-rescue` now holds the output off for **8 s** and takes a lock so
+  presses queue instead of overlapping (backup `~/.local/bin/display-rescue.bak-20260910`).
+  Hypothesis, not proof: the TV needs a longer no-signal gap to reset its receiver after
+  standby. Upstream sibling: **drm/amd #5757** ("[7.2.x – 780M] HDMI: no signal when display
+  requests YCbCr 4:2:0", 780M + Samsung TV, works on 7.1 and 6.18 LTS, "the system thinks the
+  display works", no AMD reply yet) — same shape (source reports success, sink dark) from the
+  7.2 HDMI rework, different mode. Reddit r/cachyos "no signal after logging in" is an NVIDIA
+  4070 Ti user, unrelated. **Decision pending:** if one 8 s press does not make wakes reliable
+  within a few days, revert `dcfeaturemask=0x402` (back to 4:2:0 8-bit at 4K120, which woke
+  6/6 and ran for weeks) and retire the retry service and the greeter pin with it — three
+  customisations for one, which is the direction David prefers.
 
 - `pcie_port_pm=off` — was **required** in August: without it the PCIe link dropped ~1 s
   after the nvidia module loaded (`pciehp: Link Down` / `Card not present`).

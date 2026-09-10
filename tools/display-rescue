@@ -4,12 +4,14 @@
 # re-enables every connected non-internal output, forcing a full modeset /
 # link retrain. Bound to Meta+Shift+D via ~/.local/share/kglobalaccel/.
 set -u
+# Single-shot: hotkey spam overlaps disable/enable cycles and confuses the sink. Later presses wait.
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/display-rescue.lock"; flock 9
 OUTS=$(kscreen-doctor -o 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' \
        | awk '/^Output:/{name=$3; getline; en=$1; getline; con=$1; if (con=="connected" && name !~ /^eDP/) print name}')
 [ -n "$OUTS" ] || { notify-send -a "Display rescue" "No external output found" 2>/dev/null; exit 1; }
 for o in $OUTS; do
     kscreen-doctor "output.$o.disable" >/dev/null 2>&1
-    sleep 2
+    sleep 8   # was 2 s; LG TV appears to need a longer no-signal gap to re-sync after standby (Sep 10 experiment)
     kscreen-doctor "output.$o.enable"  >/dev/null 2>&1
 done
 notify-send -a "Display rescue" "Re-enabled: $OUTS" 2>/dev/null || true
