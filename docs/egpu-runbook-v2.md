@@ -862,6 +862,20 @@ relevance to the eGPU-display Xid 56 sparkles — retest the ladder), the new
 `RmDisableDisplayGlitchPerfLimit` registry token (memory-clock switching while display is
 using memory — leave off; our lock pins mclk anyway), and PR #1199 (resume after hibernate).
 
+**Port done (Sep 10):** NVIDIA tagged `615.71.09` on GitHub and CachyOS shipped
+`nvidia-utils 615.71.09-1` the same day (Arch extra still 610). All six patches are re-based on
+a separate worktree `~/open-gpu-kernel-modules-615` (branch `egpu-615.71.09`, 6 commits on the
+tag) and exported to `patches-615.71.09/` in this repo with port notes; the set applies in
+sequence on a pristine tag and **builds clean** for `7.2.3-1-cachyos` with the hook's Clang
+flags (39 s, 0 errors, modinfo 615.71.09). Not runtime-tested yet.
+
+**Switch-over procedure (when ready to move to 615):**
+1. Make sure the kernel side is current first: `sudo pacman -Syu --ignore nvidia-utils,lib32-nvidia-utils,opencl-nvidia,lib32-opencl-nvidia,nvidia-settings,libxnvctrl`, reboot, confirm the eGPU on 610 still works on the new kernel.
+2. Point the hook's tree at the ported branch: in `~/open-gpu-kernel-modules`, `git fetch --tags && git checkout -b egpu-615-patched egpu-615.71.09`... or simpler: edit `/etc/nvidia-egpu-rebuild.conf` `TREE=/home/davidj/open-gpu-kernel-modules-615` (the worktree already IS the ported tree). The hook compares `version.mk` (615.71.09) with `nvidia-utils`, so it refuses until step 3.
+3. `sudo pacman -Syu` (no --ignore): nvidia-utils moves to 615.71.09; the hook builds and installs the ported modules for the running kernel in-transaction (check `/tmp/nvidia-egpu-rebuild.log`).
+4. Reboot with the enclosure attached. Verify: `nvidia-smi` (615.71.09), `/proc/driver/nvidia/params` DPM=0, `external GPU detected` in dmesg, launch a game, then the display ladder rung 1080p60 (changelog mentions a Blackwell display-scaling corruption fix worth a 4K60 retry, clocks locked).
+5. Rollback if anything is wrong: `sudo pacman -U /var/cache/pacman/pkg/nvidia-utils-610.57.04-3-*.pkg.tar.zst` (and the lib32/opencl/settings siblings), set `TREE` back to `~/open-gpu-kernel-modules`, `sudo nvidia-egpu-rebuild`, reboot.
+
 **Pin declined (Sep 9):** David prefers not to add standing customisations that can bite
 later; he watches the `-Syu` package list for `nvidia-utils` and stops before confirming the
 upgrade. If an update ever does slip through, the symptom is the hook refusing the build and

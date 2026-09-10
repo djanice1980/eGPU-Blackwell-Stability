@@ -1,0 +1,54 @@
+From d2f80482c68cd3c1d1f110ca76a67e7b3dfc1a6a Mon Sep 17 00:00:00 2001
+From: egpu <egpu@local>
+Date: Thu, 10 Sep 2026 16:39:01 -0500
+Subject: [PATCH 5/6] port: 05-C6-cond-acquire-rwlock-fix.patch (clean)
+
+---
+ kernel-open/nvidia/os-interface.c | 24 ++++++++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/kernel-open/nvidia/os-interface.c b/kernel-open/nvidia/os-interface.c
+index f4f92f6e..1a968681 100644
+--- a/kernel-open/nvidia/os-interface.c
++++ b/kernel-open/nvidia/os-interface.c
+@@ -345,7 +345,17 @@ NV_STATUS NV_API_CALL os_cond_acquire_rwlock_read(void *pRwLock)
+ {
+     os_rwlock_t *os_rwlock = (os_rwlock_t *)pRwLock;
+ 
+-    if (down_read_trylock(&os_rwlock->sem))
++    //
++    // down_read_trylock() returns 1 when the lock IS acquired and 0 on
++    // contention -- the OPPOSITE convention to down_trylock() (0 == acquired)
++    // used by os_cond_acquire_mutex/semaphore above.  The '!' is load-bearing:
++    // report NV_ERR_TIMEOUT_RETRY only when the trylock FAILED (returned 0),
++    // and fall through holding the lock on success.  Without it, a successful
++    // acquire returned TIMEOUT_RETRY (leaking the held rwsem) and a contended
++    // acquire returned NV_OK, so the caller ran the protected body and then
++    // released a lock it never held -> rwsem count corruption.  Do NOT "simplify".
++    //
++    if (!down_read_trylock(&os_rwlock->sem))
+     {
+         return NV_ERR_TIMEOUT_RETRY;
+     }
+@@ -357,7 +367,17 @@ NV_STATUS NV_API_CALL os_cond_acquire_rwlock_write(void *pRwLock)
+ {
+     os_rwlock_t *os_rwlock = (os_rwlock_t *)pRwLock;
+ 
+-    if (down_write_trylock(&os_rwlock->sem))
++    //
++    // down_write_trylock() returns 1 when the lock IS acquired and 0 on
++    // contention -- the OPPOSITE convention to down_trylock() (0 == acquired)
++    // used by os_cond_acquire_mutex/semaphore above.  The '!' is load-bearing:
++    // report NV_ERR_TIMEOUT_RETRY only when the trylock FAILED (returned 0),
++    // and fall through holding the lock on success.  Without it, a successful
++    // acquire returned TIMEOUT_RETRY (leaking the held rwsem) and a contended
++    // acquire returned NV_OK, so the caller ran the protected body and then
++    // released a lock it never held -> rwsem count corruption.  Do NOT "simplify".
++    //
++    if (!down_write_trylock(&os_rwlock->sem))
+     {
+         return NV_ERR_TIMEOUT_RETRY;
+     }
+-- 
+2.55.0
+
