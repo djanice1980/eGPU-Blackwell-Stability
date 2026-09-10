@@ -884,11 +884,19 @@ Procedure for this machine:
    `sudo bash pacman-hook/install-hook.sh` (keeps `TREE=~/open-gpu-kernel-modules`).
 2. Preview: `sudo nvidia-egpu-rebuild --check --utils 615.71.09`.
 3. Kernel first, driver second (so a failure is attributable): `sudo pacman -Syu --ignore nvidia-utils,lib32-nvidia-utils,opencl-nvidia,lib32-opencl-nvidia,nvidia-settings,libxnvctrl`, reboot, confirm the eGPU on 610.
-4. Then a plain `sudo pacman -Syu`: nvidia-utils → 615.71.09, the hook ports and builds in-transaction (`/tmp/nvidia-egpu-rebuild.log`), reboot with the enclosure attached.
+4. Then a plain `sudo pacman -Syu`: nvidia-utils → 615.71.09, the hook ports and builds in-transaction (`/var/log/nvidia-egpu-rebuild.log`), reboot with the enclosure attached.
 5. Verify: `nvidia-smi` 615.71.09, `/proc/driver/nvidia/params` DPM=0, `external GPU detected`, a game, then the display ladder rung 1080p60 (and one 4K60 retry, clocks locked — the 615 changelog has a Blackwell display-scaling corruption fix).
 6. Rollback: `sudo pacman -U /var/cache/pacman/pkg/nvidia-utils-610.57.04-3-*.pkg.tar.zst` + the lib32/opencl/settings siblings; the hook then auto-ports back to 610 (patches/VERSION = 610.57.04), reboot.
 The separate worktree `~/open-gpu-kernel-modules-615` is now just the reference port; it can be
 removed after the real switch succeeds.
+**First real run (Sep 10 16:5x) FAILED, my bug:** the hook's log was `/tmp/nvidia-egpu-rebuild.log`;
+my non-root tests had created that file as `davidj`, and with `fs.protected_regular=1` root
+cannot append to another user's file in sticky `/tmp`, so every `2>>$LOG` redirect failed and
+bash skipped the commands behind them (fetch, checkout) → "git checkout failed". Tree was left
+untouched (good), but the transaction had already replaced the userspace with 615 and removed
+the 7.2.3 module directory, so the system was one reboot away from a driverless kernel. Fixed:
+root logs to `/var/log/nvidia-egpu-rebuild.log`, non-root to `$XDG_RUNTIME_DIR/…-<uid>.log`.
+Recovery = reinstall hook (install-hook.sh) and run `sudo nvidia-egpu-rebuild` before rebooting.
 
 **Pin declined (Sep 9):** David prefers not to add standing customisations that can bite
 later; he watches the `-Syu` package list for `nvidia-utils` and stops before confirming the

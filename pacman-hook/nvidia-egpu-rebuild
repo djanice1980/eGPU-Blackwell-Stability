@@ -25,6 +25,7 @@
 #   --check            print the plan and exit before changing anything
 #   --utils <ver>      pretend nvidia-utils is <ver> (test the port path without installing it)
 #   --no-install       build but skip modules_install/depmod (result stays in $TREE/kernel-open)
+# Log: /var/log/nvidia-egpu-rebuild.log (root) or $XDG_RUNTIME_DIR/nvidia-egpu-rebuild-<uid>.log
 set -euo pipefail
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin
 
@@ -51,7 +52,10 @@ PATCHES="${PATCHES:-}"
 KERNEL_PKG="${KERNEL_PKG:-linux-cachyos}"
 KERNEL_SUFFIX="${KERNEL_SUFFIX:-cachyos}"
 FALLBACK_UNPATCHED="${FALLBACK_UNPATCHED:-yes}"
-LOG=/tmp/nvidia-egpu-rebuild.log
+# Log lives in /var/log when run as root. Never share a /tmp path between root and the
+# build user: with fs.protected_regular=2 (systemd default) root cannot append to a file
+# another user created in sticky /tmp, and a stale file from a test run breaks the hook.
+if [ "$EUID" -eq 0 ]; then LOG=/var/log/nvidia-egpu-rebuild.log; else LOG="${XDG_RUNTIME_DIR:-/tmp}/nvidia-egpu-rebuild-$(id -u).log"; fi
 
 say()  { echo "[egpu-rebuild] $*"; }
 warn() { echo "[egpu-rebuild] WARNING: $*" >&2; }
