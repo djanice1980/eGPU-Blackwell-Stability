@@ -648,10 +648,15 @@ two USB4 tunnel root ports pinned awake by udev instead; see the bullets for why
   requests YCbCr 4:2:0", 780M + Samsung TV, works on 7.1 and 6.18 LTS, "the system thinks the
   display works", no AMD reply yet) — same shape (source reports success, sink dark) from the
   7.2 HDMI rework, different mode. Reddit r/cachyos "no signal after logging in" is an NVIDIA
-  4070 Ti user, unrelated. **Decision pending:** if one 8 s press does not make wakes reliable
-  within a few days, revert `dcfeaturemask=0x402` (back to 4:2:0 8-bit at 4K120, which woke
-  6/6 and ran for weeks) and retire the retry service and the greeter pin with it — three
-  customisations for one, which is the direction David prefers.
+  4070 Ti user, unrelated. **Decided (Sep 10 evening):** the 8 s rescue did not help either — at the
+  20:34 wake the training failed once, the service's modeset and a hotkey modeset both
+  "succeeded" per DC, and the TV stayed dark for minutes until it synced on its own. So the
+  dark wake is the sink failing to lock onto the first FRL stream after standby; no host-side
+  modeset timing fixes it. David chose to **keep FRL (10-bit RGB, 120 Hz) and live with it**:
+  known behaviour, comes up eventually, hotkey optional. `hdmi-link-retry` service removed;
+  the modprobe flag and the greeter 4K60 pin stay. Fallback if it ever becomes intolerable:
+  delete `/etc/modprobe.d/99-amdgpu-hdmi-frl.conf` + `limine-mkinitcpio` (back to 4:2:0
+  8-bit, which woke 6/6), or pick 4K60 in Display Settings for 8-bit RGB over TMDS.
 
 - `pcie_port_pm=off` — was **required** in August: without it the PCIe link dropped ~1 s
   after the nvidia module loaded (`pciehp: Link Down` / `Card not present`).
