@@ -1,0 +1,9 @@
+# When an NVIDIA display-class PCI device appears (cold boot, tunnel rebuild), start the unit
+# that caps the link above it at Gen3 and then loads the nvidia modules. The modules are
+# blacklisted for udev autoload (modprobe.d lines added by install.sh) so nothing binds the
+# GPU before the cap is applied.
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03*", TAG+="systemd", ENV{SYSTEMD_WANTS}+="nvidia-egpu-cap-and-load.service"
+# When it disappears (the boot-time host reset tears the tunnel down, or a surprise removal),
+# unload the modules so the next add is caught by the rule above instead of binding in-kernel.
+# ATTR is unavailable on remove; match on the udev-cached vendor/class environment.
+ACTION=="remove", SUBSYSTEM=="pci", ENV{PCI_ID}=="10DE:*", ENV{PCI_CLASS}=="3*", RUN+="/usr/bin/systemd-run --no-block /usr/local/bin/nvidia-egpu-unload"

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Twin of nvidia-egpu-cap-and-load: runs when the NVIDIA GPU is REMOVED from the PCI bus (the
+# thunderbolt host reset tears the firmware-built tunnel down ~7 s into every boot, then
+# rebuilds it). Unloads the nvidia modules so the re-added GPU finds no driver and the
+# cap-and-load unit can cap the link before the GSP boots. Best effort: if something holds
+# the modules (a logged-in compositor after a surprise removal) it just logs and leaves them.
+set -u
+export PATH=/usr/bin:/usr/sbin:/bin:/sbin
+TAG=nvidia-egpu-cap
+log() { logger -t "$TAG" -- "$*"; }
+if lspci -D -d 10de: 2>/dev/null | grep -qiE "VGA|3D"; then
+    log "unload: an NVIDIA GPU is still on the bus; not unloading"; exit 0
+fi
+if ! lsmod | grep -q '^nvidia '; then log "unload: nvidia not loaded; nothing to do"; exit 0; fi
+if modprobe -r nvidia_drm nvidia_modeset nvidia_uvm nvidia 2>/dev/null; then
+    log "unload: nvidia modules unloaded after GPU removal (next add will cap + reload)"
+else
+    log "unload: modules busy (held by $(fuser /dev/nvidiactl 2>/dev/null | tr -s ' ' || echo '?')); left loaded -- next add will bind immediately and the cap will be skipped"
+fi

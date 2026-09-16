@@ -1,0 +1,9 @@
+[Unit]
+Description=Cap the eGPU's PCIe link at Gen3 and load the NVIDIA driver (started by udev on GPU add)
+Documentation=file:///usr/local/bin/nvidia-egpu-cap-and-load
+# Started by 99-nvidia-egpu-cap-and-load.rules via SYSTEMD_WANTS; not enabled at boot on its own.
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/nvidia-egpu-cap-and-load
+# oneshot without RemainAfterExit so every GPU add (re-plug, tunnel rebuild) runs it again

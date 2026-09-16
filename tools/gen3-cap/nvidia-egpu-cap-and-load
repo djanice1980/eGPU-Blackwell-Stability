@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# Cap the PCIe link above a Thunderbolt/USB4 eGPU at Gen3 (8 GT/s) with Hardware Autonomous
+# Speed Disable, retrain it, and only then load the NVIDIA driver.
+#
+# Why: the GSP firmware on Blackwell eGPUs dies (Xid 154 / hard lock) when the Barlow Ridge
+# downstream port renegotiates link speed under it. Capping the port BEFORE the driver boots
+# the GSP removes the renegotiation. Reported stable under heavy CUDA soak on JHL9480
+# enclosures even with the stock driver (NVIDIA/open-gpu-kernel-modules#979, efenex, Sep 2026).
+# Gen3 x4 costs nothing on a USB4 tunnel that tops out below 4 GB/s anyway.
+#
+# Scope: touches ONLY the bridge port directly above the NVIDIA GPU (inside the enclosure)
+# and the nvidia modules. Nothing else on the machine is affected.
+#
+# Started by nvidia-egpu-cap-and-load.service, which udev triggers whenever an NVIDIA GPU is
+# added (cold boot, tunnel rebuild). Its twin, nvidia-egpu-unload, runs on GPU removal so
+# that the next add finds no driver loaded (a loaded driver binds in-kernel before udev runs).
+# Never retrains a link whose GPU already has a driver bound. Cold boot only; no hot-plug.
+#   sudo nvidia-egpu-cap-and-load            # cap + retrain + load
+#   sudo nvidia-egpu-cap-and-load --status   # show link state, change nothing
+# Requires: pciutils (setpci/lspci). Logs to the journal as tag nvidia-egpu-cap.
+set -u
+export PATH=/usr/bin:/usr/sbin:/bin:/sbin
+TAG=nvidia-egpu-cap
+TARGET_GEN="${TARGET_GEN:-3}"          # 1=2.5, 2=5, 3=8, 4=16 GT/s
+MODULES="${MODULES:-nvidia nvidia_uvm nvidia_modeset nvidia_drm}"
+log()  { logger -t "$TAG" -- "$*"; echo "[$TAG] $*"; }
+STATUS_ONLY=0; [ "${1:-}" = "--status" ] && STATUS_ONLY=1
+[ "$EUID" -eq 0 ] || { echo "[$TAG] needs root (setpci)"; exit 1; }
+
+# --- find the GPU and the port above it ------------------------------------------------
+GPU=$(lspci -D -d 10de: -nn 2>/dev/null | grep -iE "VGA|3D" | awk '{print $1}' | head -1)
+[ -n "$GPU" ] || { log "no NVIDIA GPU on the bus; nothing to do"; exit 0; }
+BRIDGE=$(basename "$(dirname "$(readlink -f "/sys/bus/pci/devices/$GPU")")")
+[[ "$BRIDGE" =~ ^[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9]$ ]] || { log "cannot find the bridge above $GPU (got '$BRIDGE')"; exit 1; }
+BOUND=$([ -e "/sys/bus/pci/devices/$GPU/driver" ] && basename "$(readlink -f "/sys/bus/pci/devices/$GPU/driver")" || echo none)
+
+# PCIe capability register helpers (offsets relative to CAP_EXP):
+#   +0x10 LnkCtl  bit5 Retrain Link
+#   +0x12 LnkSta  bits3:0 speed, bits9:4 width, bit11 Link Training, bit13 DL Active
+#   +0x30 LnkCtl2 bits3:0 Target Link Speed, bit5 Hardware Autonomous Speed Disable
+rd() { setpci -s "$1" "CAP_EXP+$2.w" 2>/dev/null; }
+lnksta() { local v; v=$((16#$(rd "$1" 12))); printf 'speed=Gen%d width=x%d training=%d dl_active=%d' $((v&0xf)) $(((v>>4)&0x3f)) $(((v>>11)&1)) $(((v>>13)&1)); }
+lnkctl2() { local v; v=$((16#$(rd "$1" 30))); printf 'target=Gen%d hasd=%d' $((v&0xf)) $(((v>>5)&1)); }
+
+log "GPU $GPU behind bridge $BRIDGE, driver=$BOUND"
+log "before: bridge LnkSta[$(lnksta "$BRIDGE")] LnkCtl2[$(lnkctl2 "$BRIDGE")]  gpu LnkSta[$(lnksta "$GPU")]"
+[ "$STATUS_ONLY" = 1 ] && exit 0
+
+# --- safety: never retrain under a live driver -------------------------------------------
+if [ "$BOUND" != "none" ]; then
+    log "driver $BOUND is already bound to $GPU -- NOT touching the link (a retrain under a live GSP is the failure we are avoiding). Unload first, or reboot."
+    exit 0
+fi
+
+# --- cap: Target Link Speed = Gen3, HASD = 1, on the bridge (the upstream partner) --------
+old=$((16#$(rd "$BRIDGE" 30)))
+new=$(( (old & ~0xf) | TARGET_GEN | 0x20 ))
+if [ "$old" != "$new" ]; then
+    setpci -s "$BRIDGE" "CAP_EXP+30.w=$(printf '%04x' "$new")" || { log "setpci LnkCtl2 on $BRIDGE failed"; exit 1; }
+    log "LnkCtl2 on $BRIDGE: $(printf '%04x' "$old") -> $(printf '%04x' "$new") (target Gen$TARGET_GEN + HASD)"
+else
+    log "LnkCtl2 on $BRIDGE already $(printf '%04x' "$old")"
+fi
+
+# --- retrain, then wait for training to finish at the capped speed ----------------------
+setpci -s "$BRIDGE" "CAP_EXP+10.w=0020:0020" || { log "retrain request failed"; exit 1; }
+for i in $(seq 1 50); do
+    v=$((16#$(rd "$BRIDGE" 12)))
+    if [ $(((v>>11)&1)) -eq 0 ] && [ $((v&0xf)) -le "$TARGET_GEN" ] && [ $(((v>>13)&1)) -eq 1 ]; then break; fi
+    sleep 0.1
+done
+log "after retrain: bridge LnkSta[$(lnksta "$BRIDGE")]  gpu LnkSta[$(lnksta "$GPU")]"
+v=$((16#$(rd "$BRIDGE" 12)))
+[ $((v&0xf)) -le "$TARGET_GEN" ] || log "WARNING: link still above Gen$TARGET_GEN after retrain; loading the driver anyway"
+
+# --- load the driver (blacklisted for autoload; explicit modprobe is allowed) ---------------
+# shellcheck disable=SC2086
+if modprobe -a $MODULES; then
+    log "loaded: $MODULES"
+else
+    log "modprobe failed (rc=$?) -- see dmesg"; exit 1
+fi
+sleep 2
+BOUND=$([ -e "/sys/bus/pci/devices/$GPU/driver" ] && basename "$(readlink -f "/sys/bus/pci/devices/$GPU/driver")" || echo none)
+log "driver bound=$BOUND  gpu LnkSta[$(lnksta "$GPU")]"

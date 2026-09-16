@@ -1071,9 +1071,19 @@ wrinkles: `thunderbolt.host_reset=false` broke JHL9580 probe → `module_blackli
 class that a Gen3 cap on `62:00.0` would address from the bridge side (our clock lock
 addressed it from the GPU side). Gen3 x4 costs almost nothing here: the tunnel already tops
 out ~3.86 GB/s bulk. Cost is a late-load arrangement (nvidia must not bind before the cap).
-This is the natural candidate for the deferred "stock vs patched" gauntlet: stock 615 +
-Gen3 cap + late load vs patched 615 as-is. Not adopted — David's standing preference is
-fewer customisations unless a demonstrated need appears.
+**Adopted Sep 16 (David's call) — `tools/gen3-cap/`.** Mechanism on this host: nvidia is
+blacklisted for udev autoload; a udev rule on the GPU's PCI add starts
+`nvidia-egpu-cap-and-load.service`, which writes LnkCtl2 (Target Link Speed = Gen3, HASD) on
+the port above the GPU (`62:00.0`), retrains, waits for DL-active at ≤Gen3, then
+`modprobe -a nvidia nvidia_uvm nvidia_modeset nvidia_drm`. Because this host enumerates the
+GPU twice per boot (firmware tunnel, then the host-reset rebuild ~20–30 s), a twin
+`nvidia-egpu-unload` runs on the GPU's remove so the second add finds no driver loaded — a
+loaded driver binds in-kernel before udev can cap, and the script refuses to retrain under a
+bound driver. Cold boot only, no hot-plug. Scope: that one port + the nvidia modules.
+Validation pending the first cold boot: expect `journalctl -b -t nvidia-egpu-cap` to show
+before/after LnkSta, Gen3 x4 on bridge and GPU, driver bound, and `nvidia-smi` link gen 3.
+Then the real measure is Xid-154 frequency over the following weeks (610: ~2 in 5 days;
+615: 1 on the first boot). Rollback: `sudo bash tools/gen3-cap/install.sh --remove` + reboot.
 
 **Patch-free counterexample (DamianKA1993, Sep 1):** the same JHL9480 bridge
 (`HotPlug- Surprise+`), stock `nvidia-open` DKMS, zero kernel cmdline flags, zero
