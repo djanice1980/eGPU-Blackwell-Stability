@@ -1080,8 +1080,12 @@ GPU twice per boot (firmware tunnel, then the host-reset rebuild ~20–30 s), a 
 `nvidia-egpu-unload` runs on the GPU's remove so the second add finds no driver loaded — a
 loaded driver binds in-kernel before udev can cap, and the script refuses to retrain under a
 bound driver. Cold boot only, no hot-plug. Scope: that one port + the nvidia modules.
-Validation pending the first cold boot: expect `journalctl -b -t nvidia-egpu-cap` to show
-before/after LnkSta, Gen3 x4 on bridge and GPU, driver bound, and `nvidia-smi` link gen 3.
+**Validated on the first cold boot (Sep 16 13:48):** the firmware-enumerated GPU was already
+torn down when udev replayed its add (service: "no NVIDIA GPU on the bus"); at the rebuild
+(+9 s) the GPU arrived with `driver=none` (blacklist held), LnkCtl2 `0044 → 0063`, retrain
+settled at **Gen3 x4** on bridge and GPU, then the four modules loaded and bound. At idle the
+link sits at Gen1 (P8 downclock, same as before); the cap shows under load as gen 3 instead
+of gen 4.
 Then the real measure is Xid-154 frequency over the following weeks (610: ~2 in 5 days;
 615: 1 on the first boot). Rollback: `sudo bash tools/gen3-cap/install.sh --remove` + reboot.
 
