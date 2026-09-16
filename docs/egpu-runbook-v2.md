@@ -604,6 +604,19 @@ two USB4 tunnel root ports pinned awake by udev instead; see the bullets for why
   live on amdgpu, and the `hdmi_frl_status_polling_workqueue` exists either way. Keep
   `HDMI-A-1` at `Vrr: Never` while this is forced. Drop the file once upstream flips the
   default back. Source: discuss.cachyos.org/t/35350.
+
+- **Gen3 bridge cap + late NVIDIA load (added Sep 16)** — `tools/gen3-cap/`:
+  `/etc/modprobe.d/zz-nvidia-egpu-lateload.conf` (blacklists nvidia* for udev autoload only),
+  `/etc/udev/rules.d/99-nvidia-egpu-cap-and-load.rules`,
+  `/etc/systemd/system/nvidia-egpu-cap-and-load.service`, `/usr/local/bin/nvidia-egpu-cap-and-load`
+  and `/usr/local/bin/nvidia-egpu-unload`. On every GPU add: LnkCtl2 on the port above the GPU
+  (`62:00.0`) = Gen3 + Hardware Autonomous Speed Disable, retrain, then modprobe; on GPU
+  remove: unload so the boot-time tunnel rebuild is re-capped before the GSP boots. Refuses
+  to retrain under a bound driver. Why: efenex on #979 — the JHL9480 port renegotiating
+  speed under the GSP is the Xid-154 trigger; capped, his box is stable even on the stock
+  driver. Verified here: Gen3 x4 at P0 under FurMark. Cost: none measurable (tunnel-bound).
+  Cold boot only — never hot-plug. Status: `sudo nvidia-egpu-cap-and-load --status`;
+  remove: `sudo bash tools/gen3-cap/install.sh --remove` + reboot.
   **Cost of FRL (Sep 7 23:15):** first-ever `amdgpu: enabling link 1 failed: 19` at a
   lock-screen wake with the lid closed. `dc_status` 19 = `DC_FAIL_HDMI_FRL_LINK_TRAINING`
   (core_status.h) — the FRL link training itself failed once (sink not ready ~7 s after the
@@ -1084,8 +1097,7 @@ bound driver. Cold boot only, no hot-plug. Scope: that one port + the nvidia mod
 torn down when udev replayed its add (service: "no NVIDIA GPU on the bus"); at the rebuild
 (+9 s) the GPU arrived with `driver=none` (blacklist held), LnkCtl2 `0044 → 0063`, retrain
 settled at **Gen3 x4** on bridge and GPU, then the four modules loaded and bound. At idle the
-link sits at Gen1 (P8 downclock, same as before); the cap shows under load as gen 3 instead
-of gen 4.
+link sits at Gen1 (P8 downclock, same as before); **under FurMark: P0, Gen3 x4** (was Gen4).
 Then the real measure is Xid-154 frequency over the following weeks (610: ~2 in 5 days;
 615: 1 on the first boot). Rollback: `sudo bash tools/gen3-cap/install.sh --remove` + reboot.
 

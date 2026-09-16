@@ -74,6 +74,20 @@ end-to-end for 610.57.04 → 615.71.09 with `--no-install`: six patches applied,
 sudo bash pacman-hook/install-hook.sh
 ```
 
+## [`tools/gen3-cap/`](tools/gen3-cap/) — Gen3 bridge cap + late driver load
+
+Caps the PCIe port directly above the eGPU at Gen3 with Hardware Autonomous Speed Disable,
+retrains, and only then loads the NVIDIA modules (udev-triggered on every GPU add; a twin
+unloads on remove so the boot-time tunnel rebuild is re-capped before the GSP boots). This is
+the recipe efenex found on NVIDIA#979 that made a JHL9480 enclosure stable under heavy CUDA
+even with the stock driver: the Barlow Ridge port renegotiating link speed under the GSP is
+the Xid-154 trigger. Gen3 x4 costs nothing on a USB4 tunnel. Touches that one port and the
+nvidia modules, nothing else; no kernel command-line change. Cold boot only.
+
+```sh
+sudo bash tools/gen3-cap/install.sh      # --remove to undo; reboot with the enclosure attached
+```
+
 ## [`widget/`](widget/)
 
 **Blackwell eGPU Status** — a KDE Plasma 6 panel widget with live eGPU telemetry
