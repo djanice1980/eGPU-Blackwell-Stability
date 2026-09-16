@@ -1051,6 +1051,30 @@ CUDA needs nothing — it targets the card directly regardless of display topolo
 
 Author's own framing: **a mitigation, not a fix.** Behaviour still varies by host.
 
+**#979 developments read Sep 16:** (a) elvetemedve (Intel Meteor Lake + AORUS 5060 Ti
+box) dropped `pcie_aspm.policy=performance` and `pcie_port_pm=off` — Damian's manager still
+works; only `pci=realloc` is required for him (without it: `bridge window … can't assign; no
+space`, the same two-phase sizing we hit). So on his host the active ingredient is the
+manager's deferred attach + setpci ASPM/L1SS clear + retrain, not the flags. (b) **efenex
+(Arrow Lake-HX, Minisforum MS-02 Ultra, JHL9580 host + JHL9480 AORUS 5090 box):** hard-lock
+on first CUDA allocation with every combination he tried — until he **capped the bridge above
+the GPU at Gen3 with Hardware Autonomous Speed Disable (LnkCtl2 target speed = Gen3 + bit 5),
+retrained, and only then loaded nvidia** (driver blacklisted at boot, loaded by a script/systemd
+unit). Then: 8 boots, 387 GB verified H2D/D2H at ~3 GB/s, 2 min FP16 matmul at 575 W, 24 GiB
+allocation, 0 Xid/AER. **Also works with STOCK 610.57.04, no patches** (6 boots Ubuntu 7.0 +
+4 boots CachyOS 7.2.3, same soak). His words: "on this hardware the bridge cap is what
+mattered, not the driver patches" (stock-without-cap untested). He also reports
+**615.71.09 oopsed at module load** on his Intel box (ours loads fine on AMD). Intel-only
+wrinkles: `thunderbolt.host_reset=false` broke JHL9580 probe → `module_blacklist=thunderbolt`.
+**Implication for this host (untested):** our remaining failure is the idle GSP death
+(Xid 154, ~2 per 5 days on 610, 1 so far on 615). It is in the #1229 link-renegotiation
+class that a Gen3 cap on `62:00.0` would address from the bridge side (our clock lock
+addressed it from the GPU side). Gen3 x4 costs almost nothing here: the tunnel already tops
+out ~3.86 GB/s bulk. Cost is a late-load arrangement (nvidia must not bind before the cap).
+This is the natural candidate for the deferred "stock vs patched" gauntlet: stock 615 +
+Gen3 cap + late load vs patched 615 as-is. Not adopted — David's standing preference is
+fewer customisations unless a demonstrated need appears.
+
 **Patch-free counterexample (DamianKA1993, Sep 1):** the same JHL9480 bridge
 (`HotPlug- Surprise+`), stock `nvidia-open` DKMS, zero kernel cmdline flags, zero
 modprobe blacklists — stable on his Ryzen mini PC + AORUS 5060 Ti AI BOX, carried by
