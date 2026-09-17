@@ -25,16 +25,19 @@
 #   --check            print the plan and exit before changing anything
 #   --utils <ver>      pretend nvidia-utils is <ver> (test the port path without installing it)
 #   --no-install       build but skip modules_install/depmod (result stays in $TREE/kernel-open)
+#   --force            rebuild even if this version is already installed for this kernel
+#                      (use after changing the tree, e.g. adding a patch)
 # Log: /var/log/nvidia-egpu-rebuild.log (root) or $XDG_RUNTIME_DIR/nvidia-egpu-rebuild-<uid>.log
 set -euo pipefail
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin
 
 CONF="${NVIDIA_EGPU_REBUILD_CONF:-/etc/nvidia-egpu-rebuild.conf}"   # env override is for testing only
-CHECK=0; NOINSTALL=0; UTILS_OVERRIDE=""
+CHECK=0; NOINSTALL=0; FORCE=0; UTILS_OVERRIDE=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --check)      CHECK=1 ;;
         --no-install) NOINSTALL=1 ;;
+        --force)      FORCE=1 ;;
         --utils)      UTILS_OVERRIDE="${2:-}"; shift ;;
         *) echo "[egpu-rebuild] unknown flag: $1" >&2; exit 2 ;;
     esac; shift
@@ -149,7 +152,7 @@ patches_present || warn "eGPU patches not detected in $TREE -- building anyway (
 
 # Already built for this kernel at the right version? Then nothing to do.
 CUR=$(modinfo -k "$KVER" -F version nvidia 2>/dev/null || true)
-if [ "$CUR" = "$TREEV" ] && [ "$NOINSTALL" = 0 ]; then
+if [ "$CUR" = "$TREEV" ] && [ "$NOINSTALL" = 0 ] && [ "$FORCE" = 0 ]; then
     say "nvidia $CUR already installed for $KVER -- nothing to do"
     exit 0
 fi

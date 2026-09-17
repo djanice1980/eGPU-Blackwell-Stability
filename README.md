@@ -10,7 +10,7 @@ driver patches, a read-only Plasma 6 status widget, and the field notes behind t
 | Host | ASUS ROG Flow Z13 GZ302EA (AMD Strix Halo / Ryzen AI Max, integrated AMD USB4) |
 | Enclosure | Razer Core X V2 (Intel JHL9480 "Barlow Ridge" TB5, `8086:5786`) |
 | GPU | RTX 5070 Ti (GB203, `10de:2c05`) |
-| OS / driver | CachyOS (Clang-built kernel), open-gpu-kernel-modules **610.57.04** + 6 patches |
+| OS / driver | CachyOS (Clang-built kernel), open-gpu-kernel-modules **615.71.09** + 7 patches (`patches-615.71.09/`; the 610.57.04 set stays in `patches/`) |
 
 **State of play:** eGPU auto-detected as external, clean attach, CUDA and Vulkan
 compute/render-offload stable for hours at full power (~260 W sustained over the
@@ -65,7 +65,9 @@ pristine tag so the next boot still has a working driver, with an unmissable war
 (`FALLBACK_UNPATCHED=no` in the config turns that into a refusal). Other guards: warns if the
 patches are missing from the tree, auto-detects Clang-built kernels, verifies vermagic, and is
 a no-op when the modules are already current. Test the plan without changing anything:
-`sudo nvidia-egpu-rebuild --check` (add `--utils 615.71.09` to preview a port).
+`sudo nvidia-egpu-rebuild --check` (add `--utils 615.71.09` to preview a port); after
+adding a patch to the current set, `sudo nvidia-egpu-rebuild --force` rebuilds and installs
+the same version.
 **Verified in production** on the `linux-cachyos` 7.2.2 → 7.2.3 update (built in 39 s inside
 the transaction, next boot loaded the patched module), and the automatic port was exercised
 end-to-end for 610.57.04 → 615.71.09 with `--no-install`: six patches applied, built clean.

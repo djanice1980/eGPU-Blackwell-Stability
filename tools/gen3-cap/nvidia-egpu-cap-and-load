@@ -62,6 +62,16 @@ else
     log "LnkCtl2 on $BRIDGE already $(printf '%04x' "$old")"
 fi
 
+# --- also pin the GPU's own side: target Gen3 + HASD ---------------------------------------
+# The endpoint downshifts the link to Gen1 at idle and retrains up at load; a game launch is
+# exactly that retrain. HASD on the GPU asks it not to change speed autonomously, so the link
+# stays at Gen3 across P-state changes (RM may override; harmless if it does). Sep 16 addition.
+gold=$((16#$(rd "$GPU" 30)))
+gnew=$(( (gold & ~0xf) | TARGET_GEN | 0x20 ))
+if [ "$gold" != "$gnew" ]; then
+    setpci -s "$GPU" "CAP_EXP+30.w=$(printf '%04x' "$gnew")" && log "LnkCtl2 on $GPU: $(printf '%04x' "$gold") -> $(printf '%04x' "$gnew") (target Gen$TARGET_GEN + HASD)" || log "WARNING: LnkCtl2 write on $GPU failed (continuing)"
+fi
+
 # --- retrain, then wait for training to finish at the capped speed ----------------------
 setpci -s "$BRIDGE" "CAP_EXP+10.w=0020:0020" || { log "retrain request failed"; exit 1; }
 for i in $(seq 1 50); do

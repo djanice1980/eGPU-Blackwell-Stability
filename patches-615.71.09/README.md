@@ -22,3 +22,18 @@ Port notes (what changed between 610.57.04 and 615.71.09 in the touched code):
 Build-verified 2026-09-10 against `7.2.3-1-cachyos` with `LLVM=1 CC=clang LD=ld.lld`:
 0 errors, `modinfo` version 615.71.09. NOT yet runtime-tested (userspace still 610.57.04).
 License: GPL-2.0, as `../patches/`.
+
+## 07-C7-surprise-removal-unplug-guard-and-log-once (added 2026-09-16, ours)
+
+Two things learned from a hard eGPU drop at game launch on 615 (see the runbook):
+- `nvidia-drm`: `__nv_drm_master_set()` and `nv_drm_master_drop()` now return early when
+  `drm_dev_is_unplugged(dev)`. After a surprise removal `nv_drm_remove()` has already called
+  `drm_dev_unplug()` and NVKMS has torn the device down; the compositor closing its fd still
+  went `master_drop → nvKmsKapiReleaseOwnership → nvkms_ioctl_from_kapi` and took a kernel
+  GPF that killed kwin_wayland. C5's G10 guard covers `nv_drm_remove`, not this path.
+- `intr.c`: the two "Failed GPU reg read" prints use `NV_GPU_LOST_LOG_ONCE`, and the two
+  `NV_ASSERT_OK_OR_ELSE` on `_intrServiceStallCommonCheckBegin` return silently (logged once)
+  when the status is `NV_ERR_GPU_IS_LOST`. The unguarded versions wrote 36k lines in one
+  second and rotated the journal, destroying the evidence of what caused the drop.
+Applies on top of 01–06. Build-verified on 7.2.5-1-cachyos. Not yet exercised by a real drop.
+

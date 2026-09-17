@@ -1,0 +1,142 @@
+From e7e445f506a74a036b8a6412f469cdde213e4500 Mon Sep 17 00:00:00 2001
+From: egpu <egpu@local>
+Date: Wed, 16 Sep 2026 23:22:45 -0500
+Subject: [PATCH] =?UTF-8?q?C7:=20survive=20eGPU=20surprise=20removal=20?=
+ =?UTF-8?q?=E2=80=94=20unplug=20guards=20in=20nvidia-drm=20master=20callba?=
+ =?UTF-8?q?cks,=20log-once=20on=20the=20interrupt-path=20lost-GPU=20prints?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+kernel-open/nvidia-drm/nvidia-drm-drv.c:
+  __nv_drm_master_set / nv_drm_master_drop return early when drm_dev_is_unplugged().
+  After nv_drm_remove() -> drm_dev_unplug() the NVKMS device behind pDevice is gone;
+  the compositor closing its fd reached nvKmsKapiReleaseOwnership -> nvkms_ioctl_from_kapi
+  and took a general protection fault (kwin_wayland, 2026-09-16 15:11:45).
+
+src/nvidia/src/kernel/gpu/intr/intr.c:
+  The two "Failed GPU reg read" prints become NV_GPU_LOST_LOG_ONCE, and the two
+  NV_ASSERT_OK_OR_ELSE on _intrServiceStallCommonCheckBegin return silently (logged once)
+  on NV_ERR_GPU_IS_LOST. On the same removal these produced 23,026 + 13,296 lines in one
+  second and rotated the journal, erasing the seconds before the drop.
+
+Build-verified on 7.2.5-1-cachyos (LLVM), 0 errors.
+---
+ kernel-open/nvidia-drm/nvidia-drm-drv.c | 23 ++++++++++++++++++
+ src/nvidia/src/kernel/gpu/intr/intr.c   | 31 ++++++++++++++++++++-----
+ 2 files changed, 48 insertions(+), 6 deletions(-)
+
+diff --git a/kernel-open/nvidia-drm/nvidia-drm-drv.c b/kernel-open/nvidia-drm/nvidia-drm-drv.c
+index bc0c6230..4f0fa4ed 100644
+--- a/kernel-open/nvidia-drm/nvidia-drm-drv.c
++++ b/kernel-open/nvidia-drm/nvidia-drm-drv.c
+@@ -986,6 +986,15 @@ static int __nv_drm_master_set(struct drm_device *dev,
+ {
+     struct nv_drm_device *nv_dev = to_nv_device(dev);
+ 
++    /*
++     * C7: a new master on a device that has already been unplugged (eGPU
++     * surprise removal -> nv_drm_remove() -> drm_dev_unplug()) must not reach
++     * into NVKMS: the KMS device behind pDevice is gone.
++     */
++    if (drm_dev_is_unplugged(dev)) {
++        return -ENODEV;
++    }
++
+     /*
+      * If this device is driving a framebuffer, then nvidia-drm already has
+      * modeset ownership. Otherwise, grab ownership now.
+@@ -1069,6 +1078,20 @@ void nv_drm_master_drop(struct drm_device *dev, struct drm_file *file_priv)
+ {
+     struct nv_drm_device *nv_dev = to_nv_device(dev);
+ 
++    /*
++     * C7: master_drop runs from drm_release() when the compositor closes its
++     * fd. After an eGPU surprise removal the device is unplugged and NVKMS
++     * has torn the KMS device down; revoke_modeset_permission /
++     * revoke_sub_ownership / releaseOwnership would call into NVKMS with a
++     * dangling pDevice (observed: GPF in nvkms_ioctl_from_kapi, kwin_wayland
++     * killed, 2026-09-16). Skip all of it on an unplugged device.
++     */
++    if (drm_dev_is_unplugged(dev)) {
++        NV_DRM_DEV_LOG_INFO(nv_dev,
++            "master_drop on an unplugged device: skipping NVKMS release (C7)");
++        return;
++    }
++
+     nv_drm_revoke_modeset_permission(dev, file_priv, 0);
+     nv_drm_revoke_sub_ownership(dev);
+ 
+diff --git a/src/nvidia/src/kernel/gpu/intr/intr.c b/src/nvidia/src/kernel/gpu/intr/intr.c
+index caf9791c..db43b9d0 100644
+--- a/src/nvidia/src/kernel/gpu/intr/intr.c
++++ b/src/nvidia/src/kernel/gpu/intr/intr.c
+@@ -27,6 +27,7 @@
+ #include "core/locks.h"
+ #include "gpu_mgr/gpu_mgr.h"
+ #include "gpu/subdevice/subdevice.h"
++#include "gpu/nv-gpu-lost.h"          // C7: NV_GPU_LOST_LOG_ONCE for surprise-removal paths
+ #include "kernel/gpu/gr/fecs_event_list.h"
+ #include "kernel/gpu/gr/kernel_graphics.h"
+ #include "kernel/gpu/intr/engine_idx.h"
+@@ -137,8 +138,8 @@ intrServiceStall_IMPL(OBJGPU *pGpu, Intr *pIntr)
+ 
+         if (regReadValue == GPU_REG_VALUE_INVALID)
+         {
+-            NV_PRINTF(LEVEL_ERROR,
+-                      "Failed GPU reg read : 0x%x. Check whether GPU is present on the bus\n",
++            NV_GPU_LOST_LOG_ONCE(LEVEL_ERROR,
++                      "Failed GPU reg read : 0x%x. Check whether GPU is present on the bus (C7: further occurrences suppressed)\n",
+                       regReadValue);
+         }
+ 
+@@ -1563,8 +1564,8 @@ _intrServiceStallCommonCheckBegin
+ 
+         if (regReadValue == GPU_REG_VALUE_INVALID)
+         {
+-            NV_PRINTF(LEVEL_ERROR,
+-                      "Failed GPU reg read : 0x%x. Check whether GPU is present on the bus\n",
++            NV_GPU_LOST_LOG_ONCE(LEVEL_ERROR,
++                      "Failed GPU reg read : 0x%x. Check whether GPU is present on the bus (C7: further occurrences suppressed)\n",
+                       regReadValue);
+         }
+ 
+@@ -1628,7 +1629,16 @@ intrServiceStallList_IMPL
+     NvBool              bPending;
+     CALL_CONTEXT       *pOldContext = NULL;
+ 
+-    NV_ASSERT_OK_OR_ELSE(status, _intrServiceStallCommonCheckBegin(pGpu, pIntr, &pOldContext), return);
++    status = _intrServiceStallCommonCheckBegin(pGpu, pIntr, &pOldContext);
++    if (status == NV_ERR_GPU_IS_LOST)
++    {
++        // C7: a surprise-removed eGPU keeps the stall-interrupt path firing; asserting
++        // here produced 13k log lines in one second and rotated the journal away.
++        NV_GPU_LOST_LOG_ONCE(LEVEL_ERROR,
++            "GPU lost from the bus during stall interrupt service (C7: further occurrences suppressed)\n");
++        return;
++    }
++    NV_ASSERT_OK_OR_ELSE(status, status, return);
+ 
+     do
+     {
+@@ -1681,7 +1691,16 @@ intrServiceStallSingle_IMPL
+     bitVectorClrAll(&engines);
+     bitVectorSet(&engines, engIdx);
+ 
+-    NV_ASSERT_OK_OR_ELSE(status, _intrServiceStallCommonCheckBegin(pGpu, pIntr, &pOldContext), return);
++    status = _intrServiceStallCommonCheckBegin(pGpu, pIntr, &pOldContext);
++    if (status == NV_ERR_GPU_IS_LOST)
++    {
++        // C7: a surprise-removed eGPU keeps the stall-interrupt path firing; asserting
++        // here produced 13k log lines in one second and rotated the journal away.
++        NV_GPU_LOST_LOG_ONCE(LEVEL_ERROR,
++            "GPU lost from the bus during stall interrupt service (C7: further occurrences suppressed)\n");
++        return;
++    }
++    NV_ASSERT_OK_OR_ELSE(status, status, return);
+ 
+     do
+     {
+-- 
+2.55.0
+

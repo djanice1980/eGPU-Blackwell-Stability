@@ -987,12 +987,23 @@ Consequences, in order:
    re-enumerated 3 s later and bound **uncapped** (the script correctly refused to retrain
    under the bound driver). Design consequence: after any drop with a live holder the
    session runs at Gen4 until the next cold boot.
-Candidate fixes (proposed, not applied): (a) `if (drm_dev_is_unplugged(dev)) return;` at the
-top of `nv_drm_master_drop()` (and the same in the other file-release callbacks) — stops the
-compositor dying when the card is yanked; (b) wrap the two `intr.c` prints with
-`NV_GPU_LOST_LOG_ONCE` so a surprise removal cannot erase the journal. Both belong in the
-patch set as a C7. The trigger of the drop itself is unknown until a drop survives with its
-preceding seconds intact — (b) is the prerequisite for finding it.
+**Trigger (David): launching a 3D game** — the P8→P0 ramp, which on this link is also the
+Gen1→Gen3 retrain (idle sits at Gen1, `--status` showed it). Hypothesis, not proven: the drop
+*is* that retrain. Two responses, both applied the same evening:
+1. `tools/gen3-cap` now also writes Target=Gen3 + HASD on the **GPU's** LnkCtl2 (not just the
+   bridge), asking the endpoint not to change speed autonomously, so the link should sit at
+   Gen3 across P-states and a launch has nothing to retrain. RM may override it; check
+   `sudo nvidia-egpu-cap-and-load --status` at idle after the next cold boot — Gen3 means
+   honoured, Gen1 means overridden; either is safe.
+2. **C7 applied** as `patches-615.71.09/07-C7-surprise-removal-unplug-guard-and-log-once.patch`
+   (committed on the hook's `egpu-615.71.09-auto` branch, build-verified 0 errors, installed
+   with the new `sudo nvidia-egpu-rebuild --force`): (a) `drm_dev_is_unplugged()` early-return
+   in `__nv_drm_master_set()` / `nv_drm_master_drop()` — stops the compositor dying when the
+   card is yanked; (b) the two `intr.c` "Failed GPU reg read" prints and the two
+   `NV_ASSERT_OK_OR_ELSE` on `_intrServiceStallCommonCheckBegin` become `NV_GPU_LOST_LOG_ONCE`
+   + silent return on `NV_ERR_GPU_IS_LOST`, so a surprise removal cannot erase the journal.
+   Neither has been exercised by a real drop yet. The trigger of the drop itself stays
+   unproven until a drop survives with its preceding seconds intact — (b) makes that possible.
 Note: this boot's journal begins at 15:11:45 only because of the flood; the cap
 validation lines from 13:48 survived only because they were captured in this runbook.
 
