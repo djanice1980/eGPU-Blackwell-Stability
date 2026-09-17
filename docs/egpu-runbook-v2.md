@@ -963,6 +963,39 @@ ls /lib/modules/$(uname -r)/updates/dkms/ 2>/dev/null
 
 ---
 
+## Hard bus drop during 3D development (Sep 16 15:11) — KWin oops in nvidia_modeset, journal flooded
+
+Boot of 13:48 (615.71.09 + Gen3 cap active, Gen3 x4 confirmed). At 15:11:45, while David
+was doing 3D software development (Vulkan app iterations), the **whole enclosure tree left
+the bus** (`pci_bus 0000:62..c0: busn_res released`, `GPU lost from the bus`, PMC_BOOT_0 reads
+`0xffffffff`) — a hard loss / surprise removal, NOT the GSP-death class the Gen3 cap targets.
+Consequences, in order:
+1. **Journal flood:** 23,026 × `_intrServiceStallCommonCheckBegin: Failed GPU reg read` and
+   13,296 × `GPU lost from the bus` inside ONE second (interrupt service loop on a dead
+   device). journald rotated five 6.5 MB files at 15:11 and **everything before 15:11:45 in
+   that boot is gone** — including whatever triggered the drop. The print at
+   `intr.c:141/1567` is not covered by C5's `NV_GPU_LOST_LOG_ONCE`.
+2. **kwin_wayland (PID 2198) took a kernel general protection fault** at
+   `nvkms_ioctl_from_kapi+0x7b` ← `nvKmsKapiReleaseOwnership` ← `nv_drm_master_drop` ←
+   `drm_master_release` ← `drm_release` ← `close()`. KWin closed its DRM fd on the removed
+   card; nvidia-drm's `master_drop` still calls into NVKMS for a device that no longer
+   exists. C5's G10 guard covers the device-remove teardown (`nv_drm_remove`) but **not the
+   master-drop path** — even though 615's `nv_drm_remove()` calls `drm_dev_unplug()` first,
+   `nv_drm_master_drop()` never checks `drm_dev_is_unplugged()`. The oops killed the
+   compositor → black screen → reboot at 15:20.
+3. The cap's unload twin could not unload (modules held by PID 46554, the 3D app); the GPU
+   re-enumerated 3 s later and bound **uncapped** (the script correctly refused to retrain
+   under the bound driver). Design consequence: after any drop with a live holder the
+   session runs at Gen4 until the next cold boot.
+Candidate fixes (proposed, not applied): (a) `if (drm_dev_is_unplugged(dev)) return;` at the
+top of `nv_drm_master_drop()` (and the same in the other file-release callbacks) — stops the
+compositor dying when the card is yanked; (b) wrap the two `intr.c` prints with
+`NV_GPU_LOST_LOG_ONCE` so a surprise removal cannot erase the journal. Both belong in the
+patch set as a C7. The trigger of the drop itself is unknown until a drop survives with its
+preceding seconds intact — (b) is the prerequisite for finding it.
+Note: this boot's journal begins at 15:11:45 only because of the flood; the cap
+validation lines from 13:48 survived only because they were captured in this runbook.
+
 ## GPU loss observed through a DDC/CI brightness probe (Sep 8) — probe NOT the cause
 
 11:17:46 lock screen → DPMS off. 11:17:47: PowerDevil's libddcutil `watch_displays` thread ran
