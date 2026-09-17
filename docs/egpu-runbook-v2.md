@@ -1004,6 +1004,14 @@ Gen1→Gen3 retrain (idle sits at Gen1, `--status` showed it). Hypothesis, not p
    + silent return on `NV_ERR_GPU_IS_LOST`, so a surprise removal cannot erase the journal.
    Neither has been exercised by a real drop yet. The trigger of the drop itself stays
    unproven until a drop survives with its preceding seconds intact — (b) makes that possible.
+
+**Cold boot 23:37 (Sep 16) with both changes:** cap log shows both writes (`62:00.0 0044→0063`,
+`63:00.0 0005→0023`), retrain to Gen3 x4, driver loaded 23:46:29 (build stamp 11:26 PM =
+the C7 build; the C7 strings are in the installed `nvidia.ko`). `--status` at idle, driver
+bound, P8: bridge and GPU **Gen3 x4, hasd=1** — the GPU honoured the pin, the link no longer
+downshifts to Gen1 at idle. `nvidia-smi` gen.current 3 / max 3. No Xid in the boot. Since the
+launch-time retrain no longer exists, the hypothesis is now testable the other way: if the
+drop still happens at game launch, the retrain was not the cause.
 Note: this boot's journal begins at 15:11:45 only because of the flood; the cap
 validation lines from 13:48 survived only because they were captured in this runbook.
 
