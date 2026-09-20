@@ -69,16 +69,22 @@ wakes. The timeout and its fix are still real and measured. Reply to your own me
 reply from Gmail keeping the To/Cc. Draft:
 
     Follow-up: I need to correct the dark-screen attribution in this commit
-    message before anyone spends time on it.
+    message before anyone spends time on it. (Updated Sep 20 after catching the
+    failure with instrumentation: the source is fully up while the sink reports
+    No Signal, and the picture returns with no further source action.)
 
     With the patch applied, FRL link training does pass on the first attempt at
     10G x4 (7/7 DPMS cycles, no retries). But after an overnight DPMS standby the
     sink still came up "No Signal", and two further DPMS off/on cycles did not
     recover it, even though in both of them link training PASSED on the first
     try, the sink set FRL_START=1 in LTS:P (hdmi_frl_poll_start), and the stream
-    was enabled with no error. Only a modeset to a different refresh rate brought
-    the picture back. So the long-standby dark screen is a separate problem and
-    this patch does not fix it.
+    was enabled with no error. Probing while the panel was dark showed the source
+    scanning out normally: connector connected and dpms On, CRTC at 10 bpc with
+    colorspace BT2020_RGB. The picture then returned by itself, more than 25 s
+    later, with no further modeset or link activity from the source at all. So the
+    long-standby dark screen looks like the sink (or the DP-to-HDMI FRL PCON)
+    taking a long time to lock 4K120 10 bpc BT2020 after deep standby. It is a
+    separate problem and this patch does not fix it.
 
     What the patch does fix is the measured timeout itself: with the 105-poll
     (~210 ms) budget this sink intermittently failed "Timeout waiting for

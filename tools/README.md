@@ -39,7 +39,9 @@ count, live CRTC bpc/colorspace, amdgpu connector/DP debugfs, recent kernel line
 "is the sink still talking, and does the source think it is scanning out?".
 
 ## display-rescue (rewritten Sep 20)
-Now bounces the MODE (same resolution at its lowest refresh, then back) instead of
-disabling/re-enabling at the same mode, because after an overnight standby only a timing change
-recovered the LG C2. `--hard` keeps the old disable/enable behaviour.
+Bounces the MODE (same resolution at its lowest refresh, then back) instead of
+disabling/re-enabling at the same mode. **Its value is unproven**: the Sep 20 12:19 capture
+showed the picture returning with no source action at all, so earlier "fixes" by changing the
+refresh rate may just have been elapsed time. Kept because it forces a fresh attempt.
+`--hard` keeps the old disable/enable behaviour.
 

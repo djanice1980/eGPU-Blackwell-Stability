@@ -8,6 +8,9 @@
 # the first try and the sink itself set FRL_START=1 (captured, docs/logs/). Two DPMS off/on
 # cycles did NOT recover it; the picture only came back when the refresh rate was changed,
 # i.e. a modeset to a DIFFERENT timing (which also moves the FRL link rate, 10G x4 <-> 6G x4).
+# CAVEAT (Sep 20 12:19): a later capture showed the picture returning with NO source action at
+# all, >25 s after a modeset, so a refresh-rate change may simply have coincided with the sink
+# finally locking. Treat this script as "force a fresh attempt", not as a proven fix.
 # So this script now toggles the MODE and puts the original back, instead of only
 # disabling/re-enabling the output at the same mode (which the Sep 10 version did, and which
 # David reported "doesn't seem to really help").

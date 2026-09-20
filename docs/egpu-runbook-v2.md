@@ -1426,3 +1426,53 @@ Actions:
    reliable DPMS wakes at 4K60 and mostly dark ones at 4K120". Today's evidence contradicts
    that. A correction to the amd-gfx thread is drafted in `kernel-patches/SUBMITTING.md`.
 
+### Sep 20 12:19 — caught it dark, with the source fully up; and the picture returned with no source action
+
+`tools/hdmi-dark-diag.sh` run while the TV showed No Signal
+(`docs/logs/hdmi-dark-20260920-121935.txt`). With the panel dark the source was **completely
+up and scanning out**:
+
+| probe | value while dark |
+|---|---|
+| connector `card1-HDMI-A-1` | status=connected, enabled, dpms=On, edid 256 B |
+| live CRTC (crtc-1 = the LG) | `amdgpu_current_bpc` = 10, `amdgpu_current_colorspace` = **BT2020_RGB** |
+| connector `output_bpc` | Maximum: 12 |
+| FRL link training (11:50/11:52 captures) | PASSED first try; sink set FRL_START=1 |
+
+So the GPU was driving 4K120 10-bit BT2020 RGB, the sink had acknowledged the FRL start, and
+the TV still reported No Signal.
+
+**Then the picture came back on its own.** Every display reconfiguration prints an HDR
+infoframe burst even with `drm.debug=0`, so they can be timed exactly. Today's bursts:
+
+    11:48:25  first bring-up after the overnight standby   -> dark
+    11:50:35  capture 1 DPMS on                            -> dark
+    11:52:22  capture 2 DPMS on                            -> dark
+    11:53:42  mode -> 4K60                                 -> picture returned (delay unmeasured)
+    12:19:16  mode -> 4K120                                -> dark at 12:19:35-40 (the diag above)
+    (nothing after 12:19:16)                               -> picture appeared anyway
+
+There is **no** amdgpu/drm activity in the journal between 12:19:41 and 12:25. The diag script
+only reads sysfs/debugfs; opening the folio produced no reconfiguration. So the TV locked by
+itself, more than ~25 s after the 12:19:16 modeset, with nothing further from the source.
+
+**Consequences, and two claims of mine that the evidence has now retired:**
+1. ~~The LT timeout causes the dark wake~~ — retired Sep 20 (LT passes, still dark).
+2. ~~Only a modeset to a different timing recovers it~~ — retired by this capture: no action
+   recovered it. What "worked" before was probably just elapsed time. Matches the earlier
+   (Sep 7-10) observations *"it came up after about 2 minutes"* and *"screen just now came up"*.
+
+**Where that leaves the diagnosis.** The source side is exonerated on every probe available.
+The remaining candidates are the TV's own HDMI receiver and the DP->HDMI FRL PCON, taking tens
+of seconds to minutes to lock **this particular signal** (4K120, 10 bpc, BT2020/HDR, 10G x4)
+after a deep standby. Unproven. `tools/display-rescue` (mode bounce) is therefore **not** known
+to help; it is kept because it forces a fresh attempt, not because it is demonstrated.
+
+**The three experiments that would settle it** (each needs one overnight standby):
+1. **Do nothing and time it.** Wake, touch nothing, and note when the picture appears. If it
+   always appears within a couple of minutes, there is nothing to fix on the source and the
+   answer is patience or a different signal.
+2. **HDR off, 4K120.** If the picture is immediate, BT2020/HDR entry after deep standby is the
+   trigger (the colorspace probe above makes this the leading suspect).
+3. **4K60 overnight** as the control: known-good, 6G x4, no HDR change.
+
