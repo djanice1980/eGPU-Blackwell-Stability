@@ -31,7 +31,8 @@ KVER="${KVER:-$(uname -r)}"
 BUILD=/usr/lib/modules/$KVER/build
 SRC="${SRC:-$(ls -d ~/kbuild/linux-cachyos/linux-cachyos/src/cachyos-* 2>/dev/null | head -1)}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PATCH="$(ls "$REPO"/kernel-patches/0001-drm-amd-display-*.patch | head -1)"
+# the 7.2 form; the *.amd-staging-drm-next.patch beside it is for upstream, not this tree
+PATCH="$REPO/kernel-patches/0001-drm-amd-display-Allow-300-ms-for-HDMI-FRL-link-train.patch"
 DEST=/usr/lib/modules/$KVER/updates/amdgpu-frl-lt
 FRL=drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
 say() { echo "[amdgpu-frl] $*"; }
