@@ -60,3 +60,31 @@ Replies: on the list thread and in the Gmail inbox. A v2, if asked for, goes as 
 that Message-ID (`git send-email --in-reply-to=20260920013050.21259-1-djanice1980@gmail.com`)
 with `[PATCH v2]` in the subject and a short changelog under the `---` line.
 
+## Correction to send on the thread (Sep 20)
+
+Today's evidence (runbook, Sep 20) contradicts one claim in the commit message: the overnight
+"No Signal" persists with link training passing, so the LT timeout is not what caused the dark
+wakes. The timeout and its fix are still real and measured. Reply to your own message with
+`git send-email --in-reply-to=20260920013050.21259-1-djanice1980@gmail.com`, or plain-text
+reply from Gmail keeping the To/Cc. Draft:
+
+    Follow-up: I need to correct the dark-screen attribution in this commit
+    message before anyone spends time on it.
+
+    With the patch applied, FRL link training does pass on the first attempt at
+    10G x4 (7/7 DPMS cycles, no retries). But after an overnight DPMS standby the
+    sink still came up "No Signal", and two further DPMS off/on cycles did not
+    recover it, even though in both of them link training PASSED on the first
+    try, the sink set FRL_START=1 in LTS:P (hdmi_frl_poll_start), and the stream
+    was enabled with no error. Only a modeset to a different refresh rate brought
+    the picture back. So the long-standby dark screen is a separate problem and
+    this patch does not fix it.
+
+    What the patch does fix is the measured timeout itself: with the 105-poll
+    (~210 ms) budget this sink intermittently failed "Timeout waiting for
+    FLT_UPDATE" at 10G x4, because the budget is not restarted when the sink
+    raises its LTP request ~45 ms in and then takes ~180 ms to report lock.
+
+    If you would prefer, I will send a v2 with the dark-wake paragraph dropped
+    and no claim beyond the timeout.
+

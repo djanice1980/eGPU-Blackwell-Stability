@@ -33,3 +33,13 @@ kernel (srctree = CachyOS kernel source, O= a copy of the installed headers tree
 under `/usr/lib/modules/<ver>/updates/` and rebuilds the initramfs. `--remove` reverts.
 Stock module is never touched; a kernel update makes the override moot by itself.
 
+## hdmi-dark-diag.sh (Sep 20)
+Run **while the external display is dark, before rescuing it**: connector status, EDID byte
+count, live CRTC bpc/colorspace, amdgpu connector/DP debugfs, recent kernel lines. Answers
+"is the sink still talking, and does the source think it is scanning out?".
+
+## display-rescue (rewritten Sep 20)
+Now bounces the MODE (same resolution at its lowest refresh, then back) instead of
+disabling/re-enabling at the same mode, because after an overnight standby only a timing change
+recovered the LG C2. `--hard` keeps the old disable/enable behaviour.
+

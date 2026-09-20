@@ -1385,3 +1385,44 @@ package update makes it moot (rebuild with the script if the wake regresses on t
 every rate` to amd-gfx (Cc Wentland, Li, Siqueira, Deucher, Zuo, dri-devel), Message-ID
 `20260920013050.21259-1-djanice1980@gmail.com`. Tracking in `kernel-patches/SUBMITTING.md`.
 
+## Sep 20 — CORRECTION: the overnight "No Signal" is NOT the FRL link-training timeout
+
+David, after an overnight DPMS standby: *"the tv said no signal until changing refresh rate."*
+He then ran `tools/hdmi-frl-lt-capture.sh` twice **while the TV was already dark** (11:50, 11:52;
+logs `docs/logs/frl-lt-4k120-darkwake-*.log`). Neither DPMS cycle brought the picture back, and
+both show a completely clean bring-up:
+
+| step | 11:50 run | 11:52 run | good wake (Sep 19 20:17) |
+|---|---|---|---|
+| FRL rate written | 5 (10G x4) | 5 | 5 |
+| link training | PASSED, try 1 (poll 99) | PASSED, try 1 | PASSED, try 1 |
+| sink FRL_START in LTS:P | **1** (after 67 polls) | **1** (after 69 polls) | 1 |
+| stream enable | HDMISTREAMCLK_EN=1, hpo_enc3_enable, unblank, no error | same | same |
+| stream params | 3840x2160, 1188000 kHz, RGB 10-bpc, colorSpace 11, dsc 0 | same | same |
+| **picture** | **none — TV says No Signal** | **none** | picture |
+
+The driver-visible state is identical between a wake that produces a picture and one that does
+not, down to the sink's own `FRL_START=1` acknowledgement, which is the sink saying "I am
+locked, send video". So:
+
+- **The C7-style LT fix does what it claims and no more.** With `max_polls = 155` the LT
+  timeout is gone (7/7 first-try passes across two days). It does **not** fix this.
+- **The failure is after LTS:P**, in the sink or the DP->HDMI PCON, and is invisible to the
+  source. Both a 20 s DPMS cycle and (per Sep 10) an output disable/enable at the *same* mode
+  fail to clear it; only a modeset to a **different timing** does (David used the refresh-rate
+  switch; `kwinoutputconfig.json` rewritten 11:54:29, output now sitting at 3840x2160@60).
+- Working hypothesis, unproven: after a long standby the PCON or the TV's receiver holds a
+  stale state that survives an identical re-enable, and only a rate change (10G x4 -> TMDS or
+  6G x4 and back) re-initialises it. Distinguishing PCON from TV needs data taken while dark.
+
+Actions:
+1. `tools/display-rescue` rewritten to **bounce the mode** (same resolution at its lowest
+   refresh, 4 s, then back) instead of disabling/re-enabling at the same mode. This is exactly
+   what worked by hand. `--hard` keeps the old disable/enable path.
+2. `tools/hdmi-dark-diag.sh` added: run it **while dark, before rescuing** — connector status,
+   EDID byte count (does the sink still answer DDC?), live CRTC bpc/colorspace, amdgpu
+   connector/DP debugfs, recent kernel lines. Not yet run against a real dark screen.
+3. The upstream patch's commit message claims the LT timeout is "the difference between
+   reliable DPMS wakes at 4K60 and mostly dark ones at 4K120". Today's evidence contradicts
+   that. A correction to the amd-gfx thread is drafted in `kernel-patches/SUBMITTING.md`.
+

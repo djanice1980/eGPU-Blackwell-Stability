@@ -1,17 +1,61 @@
 #!/usr/bin/env bash
-# One-keypress recovery for an external display that stays dark after DPMS
-# wake (amdgpu HDMI FRL/DSC re-enable failure, kernel 7.2+). Disables and
-# re-enables every connected non-internal output, forcing a full modeset /
-# link retrain. Bound to Meta+Shift+D via ~/.local/share/kglobalaccel/.
+# One-keypress recovery for an external display that says "No Signal" after a long DPMS
+# standby (amdgpu DP->HDMI FRL PCON, kernel 7.2+). Bound to Meta+Shift+D via
+# ~/.local/share/kglobalaccel/.
+#
+# Sep 20 2026 rewrite. Evidence: after an overnight DPMS off the LG C2 reported No Signal
+# while the driver completed the whole bring-up without error -- FRL link training PASSED on
+# the first try and the sink itself set FRL_START=1 (captured, docs/logs/). Two DPMS off/on
+# cycles did NOT recover it; the picture only came back when the refresh rate was changed,
+# i.e. a modeset to a DIFFERENT timing (which also moves the FRL link rate, 10G x4 <-> 6G x4).
+# So this script now toggles the MODE and puts the original back, instead of only
+# disabling/re-enabling the output at the same mode (which the Sep 10 version did, and which
+# David reported "doesn't seem to really help").
+#
+#   display-rescue           mode toggle: drop to the same resolution at 60 Hz, then restore
+#   display-rescue --hard    old behaviour: disable the output, wait 8 s, enable it
+# Needs: kscreen-doctor (KDE/Plasma Wayland), python3.
 set -u
-# Single-shot: hotkey spam overlaps disable/enable cycles and confuses the sink. Later presses wait.
-exec 9>"${XDG_RUNTIME_DIR:-/tmp}/display-rescue.lock"; flock 9
-OUTS=$(kscreen-doctor -o 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' \
-       | awk '/^Output:/{name=$3; getline; en=$1; getline; con=$1; if (con=="connected" && name !~ /^eDP/) print name}')
-[ -n "$OUTS" ] || { notify-send -a "Display rescue" "No external output found" 2>/dev/null; exit 1; }
-for o in $OUTS; do
-    kscreen-doctor "output.$o.disable" >/dev/null 2>&1
-    sleep 8   # was 2 s; LG TV appears to need a longer no-signal gap to re-sync after standby (Sep 10 experiment)
-    kscreen-doctor "output.$o.enable"  >/dev/null 2>&1
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/display-rescue.lock"; flock 9   # hotkey spam must not overlap
+
+note() { notify-send -a "Display rescue" "$*" 2>/dev/null || true; echo "[display-rescue] $*"; }
+
+mapfile -t OUTS < <(kscreen-doctor -o 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' \
+    | awk '/^Output:/{name=$3; getline; en=$1; getline; con=$1; if (con=="connected" && name !~ /^eDP/) print name}')
+[ "${#OUTS[@]}" -gt 0 ] || { note "No external output found"; exit 1; }
+
+if [ "${1:-}" = "--hard" ]; then
+    for o in "${OUTS[@]}"; do
+        kscreen-doctor "output.$o.disable" >/dev/null 2>&1
+        sleep 8      # the LG needs a long no-signal gap to drop out of standby
+        kscreen-doctor "output.$o.enable"  >/dev/null 2>&1
+    done
+    note "Hard re-enable: ${OUTS[*]}"
+    exit 0
+fi
+
+for o in "${OUTS[@]}"; do
+    # current mode and a lower-bandwidth mode of the same resolution to bounce through
+    read -r CUR ALT < <(kscreen-doctor --json 2>/dev/null | python3 -c '
+import json,sys
+out=sys.argv[1]
+d=json.load(sys.stdin)
+o=next((x for x in d["outputs"] if x.get("name")==out), None)
+if not o: sys.exit(0)
+cid=str(o.get("currentModeId"))
+cur=next((m for m in o["modes"] if str(m["id"])==cid), None)
+if not cur: sys.exit(0)
+size, r = cur["size"], cur["refreshRate"]
+# bounce through the same resolution at its lowest refresh: a different timing, and low
+# enough to leave FRL for TMDS, which is the strongest reset the sink will accept
+same=[m for m in o["modes"] if m["size"]==size and abs(m["refreshRate"]-r)>1]
+alt=min(same, key=lambda m: m["refreshRate"]) if same else \
+    next((m for m in o["modes"] if str(m["id"])!=cid), None)
+print(cur["name"], alt["name"] if alt else "")
+' "$o")
+    if [ -z "${ALT:-}" ]; then note "$o: no alternative mode to bounce through"; continue; fi
+    kscreen-doctor "output.$o.mode.$ALT" >/dev/null 2>&1 || { note "$o: could not set $ALT"; continue; }
+    sleep 4
+    kscreen-doctor "output.$o.mode.$CUR" >/dev/null 2>&1 || note "$o: could not restore $CUR -- left at $ALT"
+    note "$o: bounced $CUR -> $ALT -> $CUR"
 done
-notify-send -a "Display rescue" "Re-enabled: $OUTS" 2>/dev/null || true
