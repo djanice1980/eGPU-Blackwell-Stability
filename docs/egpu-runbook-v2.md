@@ -1352,3 +1352,33 @@ Fix candidates:
    service, or the Meta+Shift+D rescue); (c) 4K120 8-bit RGB is 28.5 Gbit/s → 8G x4, untested
    whether the TV's LTP request comes faster at 8G.
 
+### Sep 19 20:15 — fix built, installed as a module override, verified 5/5 at 4K120
+
+`kernel-patches/0001-drm-amd-display-Allow-300-ms-for-HDMI-FRL-link-train.patch` (LTS:3
+budget 105 → 155 polls, ~300 ms, every rate) built in 68 s with
+`tools/amdgpu-frl-module/build.sh` (srctree = CachyOS 7.2.6-1 source, O= a copy of the
+installed headers tree, LLVM=1; vermagic and module BTF match the running kernel — the headers
+package ships the real vmlinux, whose BTF is byte-identical to /sys/kernel/btf/vmlinux),
+installed to `/usr/lib/modules/7.2.6-1-cachyos/updates/amdgpu-frl-lt/amdgpu.ko`, initramfs
+rebuilt, reboot 20:15. `modinfo -n amdgpu` → the override; kernel logs the expected
+unsigned-module taint.
+
+Five DPMS cycles at 4K120 10-bit RGB (10G x4), logs in `docs/logs/frl-lt-4k120-fixed-*.log`:
+
+| run | LTP request at poll | lock at poll | result |
+|---|---|---|---|
+| 20:17:08 | 11 | 101 | PASSED, try 1 |
+| 20:17:49 | 15 | 105 | PASSED, try 1 |
+| 20:18:25 | 14 | 104 | PASSED, try 1 |
+| 20:19:03 | 16 | 105 | PASSED, try 1 |
+| 20:19:40 | 16 | 105 | PASSED, try 1 |
+
+Reading: no retries, no FAILED. Note that three of the five locked at poll 104–105, i.e. with
+0–1 polls of margin under the OLD budget — exactly the edge the analysis predicted; any request
+that arrives a few ms later (the 22-poll one captured at 19:23) needs poll 106+ and used to
+fail. With 155 polls the margin is ~50 polls (~100 ms). Strictly, none of these five runs
+*needed* the extra budget (all ≤ 105), so the proof of the fix's effect is the earlier failing
+capture plus the arithmetic, not a >105 pass; a pass above 105 will show up in normal use and
+is worth noting when seen. Standing state: override active; `--remove` reverts; a kernel
+package update makes it moot (rebuild with the script if the wake regresses on the new kernel).
+

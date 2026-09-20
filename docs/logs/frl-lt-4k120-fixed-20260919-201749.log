@@ -1,0 +1,287 @@
+Sep 19 20:17:49.112241 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.128599 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.128687 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 0 connect_status: 1 dpms: 0
+Sep 19 20:17:49.147189 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.147946 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:dcn35_root_clock_control [amdgpu]] dccg35_set_hdmistreamclk_root_clock_gating: HDMISTREAMCLK0_ROOT_GATE_DISABLE = 1
+Sep 19 20:17:49.160121 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.168281 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.177258 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.185280 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.194291 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.202507 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.211250 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.219164 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.236212 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.245309 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.261230 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.270290 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.286185 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.295223 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.312146 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.328682 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.345354 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.362168 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.379054 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:17:49.413140 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:link_set_dpms_off [amdgpu]] link_set_dpms_off pipe_ctx dispname=LG TV SSCR2 signal=100 link=1 sink_count=0
+Sep 19 20:17:49.414959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:dccg35_set_hdmistreamclk [amdgpu]] dccg35_set_hdmistreamclk: OTG1 HDMISTREAMCLK_EN = 0, HDMISTREAMCLK_SRC_SEL = 1
+Sep 19 20:17:49.415960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_LTS_clear_Link_Setting [amdgpu]] FRL LINK TRAINING: LTS:L - Clear FRL_Rate.
+Sep 19 20:17:49.419166 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hpo_frl_link_enc3_disable [amdgpu]] Entering [hpo_frl_link_enc3_disable]
+Sep 19 20:17:49.419357 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:disable_hpo_frl_link_output.llvm.16590871359141467255 [amdgpu]] Exiting [hpo_frl_link_enc3_disable]
+Sep 19 20:17:49.445959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:link_set_dpms_off [amdgpu]] link_set_dpms_off pipe_ctx dispname=TL134ADXP03 signal=80 link=0 sink_count=0
+Sep 19 20:17:49.503738 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:dcn35_optimize_bandwidth [amdgpu]] dccg35_set_hdmistreamclk_root_clock_gating: HDMISTREAMCLK0_ROOT_GATE_DISABLE = 0
+Sep 19 20:17:49.504204 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 0 connect_status: 1 dpms: 3
+Sep 19 20:17:49.505348 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 3
+Sep 19 20:17:49.505916 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 2 connect_status: 2 dpms: 3
+Sep 19 20:17:49.506120 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:dcn35_optimize_bandwidth [amdgpu]] dccg35_set_hdmistreamclk_root_clock_gating: HDMISTREAMCLK0_ROOT_GATE_DISABLE = 0
+Sep 19 20:17:49.506254 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 3 connect_status: 2 dpms: 3
+Sep 19 20:17:49.506453 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 4 connect_status: 2 dpms: 3
+Sep 19 20:17:49.507054 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 5 connect_status: 2 dpms: 3
+Sep 19 20:17:49.507509 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 6 connect_status: 2 dpms: 3
+Sep 19 20:17:49.507840 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 7 connect_status: 2 dpms: 3
+Sep 19 20:17:49.508958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 8 connect_status: 2 dpms: 3
+Sep 19 20:18:09.160090 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:dcn35_root_clock_control [amdgpu]] dccg35_set_hdmistreamclk_root_clock_gating: HDMISTREAMCLK0_ROOT_GATE_DISABLE = 1
+Sep 19 20:18:09.167949 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:link_set_dpms_on [amdgpu]] link_set_dpms_on pipe_ctx dispname=TL134ADXP03 signal=80 link=0 sink_count=0
+Sep 19 20:18:09.321960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hpo_enc3_setup_hdmi_audio [amdgpu]] Entering [hpo_enc3_setup_hdmi_audio]
+Sep 19 20:18:09.322153 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hpo_enc3_hdmi_audio_setup [amdgpu]] Exiting [hpo_enc3_setup_hdmi_audio]
+Sep 19 20:18:09.328986 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:link_set_dpms_on [amdgpu]] link_set_dpms_on pipe_ctx dispname=LG TV SSCR2 signal=100 link=1 sink_count=0
+Sep 19 20:18:09.329424 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hpo_enc3_set_hdmi_stream_attribute [amdgpu]] Entering [hpo_enc3_set_hdmi_stream_attribute]
+Sep 19 20:18:09.329571 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:link_set_dpms_on [amdgpu]] Exiting [hpo_enc3_set_hdmi_stream_attribute]
+Sep 19 20:18:09.329702 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:link_set_dpms_on [amdgpu]] FRL LINK TRAINING:  LTS:P Start
+Sep 19 20:18:09.330963 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Starting FRL Link Training.
+Sep 19 20:18:09.332961 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read Sink Version = 1.
+Sep 19 20:18:09.333954 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Set Source Version = 1.
+Sep 19 20:18:09.334052 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Poll for FLT_READY.
+Sep 19 20:18:09.334966 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_READY = 1.  num_polls = 1
+Sep 19 20:18:09.335961 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL TEST REQ:  FLT_no_timeout = 0 
+Sep 19 20:18:09.336961 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Write link rate = 5.  Max FFE_Levels = 0
+Sep 19 20:18:09.337129 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Poll for FLT_UPDATE.
+Sep 19 20:18:09.337958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 1
+Sep 19 20:18:09.339958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 2
+Sep 19 20:18:09.341958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 3
+Sep 19 20:18:09.343958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 4
+Sep 19 20:18:09.345957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 5
+Sep 19 20:18:09.347968 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 6
+Sep 19 20:18:09.349992 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 7
+Sep 19 20:18:09.352244 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 8
+Sep 19 20:18:09.354294 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 9
+Sep 19 20:18:09.355983 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 10
+Sep 19 20:18:09.357961 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 11
+Sep 19 20:18:09.359958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 12
+Sep 19 20:18:09.361968 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 13
+Sep 19 20:18:09.364244 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 14
+Sep 19 20:18:09.365960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 1.  num_polls = 15
+Sep 19 20:18:09.366970 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read LN0_LTP_REQ = 5.  LN1_LTP_REQ = 6
+Sep 19 20:18:09.367145 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read LN2_LTP_REQ = 7.  LN3_LTP_REQ = 8
+Sep 19 20:18:09.367277 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Clear FLT_UPDATE flag.
+Sep 19 20:18:09.367958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Setting Training Pattern [ln0,ln1,ln2,ln3] = [5,6,7,8].
+Sep 19 20:18:09.368958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 16
+Sep 19 20:18:09.370959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 17
+Sep 19 20:18:09.372958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 18
+Sep 19 20:18:09.374957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 19
+Sep 19 20:18:09.377024 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 20
+Sep 19 20:18:09.378957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 21
+Sep 19 20:18:09.380957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 22
+Sep 19 20:18:09.382967 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 23
+Sep 19 20:18:09.385243 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 24
+Sep 19 20:18:09.386958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 25
+Sep 19 20:18:09.388958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 26
+Sep 19 20:18:09.390957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 27
+Sep 19 20:18:09.392957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 28
+Sep 19 20:18:09.394957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 29
+Sep 19 20:18:09.397348 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 30
+Sep 19 20:18:09.398959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 31
+Sep 19 20:18:09.401243 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 32
+Sep 19 20:18:09.402958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 33
+Sep 19 20:18:09.405246 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 34
+Sep 19 20:18:09.406959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 35
+Sep 19 20:18:09.409102 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 36
+Sep 19 20:18:09.410960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 37
+Sep 19 20:18:09.412957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 38
+Sep 19 20:18:09.414958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 39
+Sep 19 20:18:09.416969 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 40
+Sep 19 20:18:09.418958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 41
+Sep 19 20:18:09.421242 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 42
+Sep 19 20:18:09.422969 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 43
+Sep 19 20:18:09.425244 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 44
+Sep 19 20:18:09.426968 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 45
+Sep 19 20:18:09.429250 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 46
+Sep 19 20:18:09.430959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 47
+Sep 19 20:18:09.433246 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 48
+Sep 19 20:18:09.434959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 49
+Sep 19 20:18:09.437253 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 50
+Sep 19 20:18:09.438959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 51
+Sep 19 20:18:09.441252 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 52
+Sep 19 20:18:09.442959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 53
+Sep 19 20:18:09.445102 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 54
+Sep 19 20:18:09.446959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 55
+Sep 19 20:18:09.449245 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 56
+Sep 19 20:18:09.450959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 57
+Sep 19 20:18:09.452957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 58
+Sep 19 20:18:09.454967 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 59
+Sep 19 20:18:09.456957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 60
+Sep 19 20:18:09.458957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 61
+Sep 19 20:18:09.460957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 62
+Sep 19 20:18:09.462957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 63
+Sep 19 20:18:09.464957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 64
+Sep 19 20:18:09.466958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 65
+Sep 19 20:18:09.468957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 66
+Sep 19 20:18:09.470958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 67
+Sep 19 20:18:09.472959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 68
+Sep 19 20:18:09.474958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 69
+Sep 19 20:18:09.476958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 70
+Sep 19 20:18:09.478958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 71
+Sep 19 20:18:09.480958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 72
+Sep 19 20:18:09.482967 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 73
+Sep 19 20:18:09.484957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 74
+Sep 19 20:18:09.486958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 75
+Sep 19 20:18:09.488958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 76
+Sep 19 20:18:09.490959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 77
+Sep 19 20:18:09.492991 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 78
+Sep 19 20:18:09.495036 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 79
+Sep 19 20:18:09.496996 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 80
+Sep 19 20:18:09.498971 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 81
+Sep 19 20:18:09.501041 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 82
+Sep 19 20:18:09.502957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 83
+Sep 19 20:18:09.504958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 84
+Sep 19 20:18:09.506958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 85
+Sep 19 20:18:09.509025 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 86
+Sep 19 20:18:09.510958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 87
+Sep 19 20:18:09.512957 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 88
+Sep 19 20:18:09.514958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 89
+Sep 19 20:18:09.516958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 90
+Sep 19 20:18:09.518958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 91
+Sep 19 20:18:09.520958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 92
+Sep 19 20:18:09.522968 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 93
+Sep 19 20:18:09.524967 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 94
+Sep 19 20:18:09.526958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 95
+Sep 19 20:18:09.529237 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 96
+Sep 19 20:18:09.530968 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 97
+Sep 19 20:18:09.533240 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 98
+Sep 19 20:18:09.534959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 99
+Sep 19 20:18:09.536958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 100
+Sep 19 20:18:09.538968 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 101
+Sep 19 20:18:09.541002 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 102
+Sep 19 20:18:09.542958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 103
+Sep 19 20:18:09.545239 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 0.  num_polls = 104
+Sep 19 20:18:09.546961 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read FLT_UPDATE = 1.  num_polls = 105
+Sep 19 20:18:09.547958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read LN0_LTP_REQ = 0.  LN1_LTP_REQ = 0
+Sep 19 20:18:09.548123 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Read LN2_LTP_REQ = 0.  LN3_LTP_REQ = 0
+Sep 19 20:18:09.548288 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  Clear FLT_UPDATE flag.
+Sep 19 20:18:09.548970 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training [amdgpu]] FRL LINK TRAINING:  PASSED
+Sep 19 20:18:09.549130 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_perform_link_training_with_retries [amdgpu]] FRL LINK TRAINING: Retry count = 1 out of 3
+Sep 19 20:18:09.549395 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hpo_frl_link_enc3_enable_output [amdgpu]] Entering [hpo_frl_link_enc3_enable_output]
+Sep 19 20:18:09.549513 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:link_set_dpms_on [amdgpu]] Exiting [hpo_frl_link_enc3_enable_output]
+Sep 19 20:18:09.553239 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 100
+Sep 19 20:18:09.555960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 99
+Sep 19 20:18:09.558958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 98
+Sep 19 20:18:09.561958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 97
+Sep 19 20:18:09.564982 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 96
+Sep 19 20:18:09.567960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 95
+Sep 19 20:18:09.570960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 94
+Sep 19 20:18:09.573984 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 93
+Sep 19 20:18:09.576960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 92
+Sep 19 20:18:09.579960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 91
+Sep 19 20:18:09.583251 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 90
+Sep 19 20:18:09.584960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 89
+Sep 19 20:18:09.587959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 88
+Sep 19 20:18:09.590959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 87
+Sep 19 20:18:09.593959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 86
+Sep 19 20:18:09.596959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 85
+Sep 19 20:18:09.599959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 84
+Sep 19 20:18:09.602946 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 83
+Sep 19 20:18:09.605944 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 82
+Sep 19 20:18:09.608945 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 81
+Sep 19 20:18:09.611946 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 80
+Sep 19 20:18:09.613963 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 79
+Sep 19 20:18:09.616958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 78
+Sep 19 20:18:09.619959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 77
+Sep 19 20:18:09.622959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 76
+Sep 19 20:18:09.625960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 75
+Sep 19 20:18:09.628962 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 74
+Sep 19 20:18:09.631960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 73
+Sep 19 20:18:09.634959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 72
+Sep 19 20:18:09.636959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 71
+Sep 19 20:18:09.639960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 70
+Sep 19 20:18:09.642960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 69
+Sep 19 20:18:09.645960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 68
+Sep 19 20:18:09.649004 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 67
+Sep 19 20:18:09.651959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 66
+Sep 19 20:18:09.654960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 65
+Sep 19 20:18:09.657977 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 64
+Sep 19 20:18:09.660960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 63
+Sep 19 20:18:09.663959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 62
+Sep 19 20:18:09.666959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 61
+Sep 19 20:18:09.668967 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 60
+Sep 19 20:18:09.671962 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 59
+Sep 19 20:18:09.674960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 58
+Sep 19 20:18:09.678033 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 57
+Sep 19 20:18:09.680963 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 56
+Sep 19 20:18:09.683964 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 55
+Sep 19 20:18:09.686961 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 54
+Sep 19 20:18:09.689961 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 53
+Sep 19 20:18:09.693238 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 52
+Sep 19 20:18:09.695997 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 51
+Sep 19 20:18:09.698994 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 50
+Sep 19 20:18:09.702244 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 49
+Sep 19 20:18:09.704968 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 48
+Sep 19 20:18:09.707962 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 47
+Sep 19 20:18:09.710996 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 46
+Sep 19 20:18:09.713973 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 45
+Sep 19 20:18:09.716971 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 44
+Sep 19 20:18:09.718959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 43
+Sep 19 20:18:09.721958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 42
+Sep 19 20:18:09.724959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 41
+Sep 19 20:18:09.727959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 40
+Sep 19 20:18:09.730959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 39
+Sep 19 20:18:09.733959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 38
+Sep 19 20:18:09.736958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 37
+Sep 19 20:18:09.739959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 36
+Sep 19 20:18:09.742959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 35
+Sep 19 20:18:09.744962 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 34
+Sep 19 20:18:09.747960 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 33
+Sep 19 20:18:09.750958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 0, FLT_UPDATE = 0.  num_polls = 32
+Sep 19 20:18:09.753959 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:hdmi_frl_poll_start [amdgpu]] FRL LINK TRAINING:  Read FRL_START = 1, FLT_UPDATE = 0.  num_polls = 31
+Sep 19 20:18:09.754958 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:link_set_dpms_on [amdgpu]] FRL LINK TRAINING:  LTS:P Success
+Sep 19 20:18:09.755132 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:dccg35_set_hdmistreamclk [amdgpu]] dccg35_set_hdmistreamclk: OTG1 HDMISTREAMCLK_EN = 1, HDMISTREAMCLK_SRC_SEL = 1
+Sep 19 20:18:09.755384 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:link_set_dpms_on [amdgpu]] Exiting [hpo_enc3_enable]
+Sep 19 20:18:09.760151 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 0 connect_status: 1 dpms: 0
+Sep 19 20:18:09.761808 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:09.762511 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 2 connect_status: 2 dpms: 3
+Sep 19 20:18:09.762723 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 3 connect_status: 2 dpms: 3
+Sep 19 20:18:09.762964 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 4 connect_status: 2 dpms: 3
+Sep 19 20:18:09.764227 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 5 connect_status: 2 dpms: 3
+Sep 19 20:18:09.764510 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 6 connect_status: 2 dpms: 3
+Sep 19 20:18:09.764858 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 7 connect_status: 2 dpms: 3
+Sep 19 20:18:09.765213 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 8 connect_status: 2 dpms: 3
+Sep 19 20:18:09.767807 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:dcn35_root_clock_control [amdgpu]] dccg35_set_hdmistreamclk_root_clock_gating: HDMISTREAMCLK0_ROOT_GATE_DISABLE = 1
+Sep 19 20:18:09.781250 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:dcn35_root_clock_control [amdgpu]] dccg35_set_hdmistreamclk_root_clock_gating: HDMISTREAMCLK0_ROOT_GATE_DISABLE = 1
+Sep 19 20:18:09.803246 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 0 connect_status: 1 dpms: 0
+Sep 19 20:18:09.803459 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:09.806010 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:dcn35_root_clock_control [amdgpu]] dccg35_set_hdmistreamclk_root_clock_gating: HDMISTREAMCLK0_ROOT_GATE_DISABLE = 1
+Sep 19 20:18:09.828106 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:09.844901 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:09.861856 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:09.871025 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:09.887986 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:09.904450 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:09.920550 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:09.937949 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:09.954780 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:09.971015 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:09.987289 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:10.004318 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:10.020592 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:10.037499 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:10.055111 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:11.570043 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:11.595290 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:11.612363 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:11.628460 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:11.645285 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:11.662494 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:11.679295 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:11.695560 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:11.712506 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:11.729815 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:11.745622 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
+Sep 19 20:18:11.763178 cachyos-x8664 kernel: amdgpu 0000:c4:00.0: [drm:amdgpu_dm_atomic_commit_tail [amdgpu]] [HDCP_DM] connector->index: 1 connect_status: 1 dpms: 0
