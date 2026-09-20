@@ -1,6 +1,6 @@
-From 5acba6afed24f9f6bd8f5c39c70dafccd656c859 Mon Sep 17 00:00:00 2001
+From bd27fc9b9205ae9df9aeb515ffcac0e05d7142a8 Mon Sep 17 00:00:00 2001
 From: David Janice <djanice1980@gmail.com>
-Date: Sat, 19 Sep 2026 19:36:47 -0500
+Date: Sat, 19 Sep 2026 20:22:26 -0500
 Subject: [PATCH] drm/amd/display: Allow 300 ms for HDMI FRL link training at
  every rate
 
@@ -28,9 +28,13 @@ difference between reliable DPMS wakes at 4K60 and mostly dark ones at
 4K120: hdmi_frl_perform_link_training_with_retries() retrains at the same
 rate up to four times 200 ms apart and the output is then left dark.
 
-"Update and revert FRL LT Timeout behaviour" already allows 155 polls
-(~300 ms) for 16 Gbps and above. Use that budget at every rate.
+"drm/amd/display: Update and revert FRL LT Timeout behaviour" already
+allows 155 polls (~300 ms) for 16 Gbps and above. Use that budget at
+every rate. With the change applied to 7.2.6, five consecutive DPMS
+wakes at 10G x4 trained on the first attempt; three of them locked at
+poll 104-105, i.e. inside the last 1-2 polls of the old budget.
 
+Cc: Fangzhi Zuo <Jerry.Zuo@amd.com>
 Signed-off-by: David Janice <djanice1980@gmail.com>
 ---
  .../amd/display/dc/link/protocols/link_hdmi_frl.c  | 14 +++++++++++---
