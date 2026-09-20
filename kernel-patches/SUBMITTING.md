@@ -50,3 +50,13 @@ over a global change (answer: the sink is at the spec edge, not broken; 300 ms i
 already grants for >= 16 Gbps and costs nothing on a healthy link), or a request for the
 logs (`docs/logs/frl-lt-*.log` in this repo; the two pre-fix ones are the evidence).
 Reply in plain text, quoting the line you answer; keep it short.
+
+## Sent
+
+2026-09-19 20:30 CDT, from djanice1980@gmail.com via git send-email, SMTP result 250.
+Message-ID `<20260920013050.21259-1-djanice1980@gmail.com>`. Archive:
+https://lore.kernel.org/amd-gfx/20260920013050.21259-1-djanice1980@gmail.com/
+Replies: on the list thread and in the Gmail inbox. A v2, if asked for, goes as a reply to
+that Message-ID (`git send-email --in-reply-to=20260920013050.21259-1-djanice1980@gmail.com`)
+with `[PATCH v2]` in the subject and a short changelog under the `---` line.
+

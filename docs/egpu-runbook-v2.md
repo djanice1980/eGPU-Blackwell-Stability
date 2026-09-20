@@ -1381,4 +1381,7 @@ fail. With 155 polls the margin is ~50 polls (~100 ms). Strictly, none of these 
 capture plus the arithmetic, not a >105 pass; a pass above 105 will show up in normal use and
 is worth noting when seen. Standing state: override active; `--remove` reverts; a kernel
 package update makes it moot (rebuild with the script if the wake regresses on the new kernel).
+**Sent upstream 20:30:** `[PATCH] drm/amd/display: Allow 300 ms for HDMI FRL link training at
+every rate` to amd-gfx (Cc Wentland, Li, Siqueira, Deucher, Zuo, dri-devel), Message-ID
+`20260920013050.21259-1-djanice1980@gmail.com`. Tracking in `kernel-patches/SUBMITTING.md`.
 
