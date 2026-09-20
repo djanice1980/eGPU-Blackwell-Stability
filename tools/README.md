@@ -21,3 +21,9 @@ The DPMS wake problem on the reference system (AMD DCN 3.5.1 iGPU, HDMI behind a
 DP-HDMI FRL PCON) turned out to be the display core's **IPS** (idle power states) exit
 path; the fix is the kernel parameter `amdgpu.dcdebugmask=0x800` (`DC_DISABLE_IPS`). See
 the runbook's DPMS section and the bug-report draft in `docs/`.
+
+## hdmi-frl-lt-capture.sh (Sep 19)
+Logs amdgpu's HDMI FRL link-training messages across one DPMS off/on cycle (turns the drm
+driver debug class on only for the cycle) and summarises which way training failed. See the
+runbook, Sep 19 section, for what each outcome means.
+

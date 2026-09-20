@@ -1275,3 +1275,40 @@ version (610.43 vs 610.57), GPU (GB202 vs GB203), and output mode.
 7. **Persistent journal** is worth enabling for future crashes:
    `sudo mkdir -p /var/log/journal && sudo systemd-tmpfiles --create --prefix /var/log/journal && sudo systemctl restart systemd-journald`
    Then `journalctl -b -1 -k` reads the previous boot after a hard crash.
+
+## Sep 19 — HDMI FRL: why 4K60 wakes reliably and 4K120 does not (kernel 7.2.6 source)
+
+David's observation: after DPMS the LG C2 comes back "pretty consistent" at 4K60 and fails
+"pretty regular" at 4K120. Checked against the 7.2 amdgpu display code, not guessed:
+
+- **The EDID is fine.** The C2 declares 4K120/100 as plain CTA VICs 118/117/219/218 at
+  1188 MHz, one CTA block, no DisplayID; the kernel's mode list carries exactly the CTA
+  timing (4400x2250 @ 1188000 kHz). The drm_edid.c quirk table has LG entries only for the
+  27GP950/27GN950 (DSC bitrate cap), nothing for GSM 49352. An EDID override (the Samsung
+  G80SD trick) has nothing to fix here.
+- **The rate is what differs.** `hdmi_frl_decide_link_settings()` picks the *lowest* FRL
+  rate that carries the timing, stepping up from 3G x3. 4K60 10-bit ≈ 17.8 Gbit/s → 6G x4;
+  4K120 10-bit RGB ≈ 35.6 Gbit/s → 10G x4 (8G x4 = 32 is too small). So "60 works, 120
+  fails" is "6 Gbit/lane trains after wake, 10 Gbit/lane does not".
+- **The DPMS-on path never steps down.** `enable_link_hdmi_frl()` calls
+  `hdmi_frl_perform_link_training_with_retries()`: same rate, up to 4 attempts 200 ms apart,
+  then gives up (and `link_set_dpms_on` still reports success — the earlier finding). The
+  rate-stepping variant `..._with_fallback()` is used only at detection
+  (`hdmi_frl_verify_link_cap`). A "sink requesting lower link rate" reply also ends the loop
+  without a retry at a lower rate.
+- **No userspace knob.** `dc->debug.max_frl_rate / force_frl_rate / force_frl_dsc` exist but
+  are set only from per-ASIC defaults; not a module parameter, not in debugfs. The per-panel
+  quirk table (`apply_edid_quirks()` in amdgpu_dm_helpers.c) can set
+  `panel_patch.delay_hdmi_link_training`, but link_dpms.c applies it only when
+  `pix_clk_100hz == 6627500` (one specific panel's mode), so it is not usable as-is.
+- **Which failure it is decides the fix.** The training log is drm_dbg() (silent by default).
+  `tools/hdmi-frl-lt-capture.sh` turns the driver debug class on for one DPMS cycle and
+  summarises: `FLT_READY not set` = the TV's receiver is slow to wake (a delay before LT, or
+  a retry after the TV is up, fixes it — that is what the removed hdmi-link-retry service
+  did); `Timeout waiting for FLT_UPDATE` = lanes never lock at 10G (cable / PCON / TV input
+  signal quality — a certified 48G cable is the first thing to check); `lower link rate` =
+  the TV refuses 10G after wake. Not captured yet.
+- 7.4 candidates: the "restore FRL cap on non-destructive HDMI link verify" patch is a
+  hotplug TMDS-fallback fix, not this. The "FRL LT timeout behaviour" change (Aug 10 DC
+  series) is the only one whose description fits; text not yet read.
+
