@@ -27,3 +27,9 @@ Logs amdgpu's HDMI FRL link-training messages across one DPMS off/on cycle (turn
 driver debug class on only for the cycle) and summarises which way training failed. See the
 runbook, Sep 19 section, for what each outcome means.
 
+## amdgpu-frl-module/build.sh (Sep 19)
+Builds only the amdgpu module with `kernel-patches/0001-*.patch` applied, against the running
+kernel (srctree = CachyOS kernel source, O= a copy of the installed headers tree), installs it
+under `/usr/lib/modules/<ver>/updates/` and rebuilds the initramfs. `--remove` reverts.
+Stock module is never touched; a kernel update makes the override moot by itself.
+

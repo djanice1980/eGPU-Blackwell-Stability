@@ -1,0 +1,65 @@
+From 2eaa12ce0a9a6acb18db45bdd34e855eff422561 Mon Sep 17 00:00:00 2001
+From: David Janice <djanice1980@gmail.com>
+Date: Sat, 19 Sep 2026 19:32:38 -0500
+Subject: [PATCH] drm/amd/display: Allow ~300 ms for HDMI FRL link training at
+ every rate
+
+hdmi_frl_perform_link_training() gives LTS:3 a single budget of 105 polls
+at 2 ms (~210 ms) that starts at the FRL_Rate write and is not restarted
+when the sink raises its first FLT_update with the LTP request. A sink
+that needs close to 200 ms after the LTP request to report lock therefore
+fails whenever its LTP request itself takes more than a few tens of ms.
+
+Measured on an LG C2 (GSM 49352, 2022) driven by a Strix Halo DP-HDMI
+FRL PCON, DPMS off/on with drm.debug=0x2:
+
+  6G x4  (3840x2160@60 10bpc):  LTP request at poll 11 (~21 ms),
+         lock at poll 100 (~179 ms later): PASSED first try.
+  10G x4 (3840x2160@120 10bpc): LTP request at poll 22 (~44 ms),
+         no lock by poll 105: "FAILED - Timeout waiting for FLT_UPDATE".
+         Retry 200 ms later: LTP request at poll 11, lock at poll 101:
+         PASSED.
+
+The sink answers FLT_READY on the first poll every time and locks in a
+steady ~180 ms at both rates, so it is neither slow to wake nor
+marginal; the total just does not fit 210 ms once the LTP request is
+late, which happens far more often at 10G. On this system that is the
+difference between reliable DPMS wakes at 4K60 and mostly dark ones at
+4K120: the with_retries path retrains at the same rate up to four times
+200 ms apart and then reports success anyway, leaving the output dark.
+
+Raise the LTS:3 budget to 155 polls (~300 ms) for every FRL rate, the
+same budget already allowed for 16 Gbps and above.
+
+Signed-off-by: David Janice <djanice1980@gmail.com>
+---
+ .../amd/display/dc/link/protocols/link_hdmi_frl.c    | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c b/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
+index c350741..85e88b5 100644
+--- a/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
++++ b/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
+@@ -511,8 +511,18 @@ static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_s
+ 
+ 		FRL_INFO("FRL LINK TRAINING:  Poll for FLT_UPDATE.\n");
+ 		/*LTS:3: Start Link Training*/
+-		/*Start FLT Timer = 200 ms*/
++		/*
++		 * Start FLT Timer. HDMI 2.1 specifies FLT_TIMEOUT = 200 ms, but the
++		 * budget here runs from the FRL_Rate write to the final FLT_update
++		 * and some sinks need more than that in total: an LG C2 (2022) at
++		 * 10G x4 raises its first FLT_update (the LTP request) ~45 ms after
++		 * the rate write and reports lock a further ~180 ms later, ~225 ms in
++		 * all, so it failed the 105-poll (~210 ms) budget on most DPMS wakes
++		 * at 4K120 while at 6G x4 (~20 ms + ~180 ms) it just fit. Allow
++		 * ~300 ms for every rate.
++		 */
+ 		num_polls = 0;
++		max_polls = 155;
+ 		if (flt_no_timeout)
+ 			max_polls = 500;
+ 
+-- 
+2.55.0
+
