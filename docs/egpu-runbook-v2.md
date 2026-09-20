@@ -1312,3 +1312,40 @@ David's observation: after DPMS the LG C2 comes back "pretty consistent" at 4K60
   hotplug TMDS-fallback fix, not this. The "FRL LT timeout behaviour" change (Aug 10 DC
   series) is the only one whose description fits; text not yet read.
 
+### Sep 19 19:22 — captured: the 4K120 failure is the driver's FLT_update budget, not the TV, not the cable
+
+Two runs of `tools/hdmi-frl-lt-capture.sh` (logs in `docs/logs/frl-lt-4k{60,120}-2026-09-19.log`):
+
+| mode | rate written | FLT_READY | sink's LTP request (poll #) | lock | result |
+|---|---|---|---|---|---|
+| 4K60 10-bit | 3 (6G x4) | poll 1 | poll 11 (21 ms after rate write) | poll 100, 179 ms after the request | PASSED 1st try |
+| 4K120 10-bit RGB, try 1 | 5 (10G x4) | poll 1 | poll 22 (44 ms) | — | **FAILED at poll 105** (211 ms) |
+| 4K120, try 2 (200 ms later) | 5 (10G x4) | poll 1 | poll 11 (21 ms) | poll 101, 181 ms after the request | PASSED |
+
+Reading (from `hdmi_frl_perform_link_training()` in link_hdmi_frl.c, 7.2):
+- The TV is awake: FLT_READY answers on the first poll every time. Not a slow-wake problem.
+- The TV needs a steady **~180 ms** after it asks for the training patterns (LTP 5/6/7/8 on
+  all four lanes) before it reports lock, at 6G and at 10G alike. Not a signal-quality
+  problem either — the one 10G attempt that got its request in early locked fine.
+- The driver's budget is **`max_polls = 105` × `wait_time_ns = 2 ms` ≈ 210 ms, started once at
+  the rate write and never restarted**: the wait for the TV's LTP request and the wait for
+  lock share it. 21 ms + 180 ms fits; 44 ms + 180 ms does not. At 10G the TV takes longer to
+  produce its LTP request (44 vs 21 ms here), so the 120 Hz mode falls over the edge and the
+  60 Hz mode does not. That is the whole difference between "60 pretty consistent" and
+  "120 pretty regular".
+- In this run the 200 ms retry saved it (try 2 passed). Real DPMS wakes that stay dark are the
+  cases where all four tries land on the wrong side of the edge.
+
+Fix candidates:
+1. **Driver (the real fix):** restart the FLT timer after each handled FLT_update
+   (`num_polls = 0` where the LTP request is serviced), which is how the HDMI 2.1 LTS:3 flow
+   reads — one 200 ms budget per sink event, not one for the whole training. One-line patch
+   to `link_hdmi_frl.c`; worth sending to amd-gfx with these two logs. Not built or tested.
+2. **7.4 does not cover this.** The "Update and revert FRL LT Timeout behaviour" patch
+   (Tom Chung / Relja Vojvodic, DC patches Aug 10, in the 7.4 pull) raises `max_polls` to 155
+   (~300 ms) **only for link rates ≥ 16 Gbps** (HDMI 2.2 rates). 10G x4 keeps 105.
+3. **Workarounds without a custom kernel:** (a) stay at 4K60 (6G x4) for reliable wakes, which
+   is the current setting; (b) a modeset retry after a dark wake (the removed hdmi-link-retry
+   service, or the Meta+Shift+D rescue); (c) 4K120 8-bit RGB is 28.5 Gbit/s → 8G x4, untested
+   whether the TV's LTP request comes faster at 8G.
+
