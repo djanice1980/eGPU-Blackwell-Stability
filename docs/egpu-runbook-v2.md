@@ -1531,3 +1531,51 @@ FRL-plus-LG-OLED combination in other hands, and it is the VRR answer for our ea
 touching the computer, use the TV remote to switch to another HDMI input and back. If the
 picture returns immediately, the TV's receiver was stuck and the source is exonerated outright.
 
+## Sep 20 — audit of every newer FRL/HDMI patch, i.e. "would a backport fix this?"
+
+David asked this back when 7.4 was the topic and I answered about VRR instead. Proper answer,
+from AMD's own `amd-staging-drm-next` (ahead of 7.4): **400 display commits since 2026-06-01**;
+the ones touching FRL, HDMI, idle power or resume are listed below, with what each actually does.
+
+| commit (date) | what it is | relevant to a sink that will not lock after standby? |
+|---|---|---|
+| Add DC link support for FRL / HDMI 2.1 DSC over FRL (06-03) | the original FRL series | already in 7.2.6 |
+| dispatch compressed FRL cap check (07-25) | DML refactor | no |
+| Silence link_dpms I2C retimer failures (07-27) | logging | no |
+| Fix force FRL rate debug setting (07-24) | `<` → `<=` in `force_frl_rate` | no (debug knob) |
+| Split DPMS ON into parts / Remove sink usage from DPMS / indenting (07-14..20) | refactor | no |
+| Gate HDMI FRL status polling on active FRL link rate (08-04) | swaps the watchdog's gate from `connector_signal == HDMI_FRL` to `frl_link_rate != 0` | equivalent for us |
+| switch max FFE level cap based on FRL link rate (08-04) | FFE levels 3 → 7 above 12G | no (we run 10G) |
+| Cover crtc vblank IPS self-refresh restore (08-04) | KUnit | no |
+| Decide zstate_support based off Z8 global support (08-09) | power states | IPS/Z path — **already disabled here** |
+| Update and revert FRL LT Timeout behaviour (08-09) | 300 ms budget, **≥16 Gbps only** | no (this is what our own patch generalises) |
+| restore FRL cap on non-destructive HDMI link verify (08-09) | stops a TMDS fallback across **hotplug** | no (we never fall back) |
+| Cover / Refactor hdmi_frl_status_polling_work (08-21) | KUnit + move to `amdgpu_dm_connector.c` | no |
+| HDMI 2.1 FreeSync / VRR (HF-VSDB) / ALLM (08-27) | gaming features | no (but this is the VRR answer) |
+| Update HDMI link rate and DSC handling for DCN60 (08-28) | DCN 6.0 | no |
+| **Exit IPS before connector detection on resume (09-04)** | IPS exit ordering on resume | **closest hit — but moot here**: this machine runs `dcdebugmask=0x800` (`DC_DISABLE_IPS`), all idle power states off, since Sep 7 |
+| Shorten hdmi_frl_status_polling_workqueue (09-04) | fixes the `WQ_NAME_LEN` truncation we see in dmesg | cosmetic |
+| Fix HDMI FRL audio enable (09-11) | audio | no |
+| Use unsigned types for FRL cap check (09-11), Test * (09-11) | types, KUnit | no |
+
+**Verdict: a backport is possible but there is nothing in it for this bug.** Nobody upstream is
+working on "sink will not lock at FRL rates after a long standby", because as far as I can find
+nobody has reported it — the closest report (Strix 880M/890M, Jan 2026, delayed wakes only) was
+never ticketed or bisected.
+
+### What your kernel already has, and the gap in it
+
+7.2.6 runs a **200 ms FRL watchdog**: `hdmi_frl_status_polling_work()` in `amdgpu_dm.c` walks
+every FRL link, calls `hdmi_frl_poll_status_flag()` (a raw SCDC read over DDC), and on
+`FLT_UPDATE` runs `dc_link_detect(DETECT_REASON_RETRAIN)`. So the machinery to rescue a stuck
+FRL link exists and is armed while the stream is committed.
+
+During the dark minutes it never fired. The TV never asked for a retrain.
+
+**The gap:** `hdmi_frl_poll_status_flag()` ignores the return value of `link_query_ddc_data()`.
+If the sink's DDC were unreadable, the flags read back as zero and the watchdog silently does
+nothing — *indistinguishable from "the sink is happy"*. So today we cannot tell "the TV is fine
+and just slow" from "the TV is not answering at all". That is the next thing to instrument: a
+print of the raw SCDC byte plus the DDC read result, built into the module override we already
+run, then `tools/hdmi-frl-watch.sh` on the next dark morning.
+

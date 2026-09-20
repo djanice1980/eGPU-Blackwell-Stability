@@ -47,3 +47,9 @@ showed the picture returning with no source action at all, so earlier "fixes" by
 refresh rate may just have been elapsed time. Kept because it forces a fresh attempt.
 `--hard` keeps the old disable/enable behaviour.
 
+## hdmi-frl-watch.sh (Sep 20)
+Watches the FRL path for N seconds (default 300) **without touching the display** — for the
+morning the TV says No Signal. Answers whether the sink asks for anything during the dark
+minutes (the driver's 200 ms FRL watchdog would retrain if it did) or whether the link is
+silent until the TV locks by itself.
+
