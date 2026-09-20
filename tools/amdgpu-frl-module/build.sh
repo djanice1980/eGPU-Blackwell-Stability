@@ -31,8 +31,9 @@ KVER="${KVER:-$(uname -r)}"
 BUILD=/usr/lib/modules/$KVER/build
 SRC="${SRC:-$(ls -d ~/kbuild/linux-cachyos/linux-cachyos/src/cachyos-* 2>/dev/null | head -1)}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# the 7.2 form; the *.amd-staging-drm-next.patch beside it is for upstream, not this tree
-PATCH="$REPO/kernel-patches/0001-drm-amd-display-Allow-300-ms-for-HDMI-FRL-link-train.patch"
+# every numbered patch in kernel-patches/, in order; *.amd-staging-drm-next.patch is the
+# upstream rebase of 0001 and must NOT be applied to this tree
+mapfile -t PATCHES < <(ls "$REPO"/kernel-patches/0*.patch 2>/dev/null | grep -v "amd-staging-drm-next" | sort)
 DEST=/usr/lib/modules/$KVER/updates/amdgpu-frl-lt
 FRL=drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
 say() { echo "[amdgpu-frl] $*"; }
@@ -47,21 +48,24 @@ fi
 
 [ -d "$SRC" ] || { say "kernel source not found (see the prerequisite in this script's header)"; exit 1; }
 [ -f "$BUILD/Module.symvers" ] || { say "headers for $KVER missing (linux-cachyos-headers)"; exit 1; }
-[ -f "$PATCH" ] || { say "patch not found under $REPO/kernel-patches"; exit 1; }
+[ "${#PATCHES[@]}" -gt 0 ] || { say "no patches found under $REPO/kernel-patches"; exit 1; }
 SRCREL=$(sed -nE 's/^#define UTS_RELEASE "(.*)"/\1/p' "$BUILD/include/generated/utsrelease.h")
 [ "$SRCREL" = "$KVER" ] || { say "headers say $SRCREL, running kernel is $KVER"; exit 1; }
 case "$SRC" in *"${KVER%%-*}"*) ;; *) say "source dir $SRC does not look like kernel ${KVER%%-*}"; exit 1;; esac
 
 cd "$SRC"
 say "source: $SRC"
-if patch -p1 -N --dry-run -s < "$PATCH" >/dev/null 2>&1; then
-    patch -p1 -N -s < "$PATCH"; say "applied $(basename "$PATCH")"
-elif patch -p1 -R --dry-run -s < "$PATCH" >/dev/null 2>&1; then
-    say "patch already applied"
-else
-    say "patch does not apply to this source"; exit 1
-fi
-grep -q "max_polls = 155;" "$FRL" || { say "patched line not found in $FRL"; exit 1; }
+for P in "${PATCHES[@]}"; do
+    if patch -p1 -N --dry-run -s < "$P" >/dev/null 2>&1; then
+        patch -p1 -N -s < "$P"; say "applied $(basename "$P")"
+    elif patch -p1 -R --dry-run -s < "$P" >/dev/null 2>&1; then
+        say "already applied: $(basename "$P")"
+    else
+        say "does not apply to this source: $(basename "$P")"; exit 1
+    fi
+done
+grep -q "max_polls = 155;" "$FRL" || { say "0001's patched line not found in $FRL"; exit 1; }
+grep -q "FRL WATCHDOG:" "$FRL" || { say "0002's patched line not found in $FRL"; exit 1; }
 
 OBJ=$HOME/kbuild/obj-$KVER
 if [ ! -f "$OBJ/Module.symvers" ]; then
@@ -80,7 +84,7 @@ VM=$(modinfo -F vermagic "$KO")
 # the packaged module is installed with INSTALL_MOD_STRIP=1; the fresh one carries ~650 MB of DWARF
 STRIPPED=$HOME/kbuild/amdgpu-frl-lt-$KVER.ko
 cp "$KO" "$STRIPPED" && llvm-strip --strip-debug "$STRIPPED"
-say "built: $(du -h "$STRIPPED" | cut -f1) after strip-debug (stock is $(du -h "$(modinfo -k "$KVER" -n amdgpu)" | cut -f1) compressed)  vermagic='$VM'"
+say "built: $(du -h "$STRIPPED" | cut -f1) after strip-debug  vermagic='$VM'  patches: ${#PATCHES[@]}"
 
 [ "${1:-}" = "--build-only" ] && { say "--build-only: module at $STRIPPED"; exit 0; }
 
