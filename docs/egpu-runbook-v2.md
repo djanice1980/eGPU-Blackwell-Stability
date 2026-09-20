@@ -1337,10 +1337,13 @@ Reading (from `hdmi_frl_perform_link_training()` in link_hdmi_frl.c, 7.2):
   cases where all four tries land on the wrong side of the edge.
 
 Fix candidates:
-1. **Driver (the real fix):** restart the FLT timer after each handled FLT_update
-   (`num_polls = 0` where the LTP request is serviced), which is how the HDMI 2.1 LTS:3 flow
-   reads — one 200 ms budget per sink event, not one for the whole training. One-line patch
-   to `link_hdmi_frl.c`; worth sending to amd-gfx with these two logs. Not built or tested.
+1. **Driver (the real fix):** a longer budget at 10G/12G. Intel's independent FRL
+   implementation (i915 "Enable HDMI FRL for MTL+", Aug 2026, patch 14/44) also runs LTS:3
+   on one 200 ms budget, so a per-event restart is not the agreed spec reading — but AMD's
+   own 7.4 patch (below) already relaxes the budget to ~300 ms for ≥ 16 Gbps, and this TV
+   needs ~225 ms at 10G. Extending that relaxation to ≥ 10 Gbps (`max_polls = 155` for
+   `frl_link_rate >= HDMI_FRL_LINK_RATE_10GBPS`) is a one-line change to `link_hdmi_frl.c`
+   with these two logs as the justification; worth sending to amd-gfx. Not built or tested.
 2. **7.4 does not cover this.** The "Update and revert FRL LT Timeout behaviour" patch
    (Tom Chung / Relja Vojvodic, DC patches Aug 10, in the 7.4 pull) raises `max_polls` to 155
    (~300 ms) **only for link rates ≥ 16 Gbps** (HDMI 2.2 rates). 10G x4 keeps 105.
