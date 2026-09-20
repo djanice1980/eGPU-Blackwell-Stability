@@ -87,7 +87,12 @@ say "built: $(du -h "$STRIPPED" | cut -f1) after strip-debug (stock is $(du -h "
 sudo install -D -m 644 "$STRIPPED" "$DEST/amdgpu.ko"
 sudo depmod "$KVER"
 NOW=$(modinfo -k "$KVER" -n amdgpu)
-case "$NOW" in "$DEST"/*) say "override active: $NOW";; *) say "depmod still resolves amdgpu to $NOW -- not installed as expected"; exit 1;; esac
+# compare real paths: modinfo reports /lib/modules/..., which is /usr/lib/modules/... on Arch
+if [ "$(readlink -f "$NOW")" = "$(readlink -f "$DEST/amdgpu.ko")" ]; then
+    say "override active: $NOW"
+else
+    say "depmod still resolves amdgpu to $NOW -- not installed as expected"; exit 1
+fi
 rebuild_initramfs
 say "done. REBOOT, then: bash $REPO/tools/hdmi-frl-lt-capture.sh at 4K120 and look for PASSED on try 1."
 say "revert: bash $REPO/tools/amdgpu-frl-module/build.sh --remove, then reboot."
