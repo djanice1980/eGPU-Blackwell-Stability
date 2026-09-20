@@ -3,6 +3,14 @@
 Target: https://gitlab.freedesktop.org/drm/amd/-/issues (amdgpu / display)
 Status: DRAFT — fill in the ladder results marked TODO before filing.
 
+> **Correction (2026-09-20), fix before filing:** this document says the HDMI port sits behind a
+> DP-to-HDMI FRL PCON. It does not. The link is a native `SIGNAL_TYPE_HDMI_FRL` (0x100) from the
+> APU's HPO encoder, SCDC runs over the HDMI DDC pins, and the `DP-HDMI FRL PCON supported` boot
+> line is an unconditional ASIC capability advert from `dcn35_resource.c`. Every "PCON" sentence
+> below is wrong. Also add: the same wake failure on Strix 880M/890M is already reported on
+> amd-gfx (2026-01-08, 6.17 good / 6.18 bad, delayed wakes only), and on this machine the source
+> is demonstrably scanning out while the sink says No Signal (Sep 20 capture).
+
 ## Summary
 
 External HDMI monitor does not come back after DPMS off → on. The internal eDP panel

@@ -94,3 +94,13 @@ reply from Gmail keeping the To/Cc. Draft:
     If you would prefer, I will send a v2 with the dark-wake paragraph dropped
     and no claim beyond the timeout.
 
+## Also fix in the follow-up (Sep 20)
+
+The sent commit message says the sink is *"driven by a Strix Halo DP-HDMI FRL PCON"*. That is
+wrong: the link is native `SIGNAL_TYPE_HDMI_FRL` (see the runbook, Sep 20). The follow-up, or a
+v2, must correct it — an AMD reviewer reading "PCON" will look in the wrong code path.
+
+David's decision (Sep 20): **nothing further goes out until the remaining behaviour is fully
+confirmed**, which takes several days of overnight tests, not one. Park the follow-up until then
+and send one message with all corrections at once.
+

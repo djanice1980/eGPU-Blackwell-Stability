@@ -1476,3 +1476,58 @@ to help; it is kept because it forces a fresh attempt, not because it is demonst
    trigger (the colorspace probe above makes this the leading suspect).
 3. **4K60 overnight** as the control: known-good, 6G x4, no HDR change.
 
+## Sep 20 — there is no DP-to-HDMI converter in this path (correcting a claim I repeated for weeks)
+
+David asked me to look into "the DP to HDMI chip". There isn't one. Evidence from this machine:
+
+- The LG link runs as **`SIGNAL_TYPE_HDMI_FRL`** — the DPMS logs print `signal=100`, and that is
+  hex: `signal_types.h` has `SIGNAL_TYPE_HDMI_FRL = (1 << 8)` = 0x100 (and eDP's `signal=80` =
+  0x80 = `SIGNAL_TYPE_EDP`, which confirms the hex reading). A converter-attached port would be
+  `SIGNAL_TYPE_DISPLAY_PORT` (0x20).
+- SCDC — the channel all the FRL link training runs over — is read and written with
+  `link_query_ddc_data()`, i.e. straight over the HDMI DDC pins, not tunnelled through DPCD.
+- The encoder is the APU's own HPO FRL link encoder (`hpo_frl_link_enc3_*`, `hpo_enc3_*`).
+- The boot line **`[drm] DP-HDMI FRL PCON supported` is not a detection**. It is printed from
+  `amdgpu_dm.c` whenever `dc->caps.dp_hdmi21_pcon_support` is set, and `dcn35_resource.c` sets
+  that unconditionally for every DCN 3.5 ASIC. It says "this ASIC can drive a PCON", not "there
+  is one attached".
+- No HDMI bridge or retimer exists in the system: the only retimers the kernel knows about are
+  the two Thunderbolt ones on the USB4 ports (`vendor=0x1da0 device=0x8833`).
+
+So the only two parties on this link are the Strix Halo HDMI FRL transmitter and the LG C2.
+Anywhere else in this repo that says "PCON" about the Z13's HDMI port is wrong; the statements
+in `tools/` have been corrected, and `docs/dpms-wake-bug-report.md` now carries a correction
+banner. **The patch already sent to amd-gfx also says "driven by a Strix Halo DP-HDMI FRL
+PCON"** — that must be corrected whenever the follow-up goes out (noted in
+`kernel-patches/SUBMITTING.md`).
+
+## Sep 20 — someone else reports the same shape of failure on the same display engine
+
+`External HDMI monitor fails to wake up from DPMS/consoleblank since kernel 6.18`, amd-gfx /
+dri-devel, 2026-01-08 (https://ratatoskr.run/amd-gfx/2026/01/9269308/t):
+
+- Strix **Radeon 880M / 890M** — same DCN 3.5 family as the 8060S here.
+- External HDMI does not come back from DPMS or console blanking; the **internal panel resumes
+  fine**; **nothing in dmesg**.
+- The decisive detail: *"Users must wait several minutes in the off state before attempting
+  wake — immediate wake attempts succeed, but delayed wake fails consistently."* That is
+  exactly our pattern: 20 s capture cycles always recover, an overnight standby does not.
+- Regression: 6.17 good, 6.18 bad. Alex Deucher asked for a GitLab ticket and a bisect. No fix,
+  no workaround, and no sign the ticket was ever filed.
+
+Notes on how it relates to us: their report predates FRL-by-default and never mentions
+`dcfeaturemask`, so their link is probably plain TMDS — which would mean **the wake fault is not
+FRL-specific**. And this machine already runs `amdgpu.dcdebugmask=0x800` (`DC_DISABLE_IPS`,
+confirmed live: `/sys/module/amdgpu/parameters/dcdebugmask` = 2048), the Sep 7 fix for the
+earlier IPS-exit variant, so whatever remains is *not* the IPS path. If their bug is IPS, 0x800
+may fix theirs and not ours — i.e. possibly two faults with one symptom.
+
+Also seen: Valve's SteamOS issue #2809 (LG OLED83C4 + FRL on kernel 7.2) — FRL gives 4K144
+10 bpc HDR but loses VRR, fixed by using `dc_is_hdmi_signal()` in
+`amdgpu_dm_update_freesync_caps()`. Unrelated to the wake fault, but it is the same
+FRL-plus-LG-OLED combination in other hands, and it is the VRR answer for our earlier question.
+
+**Added experiment (cheapest discriminator yet, TV side):** next time it is dark, *before*
+touching the computer, use the TV remote to switch to another HDMI input and back. If the
+picture returns immediately, the TV's receiver was stuck and the source is exonerated outright.
+

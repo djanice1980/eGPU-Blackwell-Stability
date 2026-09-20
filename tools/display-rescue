@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One-keypress recovery for an external display that says "No Signal" after a long DPMS
-# standby (amdgpu DP->HDMI FRL PCON, kernel 7.2+). Bound to Meta+Shift+D via
+# standby (amdgpu native HDMI FRL on DCN 3.5, kernel 7.2+). Bound to Meta+Shift+D via
 # ~/.local/share/kglobalaccel/.
 #
 # Sep 20 2026 rewrite. Evidence: after an overnight DPMS off the LG C2 reported No Signal

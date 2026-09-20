@@ -17,10 +17,12 @@ Small helpers that came out of the investigations in `docs/`. All user-level unl
 | `manager-test/manager-test-log.sh <label>` | Appends a fingerprint (manager state, 5786/NVIDIA PCI tree, USB4 links, root-port PM, nvidia params/clocks, relevant journal) to `~/egpu-manager-test-<date>.log`. |
 | `manager-test/manager-mode3-retry.sh` | (sudo) The corrected Mode 3 attach: rescans, checks BAR0 via sysfs, and if unassigned removes the 5786 upstream port, waits 3/8/15 s for the GPU-port link, rescans the root port again; then finishes the manager's own modeset/persistence/clock-lock steps. Never runs `fuser -k`. |
 
-The DPMS wake problem on the reference system (AMD DCN 3.5.1 iGPU, HDMI behind a
-DP-HDMI FRL PCON) turned out to be the display core's **IPS** (idle power states) exit
-path; the fix is the kernel parameter `amdgpu.dcdebugmask=0x800` (`DC_DISABLE_IPS`). See
-the runbook's DPMS section and the bug-report draft in `docs/`.
+One DPMS wake problem on the reference system (AMD DCN 3.5.1 iGPU) turned out to be the display
+core's **IPS** (idle power states) exit path; the fix is the kernel parameter
+`amdgpu.dcdebugmask=0x800` (`DC_DISABLE_IPS`), still in force. A *second*, different wake fault
+remains after long standby — see the runbook's Sep 20 sections. (Correction, Sep 20: this port is
+**not** behind a DP-to-HDMI PCON. It is a native `SIGNAL_TYPE_HDMI_FRL` link; the
+`DP-HDMI FRL PCON supported` boot line is an unconditional ASIC capability advert.)
 
 ## hdmi-frl-lt-capture.sh (Sep 19)
 Logs amdgpu's HDMI FRL link-training messages across one DPMS off/on cycle (turns the drm

@@ -38,7 +38,7 @@ sudo sh -c 'for d in /sys/kernel/debug/dri/*/crtc-*; do
     echo "$d bpc=$(cat "$d/amdgpu_current_bpc" 2>/dev/null) colorspace=$(cat "$d/amdgpu_current_colorspace" 2>/dev/null)"
 done'
 
-echo; echo "--- amdgpu connector debugfs (DP link to the PCON) ---"
+echo; echo "--- amdgpu connector debugfs (the HDMI connector is a native FRL link) ---"
 sudo sh -c 'for d in /sys/kernel/debug/dri/*/HDMI-A-1 /sys/kernel/debug/dri/*/DP-*; do
     [ -d "$d" ] || continue
     echo "[$d]"; ls "$d"

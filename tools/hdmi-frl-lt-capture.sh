@@ -10,7 +10,7 @@
 # What the result means (from link_hdmi_frl.c):
 #   "FAILED - FLT_READY not set by sink"        the TV's receiver was not ready yet (slow wake)
 #   "FAILED - Timeout waiting for FLT_UPDATE"    training started but lanes never locked (signal
-#                                                quality at that rate: cable / PCON / TV input)
+#                                                quality at that rate: cable / TV input)
 #   "Sink requesting lower link rate"            the TV rejected the rate outright
 #   "PASSED"                                     trained; if the screen still stayed dark the
 #                                                problem is after link training
