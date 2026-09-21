@@ -55,11 +55,24 @@ case "$SRC" in *"${KVER%%-*}"*) ;; *) say "source dir $SRC does not look like ke
 
 cd "$SRC"
 say "source: $SRC"
+# Is this patch already in the tree? A reverse dry-run is not enough: when a later patch adds
+# code immediately after an earlier one's hunk, the earlier hunk's trailing context no longer
+# matches and `patch -R` fails even though the change is present. So fall back to looking for
+# the patch's own longest added line in its target file.
+already_applied() {
+    local P="$1" file line
+    file=$(awk '/^\+\+\+ b\//{sub("^\\+\\+\\+ b/",""); print; exit}' "$P")
+    [ -n "$file" ] && [ -f "$file" ] || return 1
+    line=$(grep '^+[^+]' "$P" | sed 's/^+//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+           | grep -vE '^(\*|/\*|\*/)' | awk '{ print length, $0 }' | sort -rn | head -1 | cut -d" " -f2-)
+    [ -n "$line" ] || return 1
+    grep -qF "$line" "$file"
+}
 for P in "${PATCHES[@]}"; do
-    if patch -p1 -N --dry-run -s < "$P" >/dev/null 2>&1; then
-        patch -p1 -N -s < "$P"; say "applied $(basename "$P")"
-    elif patch -p1 -R --dry-run -s < "$P" >/dev/null 2>&1; then
+    if already_applied "$P"; then
         say "already applied: $(basename "$P")"
+    elif patch -p1 -N --dry-run -s < "$P" >/dev/null 2>&1; then
+        patch -p1 -N -s < "$P"; say "applied $(basename "$P")"
     else
         say "does not apply to this source: $(basename "$P")"; exit 1
     fi
