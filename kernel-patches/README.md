@@ -71,3 +71,11 @@ locked lane, at most once every 5 s. The limiter is a file static — fine for o
 upstream-shaped. Verify on the next dark screen: either it clears in seconds, or the log shows
 the retrain failing, which points at the source PHY instead.
 
+## 0005-drm-amd-display-log-FRL-loss-of-lock-at-warning-level.patch (Sep 20, local)
+
+0004's retrain request used `FRL_INFO` (drm_dbg), invisible without `drm.debug=0x2`, which made
+the event unprovable in normal use. This promotes it to `DC_LOG_WARNING` and adds a recovery
+line, so the journal records loss and restore by itself. Check any time with:
+
+    journalctl -k --since yesterday | grep "HDMI FRL"
+

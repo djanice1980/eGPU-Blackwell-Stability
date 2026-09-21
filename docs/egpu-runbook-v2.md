@@ -1667,3 +1667,31 @@ This is simultaneously the candidate fix and the decisive experiment:
 Local-only caveat: the 5 s limiter is a file static (one FRL link assumed), so 0004 is not an
 upstream candidate as written.
 
+## Sep 21 — first overnight with the retrain patch: the monitor came up immediately
+
+David: *"this morning the external monitor worked immediately. I did not get an opportunity to
+run the script because of it."* The four-patch module was installed 2026-09-20 23:04 and the
+machine booted 23:05, so this was its first overnight test.
+
+**Not yet evidence.** The retrain request prints through `FRL_INFO` (drm_dbg), which is silent
+unless `drm.debug=0x2` is set by hand, and it was not. The journal for this boot contains no FRL
+lines at all. So we cannot tell whether:
+- the watchdog saw loss of lock, retrained, and fixed it in under a second (the hoped-for case), or
+- the sink simply locked on its own this time, as it has on plenty of mornings before.
+
+One good overnight proves nothing either way — the fault has always been intermittent.
+
+**Fixed by making the event self-recording:**
+`kernel-patches/0005-...-log-FRL-loss-of-lock-at-warning-level.patch` promotes the request to
+`DC_LOG_WARNING` and adds a matching line when the sink reports lock again, so an ordinary
+journal (no debug flag, no watching) records the pair:
+
+    HDMI FRL: sink reports loss of lock (status=0x40) with rate=5 active -- requesting retrain
+    HDMI FRL: sink lock restored (status=0x5f)
+
+At most one line per 5 s while unlocked, nothing at all on a healthy link. Five patches build
+clean. From here the confirmation is passive: over the coming days,
+`journalctl -b -k | grep "HDMI FRL"` (or `--since yesterday` across boots) answers three
+questions at once — does the fault still occur, does the retrain fire when it does, and does the
+lock come back within a poll or two of the request.
+
