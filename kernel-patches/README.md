@@ -59,3 +59,15 @@ machine: five minutes of `drm.debug=0x2` with the 0002 print installed and a liv
 produced zero lines. With this patch the watchdog examines FRL links and can retrain when the
 sink asks — which is also the only automatic recovery path for a link that has lost lock.
 
+## 0004-drm-amd-display-retrain-FRL-link-on-sink-loss-of-lock.patch (Sep 20, candidate fix)
+
+The watchdog asked for a retrain only on `FLT_UPDATE`. Measured on a real dark screen (1443
+identical polls over five minutes, runbook Sep 20 22:51): the sink sets **STATUS_UPDATE**, reports
+**FLT_READY=1**, and reports **CLOCK_DETECTED=0 with no lane locked**, while the source holds an
+active 10G x4 rate and scans out video. The link is down; the driver never notices.
+
+This patch requests the retrain when an FRL rate is active and the sink reports no clock and no
+locked lane, at most once every 5 s. The limiter is a file static — fine for one FRL link, not
+upstream-shaped. Verify on the next dark screen: either it clears in seconds, or the log shows
+the retrain failing, which points at the source PHY instead.
+

@@ -1619,3 +1619,51 @@ What this changes, and what it does not:
   sense that nobody is chasing a slow-locking sink, but one upstream commit does bear directly
   on our symptom, and it was in the list I dismissed.
 
+## Sep 20 22:51 — ROOT CAUSE, measured: the sink reports the link DOWN and nothing retrains
+
+With 0003 installed the watchdog runs. `tools/hdmi-frl-watch.sh` caught a real dark screen
+(after login, switching to 4K120, no external picture) and polled for five minutes:
+**1443 consecutive polls, every single one identical** (log:
+`docs/logs/frl-watch-4k120-darkwake-20260920-2251.log`):
+
+    FRL WATCHDOG: rate=5 update0[ddc=1]=0x43 (FRL_START=0 FLT_UPDATE=0)
+                  status[ddc=1]=0x40 (clk=0 ln0=0 ln1=0 ln2=0 ln3=0 flt_ready=1 dsc_fail=0)
+
+Decoded:
+
+| field | value | meaning |
+|---|---|---|
+| both DDC reads | ok | the sink is answering; it is not asleep or mute |
+| `update0` 0x43 | STATUS_UPDATE, CED_UPDATE, RSED_UPDATE | **the sink is telling us its status changed** (and reporting character / RS error updates) |
+| `FLT_UPDATE` | 0 | the sink is *not* using the one flag the driver reacts to |
+| `status` 0x40 | FLT_READY=1 | the sink is **ready to be trained** |
+| `CLOCK_DETECTED` | **0** | the sink sees **no clock** |
+| all four lane locks | **0** | **no lane is locked** |
+| source side | rate=5 active, CRTC scanning 10 bpc BT2020 | the source believes the link is up and is sending video |
+
+So the link is genuinely **down** while the source believes it is up. The sink says so, in two
+different ways, every 200 ms, for six minutes — and the driver ignores both, because
+`hdmi_frl_poll_status_flag()` only returns "retrain me" on `FLT_UPDATE`. There is no reconfiguration
+in the journal between 22:50:53 and the picture appearing around 22:57-22:58, so once again it
+recovered without source action — the sink's receiver eventually latched on by itself.
+
+That retires the "HDR/BT2020 entry" suspicion and the "TV is happy but slow" reading: the TV is
+not happy, it is unlocked and asking for attention.
+
+**Fix written and built: `kernel-patches/0004-...-retrain-FRL-link-on-sink-loss-of-lock.patch`.**
+While an FRL rate is active and the sink reports no detected clock and no locked lane, the
+watchdog now requests the retrain (`dc_link_detect(DETECT_REASON_RETRAIN)`), rate-limited to one
+request every 5 s. Four patches now build clean into the module override.
+
+This is simultaneously the candidate fix and the decisive experiment:
+- if the next dark screen clears within a few seconds, the diagnosis is confirmed and the driver
+  behaviour (retrain on loss of lock, not only on FLT_update) is the real bug — worth taking
+  upstream with these logs;
+- if retraining runs and the sink still reports no lock, the retrain itself is failing and the
+  next question is whether the source PHY is actually transmitting (the `clk=0` hint), which
+  needs the HPO FRL encoder state dumped;
+- either way the log now says which.
+
+Local-only caveat: the 5 s limiter is a file static (one FRL link assumed), so 0004 is not an
+upstream candidate as written.
+
