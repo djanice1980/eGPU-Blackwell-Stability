@@ -1,0 +1,43 @@
+From bd83a38c519b277537634f12180f624059e40dde Mon Sep 17 00:00:00 2001
+From: David Janice <djanice1980@gmail.com>
+Date: Sun, 20 Sep 2026 20:46:58 -0500
+Subject: [PATCH] drm/amd/display: Gate HDMI FRL status polling on active FRL
+ link rate
+
+Backport of the upstream change of the same name (amd-staging-drm-next,
+2026-08-04), which is not in 7.2.x.
+
+hdmi_frl_status_polling_work() skipped every link whose connector_signal was
+not SIGNAL_TYPE_HDMI_FRL. connector_signal is assigned once per link from the
+connector type in link_factory.c and is SIGNAL_TYPE_HDMI_TYPE_A for an HDMI
+connector; nothing in the tree ever assigns SIGNAL_TYPE_HDMI_FRL to it (only
+stream->signal takes that value). The condition was therefore always true and
+the 200 ms FRL watchdog never polled any link at all, on any system.
+
+Confirmed empirically on 7.2.6 (Strix Halo, native HDMI FRL to an LG C2): with
+a diagnostic print added inside hdmi_frl_poll_status_flag() and
+drm.debug=0x2 for five minutes with a live 4K120 10 bpc FRL stream, not one
+line was emitted -- the work runs but the loop body is never reached.
+
+Gate on the active FRL link rate instead, as upstream does, so the watchdog
+actually examines FRL links and can retrain when the sink asks.
+---
+ drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+index 36982ca..27a466a 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+@@ -2024,7 +2024,7 @@ static void hdmi_frl_status_polling_work(struct work_struct *work)
+ 		if (!dc_is_hdmi_signal(dc_link->connector_signal))
+ 			continue;
+ 
+-		if (dc_link->connector_signal != SIGNAL_TYPE_HDMI_FRL)
++		if (dc_link->frl_link_settings.frl_link_rate == 0)
+ 			continue;
+ 
+ 		link_update = dc_link_frl_poll_status_flag(dc_link);
+-- 
+2.55.0
+

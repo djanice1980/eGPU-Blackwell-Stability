@@ -1579,3 +1579,43 @@ and just slow" from "the TV is not answering at all". That is the next thing to 
 print of the raw SCDC byte plus the DDC read result, built into the module override we already
 run, then `tools/hdmi-frl-watch.sh` on the next dark morning.
 
+## Sep 20 20:39 — the FRL watchdog is dead code in 7.2.x, and that IS the backport David asked for
+
+The diagnostic from 0002 was installed (module override, boot 13:45) and
+`tools/hdmi-frl-watch.sh` ran for five minutes from 20:39:22 with a live 4K120 10 bpc FRL stream
+and `drm.debug=0x2`. Result: **not one `FRL WATCHDOG` line**. 3664 lines in the capture, every
+one of them `amdgpu_dm_atomic_commit_tail` noise. The string is present in the running module,
+so the print was compiled in and never executed.
+
+Cause, in `hdmi_frl_status_polling_work()` (amdgpu_dm.c, 7.2.6):
+
+    if (!dc_is_hdmi_signal(dc_link->connector_signal))
+            continue;
+    if (dc_link->connector_signal != SIGNAL_TYPE_HDMI_FRL)   /* never true */
+            continue;
+
+`link->connector_signal` is assigned once per link from the connector type in
+`link_factory.c` — `SIGNAL_TYPE_HDMI_TYPE_A` for an HDMI connector — and **nothing in the tree
+ever assigns `SIGNAL_TYPE_HDMI_FRL` to it**; only `stream->signal` takes that value (which is
+why our DPMS logs show `signal=100`). So the second test always continues, the loop body is
+never reached, and the 200 ms FRL watchdog has never polled a link on any 7.2 system. The work
+item is queued and re-queues itself forever, doing nothing.
+
+Upstream fixed this on 2026-08-04 — *"drm/amd/display: Gate HDMI FRL status polling on active
+FRL link rate"* — by gating on `frl_link_settings.frl_link_rate == 0` instead. I had listed that
+commit in the audit above as "equivalent for us". **That was wrong: it is the difference between
+a working watchdog and dead code.** Backported here as
+`kernel-patches/0003-drm-amd-display-Gate-HDMI-FRL-status-polling-on-active-rate.patch`,
+built into the same module override (3 patches, clean build).
+
+What this changes, and what it does not:
+- It makes the sink-state diagnostic from 0002 actually emit, so the next dark morning finally
+  answers whether the TV is talking and whether its lanes are locked.
+- It restores the automatic recovery path: if the TV raises FLT_UPDATE while dark, the driver
+  will now run `dc_link_detect(DETECT_REASON_RETRAIN)` within 200 ms. **That may fix the dark
+  screen outright** — or reveal that the TV never asks, in which case it fixes nothing and the
+  fault is wholly inside the TV. Unknown until a dark morning with this build.
+- Timeline note for the earlier claim "nobody upstream is working on this": still true in the
+  sense that nobody is chasing a slow-locking sink, but one upstream commit does bear directly
+  on our symptom, and it was in the list I dismissed.
+

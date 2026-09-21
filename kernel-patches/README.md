@@ -45,3 +45,17 @@ How to read it on a dark morning (capture with `tools/hdmi-frl-watch.sh`):
 Built into the same module override as 0001 (`tools/amdgpu-frl-module/build.sh` applies every
 numbered patch here in order). drm_dbg, so it prints nothing until `drm.debug=0x2`.
 
+## 0003-drm-amd-display-Gate-HDMI-FRL-status-polling-on-active-rate.patch (Sep 20, backport)
+
+Straight backport of upstream `drm/amd/display: Gate HDMI FRL status polling on active FRL link
+rate` (amd-staging-drm-next, 2026-08-04), absent from 7.2.x. One line:
+
+    -		if (dc_link->connector_signal != SIGNAL_TYPE_HDMI_FRL)
+    +		if (dc_link->frl_link_settings.frl_link_rate == 0)
+
+Without it the 200 ms FRL watchdog is dead code — `connector_signal` is `SIGNAL_TYPE_HDMI_TYPE_A`
+for an HDMI connector and never `SIGNAL_TYPE_HDMI_FRL`, so every link is skipped. Proven on this
+machine: five minutes of `drm.debug=0x2` with the 0002 print installed and a live FRL stream
+produced zero lines. With this patch the watchdog examines FRL links and can retrain when the
+sink asks — which is also the only automatic recovery path for a link that has lost lock.
+
