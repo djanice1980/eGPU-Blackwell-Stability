@@ -1,8 +1,7 @@
-From 3460193d878d3c405dbc3eb9fcf24fe18e998f22 Mon Sep 17 00:00:00 2001
+From a88355123dafe8951841b90f1afe529a070722cc Mon Sep 17 00:00:00 2001
 From: David Janice <djanice1980@gmail.com>
-Date: Mon, 21 Sep 2026 23:52:49 -0500
+Date: Tue, 22 Sep 2026 08:42:24 -0500
 Subject: [PATCH 2/3] drm/amd/display: Gate HDMI FRL status polling on active
- FRL link rate
 
 ---
  drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c | 2 +-

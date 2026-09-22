@@ -1772,3 +1772,48 @@ persist two or three consecutive polls (400-600 ms) before requesting, which the
 Status: waiting on days of ordinary use. Check any time with
 `journalctl -k --since yesterday | grep -E "HDMI FRL|frl status polling"`.
 
+## Sep 22 08:36 — the fault reproduced with the watchdog live, and the retrain was the WRONG retrain
+
+Overnight the watchdog was correctly idle (`polling stops` at 00:43 when the stream went away).
+At the morning wake:
+
+    08:36:01  200ms frl status polling starts ...
+    08:36:01  sink state changed -- status=0x40 (clk=0 lanes=0000 flt_ready=1) rate=5
+    08:36:01  loss of lock -> requesting retrain
+    08:36:06  loss of lock -> requesting retrain       (and again at :11 :16 :21 :26
+    08:36:31  ...                                       :36 :41 :46 :51 :56 -- twelve in all)
+    08:36:57  sink lock restored (status=0x5e)
+    08:37:01  loss of lock -> requesting retrain  ->  08:37:05 lock restored
+
+So the fault is reproducible and now fully recorded: **56 seconds** with every lane unlocked at
+rate 5 (4K120). Twelve retrain requests fired and **none of them worked** — note there is no
+`polling starts` line between 08:36:01 and 08:37:01, and that line appears whenever a commit
+re-arms the watchdog. No commit happened, so no link re-enable happened. The picture returned at
+08:36:57 the same way it always has: the sink latched on by itself.
+
+**Why the requests did nothing.** The request called `dc_link_detect(link, DETECT_REASON_RETRAIN)`.
+With the sink unchanged that re-reads the EDID and leaves the link alone; it does not re-run FRL
+link training. The 00:06 successes were coincidence in the other direction — each of those losses
+happened *during* a login-time modeset, so a commit was coming anyway, and the restore that
+followed was the modeset's own link enable, not the request.
+
+**Fixed:** the local patch now recovers with `dc_link_dp_handle_link_loss()`, which is the path the
+DP hot-plug handler uses for link loss. Despite the name it is generic — it collects the link's
+master pipes, runs `link_set_dpms_off()` on each and `link_set_dpms_on()` back, which for an FRL
+link re-runs link training. Its only DP-specific block is guarded by `skip_fallback_on_link_loss`,
+false here. It is already called from `amdgpu_dm.c` under the same `dc_lock` this watchdog takes.
+
+Also in the rebuilt patch:
+- **Debounce of three polls (~600 ms)** before acting, so the transient at a modeset (which is what
+  the 00:06 lines were) no longer triggers a re-enable.
+- **All four lane bits** are now required to be clear, not three; `LANE3_LOCKED` was missing.
+- **Cap of twelve attempts** (~1 minute) per episode, then one `giving up until its state changes`
+  line, so a sink that cannot come back cannot drive an endless modeset loop.
+- The wording changed from "requesting retrain" to "re-enabling the link (attempt N)", and the
+  restore line now says how many attempts it took — which is exactly the number that will say
+  whether the re-enable works.
+
+Next dark screen decides it: `lock restored ... after 1 re-enable request(s)` means the recovery
+works and the wait is over. Twelve attempts then `giving up` means the re-enable does not help the
+sink either, and the remaining suspect is the source PHY not driving the wire.
+

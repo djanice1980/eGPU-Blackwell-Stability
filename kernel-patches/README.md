@@ -44,10 +44,14 @@ one patch.
    each read, the Update_0 byte, and the status flags with clock-detect and per-lane lock bits.
    Upstream ignores the DDC return value, so a mute sink reads back as all-zero flags and looks
    identical to a happy one.
-2. **Retrain on loss of lock.** While an FRL rate is active and the sink reports no clock and no
-   locked lane, request `dc_link_detect(DETECT_REASON_RETRAIN)`, at most once every 5 s. Upstream
-   reacts only to `FLT_UPDATE`, which the sink sets during training — so a link that trains, is
-   acknowledged with FRL_START, then loses lock is never noticed.
+2. **Link re-enable on loss of lock.** While an FRL rate is active and the sink reports all four
+   lanes unlocked, run `dc_link_dp_handle_link_loss()` — the DP hot-plug path's recovery, which
+   is generic: dpms off then on over the link's pipes, re-running FRL link training. Debounced
+   three polls (~600 ms) so modeset transients are ignored, one attempt per 5 s, capped at
+   twelve. Upstream reacts only to `FLT_UPDATE`, which the sink raises during training, so a
+   link that trains, is acknowledged with FRL_START, then loses lock is never noticed.
+   `dc_link_detect(DETECT_REASON_RETRAIN)` was tried first and does **not** work: measured
+   2026-09-22, twelve requests over 56 s caused no modeset and no lock.
 3. **Warning-level record.** Lock-state transitions (masked to the lock-relevant bits, because the
    sink toggles its error-counter bits constantly), the retrain request, the recovery, and the
    `200ms frl status polling starts/stops` messages all land in an ordinary journal.
