@@ -3,9 +3,10 @@
 # the RUNNING kernel's installed headers, and install it as a module override that a single
 # directory delete reverts.
 #
-# Keep the series free of patches that edit each other's added lines: a later patch rewriting
-# an earlier one's line breaks both the reverse-patch and the content check below, and the
-# build refuses to start. The local diagnostics are deliberately one patch for that reason.
+# The source tree is stamped with a hash of the patch set. If the stamp matches, nothing is
+# touched; otherwise every file the series touches is restored from the pristine CachyOS tarball
+# and the whole series is reapplied. So this is idempotent and self-healing from any tree state --
+# half-patched, hand-edited, or patched with an older version of the series.
 #
 # Why this shape: the fix is one line in drivers/gpu/drm/amd/display/dc/link/protocols/
 # link_hdmi_frl.c. Rebuilding the whole kernel package would give a custom kernel that the next
@@ -59,28 +60,37 @@ case "$SRC" in *"${KVER%%-*}"*) ;; *) say "source dir $SRC does not look like ke
 
 cd "$SRC"
 say "source: $SRC"
-# Is this patch already in the tree? A reverse dry-run is not enough: when a later patch adds
-# code immediately after an earlier one's hunk, the earlier hunk's trailing context no longer
-# matches and `patch -R` fails even though the change is present. So fall back to looking for
-# the patch's own longest added line in its target file.
-already_applied() {
-    local P="$1" file line
-    file=$(awk '/^\+\+\+ b\//{sub("^\\+\\+\\+ b/",""); print; exit}' "$P")
-    [ -n "$file" ] && [ -f "$file" ] || return 1
-    line=$(grep '^+[^+]' "$P" | sed 's/^+//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
-           | grep -vE '^(\*|/\*|\*/)' | awk '{ print length, $0 }' | sort -rn | head -1 | cut -d" " -f2-)
-    [ -n "$line" ] || return 1
-    grep -qF "$line" "$file"
-}
-for P in "${PATCHES[@]}"; do
-    if already_applied "$P"; then
-        say "already applied: $(basename "$P")"
-    elif patch -p1 -N --dry-run -s < "$P" >/dev/null 2>&1; then
-        patch -p1 -N -s < "$P"; say "applied $(basename "$P")"
-    else
-        say "does not apply to this source: $(basename "$P")"; exit 1
-    fi
-done
+
+# No guessing about whether a patch is already applied -- three separate attempts at that
+# (reverse dry-run, then a content marker) each broke on a patch that touches two files or that
+# edits a line an earlier patch added. Instead: stamp the tree with a hash of the patch set. If
+# the stamp matches, the tree is already exactly right and nothing is touched. If it does not,
+# restore every file the series touches from the pristine CachyOS tarball and apply the whole
+# series from scratch. Deterministic from any starting state, including a half-patched tree or
+# one somebody edited by hand.
+STAMP=$SRC/.egpu-frl-patch-stamp
+WANT=$(sha256sum "${PATCHES[@]}" | sha256sum | cut -d' ' -f1)
+if [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$WANT" ]; then
+    say "patch set unchanged and already applied (${#PATCHES[@]} patches)"
+else
+    TARBALL=$(ls ~/kbuild/linux-cachyos/linux-cachyos/cachyos-*.tar.gz 2>/dev/null | head -1)
+    [ -f "$TARBALL" ] || { say "pristine tarball not found next to the PKGBUILD -- cannot reset the sources"; exit 1; }
+    TOP=$(basename "$TARBALL" .tar.gz)
+    mapfile -t FILES < <(grep -h '^+++ b/' "${PATCHES[@]}" | sed 's|^+++ b/||' | sort -u)
+    [ "${#FILES[@]}" -gt 0 ] || { say "the patch series names no files"; exit 1; }
+    TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+    for f in "${FILES[@]}"; do
+        tar xzf "$TARBALL" -C "$TMP" "$TOP/$f" 2>/dev/null || { say "$f is not in $TARBALL"; exit 1; }
+        cp "$TMP/$TOP/$f" "$SRC/$f"
+    done
+    say "reset ${#FILES[@]} file(s) to pristine from $(basename "$TARBALL")"
+    rm -f "$STAMP"
+    for P in "${PATCHES[@]}"; do
+        patch -p1 -N -s < "$P" || { say "FAILED to apply $(basename "$P") to a pristine tree -- the patch needs rebasing"; exit 1; }
+        say "applied $(basename "$P")"
+    done
+    echo "$WANT" > "$STAMP"
+fi
 grep -q "max_polls = 155;" "$FRL" || { say "the 300 ms LT change is not in $FRL"; exit 1; }
 grep -q "FRL WATCHDOG:" "$FRL" || { say "the watchdog diagnostics are not in $FRL"; exit 1; }
 

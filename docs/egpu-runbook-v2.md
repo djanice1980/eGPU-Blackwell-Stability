@@ -1719,3 +1719,20 @@ Verified: the three apply in order to pristine 7.2.6 sources, and the module bui
 reset tree. `tools/amdgpu-frl-module/build.sh` header now warns against patches that edit each
 other's lines.
 
+### The build script now resets instead of guessing (Sep 21)
+
+Three consecutive attempts to work out whether a patch was already applied in the source tree all
+failed, and each failure stopped David from installing a module that was otherwise ready:
+a reverse dry-run (broken by a later patch adding lines after an earlier one's hunk), then a
+content marker taken from the patch's longest added line (broken first when a later patch rewrote
+that line, then again on a patch touching two files, where the marker came from one file and the
+filename from the other).
+
+`tools/amdgpu-frl-module/build.sh` no longer guesses. It stamps `$SRC/.egpu-frl-patch-stamp` with
+a hash of the patch set; if the stamp matches, the tree is already exactly right and nothing is
+touched. If it does not match, every file the series touches is extracted fresh from the pristine
+`cachyos-<ver>.tar.gz` next to the PKGBUILD and the whole series is applied from scratch.
+Verified three ways: fully-patched tree without a stamp (reset and reapplied), stamp matching
+(untouched), and a hand-corrupted file (reset and reapplied). All four log strings present in the
+built module each time.
+
