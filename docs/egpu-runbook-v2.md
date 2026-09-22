@@ -1736,3 +1736,39 @@ Verified three ways: fully-patched tree without a stamp (reset and reapplied), s
 (untouched), and a hand-corrupted file (reset and reapplied). All four log strings present in the
 built module each time.
 
+## Sep 22 00:05 — the retrain fires and restores lock in about a second (first live evidence)
+
+First boot with the three-patch series loaded. `journalctl -k -b | grep -E "frl status polling|HDMI FRL"`:
+
+    00:05:49  200ms frl status polling starts ...
+    00:05:49  sink state changed -- status=0x5e (clk=0 lanes=1111 flt_ready=1) update0=0x43 rate=3
+    00:06:00  sink state changed -- status=0x40 (clk=0 lanes=0000 flt_ready=1) rate=3
+    00:06:00  sink reports loss of lock (status=0x40) with rate=3 active -- requesting retrain
+    00:06:01  sink lock restored (status=0x5e)
+    00:06:01  loss of lock -> requesting retrain      -> 00:06:02 lock restored
+    00:06:21  loss of lock -> requesting retrain      -> 00:06:22 lock restored (rate=5)
+
+Three loss/restore pairs, each restored in **0.3 - 1.3 s** of the request. The watchdog is armed,
+the gate backport works, and the retrain does what it was written to do.
+
+**Two things this log teaches about reading the status byte:**
+- `CLOCK_DETECTED` is a TMDS-era bit and reads **0 on a healthy FRL link**. The healthy state
+  here is `status=0x5e`: four lanes locked, FLT_READY, clock bit clear. The dark state is `0x40`:
+  FLT_READY alone, **no lane locked**. So "clk=0" in the Sep 20 capture was not the smoking gun I
+  read it as — the lane-lock bits were. The retrain condition requires both, so it is correct as
+  written, but the Sep 20 note overstated the clock bit.
+- `update0=0x43` is constant in both states (STATUS_UPDATE, CED_UPDATE, RSED_UPDATE), which is why
+  the transition log masks it.
+
+**Open question to watch, not yet a problem:** the three losses coincide with login-time mode
+changes (greeter 4K60 = rate 3, then 4K120 = rate 5), so some of these are probably the normal
+disable/enable transient rather than the fault, and the watchdog is retraining over the top of a
+modeset in progress. It converged each time within about a second and the display came up at
+4K120, which is exactly the case that has been failing. If spurious retrains become a nuisance —
+or if a modeset ever gets stuck in a loop — the fix is a debounce: require the unlocked state to
+persist two or three consecutive polls (400-600 ms) before requesting, which the real fault
+(minutes long) would still trigger.
+
+Status: waiting on days of ordinary use. Check any time with
+`journalctl -k --since yesterday | grep -E "HDMI FRL|frl status polling"`.
+
