@@ -1,0 +1,26 @@
+From 3460193d878d3c405dbc3eb9fcf24fe18e998f22 Mon Sep 17 00:00:00 2001
+From: David Janice <djanice1980@gmail.com>
+Date: Mon, 21 Sep 2026 23:52:49 -0500
+Subject: [PATCH 2/3] drm/amd/display: Gate HDMI FRL status polling on active
+ FRL link rate
+
+---
+ drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+index 36982ca..27a466a 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+@@ -2024,7 +2024,7 @@ static void hdmi_frl_status_polling_work(struct work_struct *work)
+ 		if (!dc_is_hdmi_signal(dc_link->connector_signal))
+ 			continue;
+ 
+-		if (dc_link->connector_signal != SIGNAL_TYPE_HDMI_FRL)
++		if (dc_link->frl_link_settings.frl_link_rate == 0)
+ 			continue;
+ 
+ 		link_update = dc_link_frl_poll_status_flag(dc_link);
+-- 
+2.55.0
+

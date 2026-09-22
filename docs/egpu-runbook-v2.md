@@ -1695,3 +1695,27 @@ clean. From here the confirmation is passive: over the coming days,
 questions at once — does the fault still occur, does the retrain fire when it does, and does the
 lock come back within a poll or two of the request.
 
+## Sep 21 — second dark morning, nothing logged, because 0005 was never installed
+
+David: *"i logged in and it was not working. i opened the folio and before I could run the script
+it came up. I ran the command anyway"* — and `journalctl -k --since yesterday | grep "HDMI FRL"`
+returned only the boot capability line.
+
+Cause: the running module was still the **four-patch** build installed 09-20 23:04 (boot 09-21
+23:47). The warning-level logging (then 0005) was built but never installed, so the retrain code
+*was* live during the dark screen and said nothing. Nothing is learnable from this morning.
+
+Also fixed the underlying mess: the local patches had grown to four files, each rewriting lines an
+earlier one added, which broke the build script's already-applied check twice (0004 after 0005,
+then again). They are now **one** consolidated local patch, and the series is three files:
+
+| patch | what | destination |
+|---|---|---|
+| 0001 | 300 ms LTS:3 budget at every FRL rate | upstream candidate (already sent; correction pending) |
+| 0002 | gate the watchdog on the active FRL rate | backport of an upstream commit |
+| 0003 | watchdog diagnostics, retrain on loss of lock, warning-level records | local only |
+
+Verified: the three apply in order to pristine 7.2.6 sources, and the module builds clean from a
+reset tree. `tools/amdgpu-frl-module/build.sh` header now warns against patches that edit each
+other's lines.
+

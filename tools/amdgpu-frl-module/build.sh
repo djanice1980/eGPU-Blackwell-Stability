@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# Build ONLY the amdgpu module, with the HDMI FRL link-training patch
-# (kernel-patches/0001-*.patch) applied, against the RUNNING kernel's installed headers, and
-# install it as a module override that a single directory delete reverts.
+# Build ONLY the amdgpu module, with every numbered patch in kernel-patches/ applied, against
+# the RUNNING kernel's installed headers, and install it as a module override that a single
+# directory delete reverts.
+#
+# Keep the series free of patches that edit each other's added lines: a later patch rewriting
+# an earlier one's line breaks both the reverse-patch and the content check below, and the
+# build refuses to start. The local diagnostics are deliberately one patch for that reason.
 #
 # Why this shape: the fix is one line in drivers/gpu/drm/amd/display/dc/link/protocols/
 # link_hdmi_frl.c. Rebuilding the whole kernel package would give a custom kernel that the next
@@ -77,8 +81,8 @@ for P in "${PATCHES[@]}"; do
         say "does not apply to this source: $(basename "$P")"; exit 1
     fi
 done
-grep -q "max_polls = 155;" "$FRL" || { say "0001's patched line not found in $FRL"; exit 1; }
-grep -q "FRL WATCHDOG:" "$FRL" || { say "0002's patched line not found in $FRL"; exit 1; }
+grep -q "max_polls = 155;" "$FRL" || { say "the 300 ms LT change is not in $FRL"; exit 1; }
+grep -q "FRL WATCHDOG:" "$FRL" || { say "the watchdog diagnostics are not in $FRL"; exit 1; }
 
 OBJ=$HOME/kbuild/obj-$KVER
 if [ ! -f "$OBJ/Module.symvers" ]; then

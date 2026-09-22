@@ -1,0 +1,193 @@
+From 00097d0bbb4a0be522505dad1968104960f32853 Mon Sep 17 00:00:00 2001
+From: David Janice <djanice1980@gmail.com>
+Date: Mon, 21 Sep 2026 23:53:19 -0500
+Subject: [PATCH 3/3] drm/amd/display: local HDMI FRL watchdog diagnostics and
+ retrain on loss of lock
+
+Local debugging patch for an intermittent dark HDMI output on DCN 3.5 (Strix
+Halo, native HDMI FRL, LG C2). Not upstream-shaped: the rate limiter and the
+edge-detect state are file statics, adequate for one FRL link.
+
+Three changes, all inside hdmi_frl_poll_status_flag() plus two log levels:
+
+1. Log the sink SCDC state once per 200 ms poll (drm_dbg, so silent unless
+   drm.debug=0x2): the DDC result of each read, the Update_0 byte, and the
+   status flags with clock-detect and per-lane lock bits. The upstream code
+   ignores the DDC return value, so a sink that has stopped answering reads back
+   as all-zero flags and is indistinguishable from a happy one.
+
+2. Request a retrain while an FRL rate is active and the sink reports no clock
+   detected and no locked lane, at most once every 5 s. Upstream only reacts to
+   FLT_update, which the sink sets during link training; a link that trains, is
+   acknowledged with FRL_START and then loses lock is never noticed. Measured on
+   a real dark screen: 1443 consecutive polls over five minutes, all reporting
+   status=0x40 (FLT_READY=1, CLOCK_DETECTED=0, no lane locked) and Update_0=0x43
+   (STATUS_UPDATE set, FLT_UPDATE clear) while the source held 10G x4 and scanned
+   out 10 bpc BT2020. The panel showed No Signal for six minutes.
+
+3. Record lock-state transitions and the retrain request at warning level so an
+   ordinary journal captures them, and promote the "200ms frl status polling
+   starts/stops" messages to drm_info so it is visible whether the watchdog is
+   armed. The transition log is masked to the lock-relevant bits because the sink
+   toggles its character- and RS-error update bits constantly.
+
+Check with: journalctl -k | grep "HDMI FRL"
+---
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c |   4 +-
+ .../display/dc/link/protocols/link_hdmi_frl.c | 106 +++++++++++++++++-
+ 2 files changed, 107 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+index 27a466a..2648ce8 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+@@ -11294,10 +11294,10 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_commit *state,
+ 		if (queue_delayed_work(dm->hdmi_frl_status_polling_wq,
+ 				       &dm->hdmi_frl_status_polling_work,
+ 				       msecs_to_jiffies(dm->hdmi_frl_status_polling_delay_ms)))
+-			drm_dbg_kms(dev, "200ms frl status polling starts ...\n");
++			drm_info(dev, "200ms frl status polling starts ...\n");
+ 	} else {
+ 		if (cancel_delayed_work_sync(&dm->hdmi_frl_status_polling_work))
+-			drm_dbg_kms(dev, "200ms frl status polling stops ...\n");
++			drm_info(dev, "200ms frl status polling stops ...\n");
+ 	}
+ 	/* Allow idle optimization when vblank count is 0 for display off */
+ 	if ((dm->active_vblank_irq_count == 0) && amdgpu_dm_is_headless(dm->adev))
+diff --git a/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c b/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
+index 85e88b5..1e1927a 100644
+--- a/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
++++ b/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
+@@ -194,6 +194,11 @@ void hdmi_frl_LTS_clear_Update_flag(struct ddc_service *ddc_service)
+ }
+ 
+ 
++/* last retrain request from the watchdog below; see the comment there */
++static unsigned long long frl_last_retrain_ts;
++/* last lock-relevant sink state seen by the watchdog, for edge-triggered logging */
++static int frl_last_lock_state = -1;
++
+ bool hdmi_frl_poll_status_flag(struct dc_link *link)
+ {
+ 	uint8_t slave_address = HDMI_SCDC_ADDRESS;
+@@ -210,6 +215,11 @@ bool hdmi_frl_poll_status_flag(struct dc_link *link)
+ 	struct link_encoder *dio_link_enc = link->link_enc;
+ 	bool flt_no_timeout = false;
+ 	bool link_update = false;
++	bool update0_ddc_ok, status_ddc_ok;
++	union hdmi_scdc_status_flags_data scdc_status = {0};
++	uint8_t status_offset = HDMI_SCDC_STATUS_FLAGS;
++
++	DC_LOGGER_INIT(link->ctx->logger);
+ 
+ 	/*Test Condition - FLT_no_timeout avoid link training*/
+ 	offset = HDMI_SCDC_SOURCE_TEST_REQ;
+@@ -221,10 +231,104 @@ bool hdmi_frl_poll_status_flag(struct dc_link *link)
+ 	offset = HDMI_SCDC_UPDATE_0;
+ 
+ 	/*Check FLT_update flag*/
+-	link_query_ddc_data(link->ddc, slave_address,
++	update0_ddc_ok = link_query_ddc_data(link->ddc, slave_address,
+ 					&offset, sizeof(offset), &scdc_update.byte[0],
+ 					sizeof(scdc_update.byte[0]));
+ 
++	/*
++	 * Local diagnostic. This watchdog runs every 200 ms on an FRL link and
++	 * acts only when the sink raises FLT_UPDATE; it ignores whether the DDC
++	 * read worked at all, so a sink that has stopped answering reads back as
++	 * all-zero flags and is indistinguishable from a happy one. Also read the
++	 * SCDC status flags (0x40), which carry the sink's own lane-lock state,
++	 * and log both. drm_dbg, so silent unless drm.debug=0x2 is set; the extra
++	 * one-byte DDC read costs a few hundred microseconds per poll.
++	 */
++	status_ddc_ok = link_query_ddc_data(link->ddc, slave_address,
++					&status_offset, sizeof(status_offset), &scdc_status.byte,
++					sizeof(scdc_status.byte));
++	FRL_INFO("FRL WATCHDOG: rate=%d update0[ddc=%d]=0x%02x (FRL_START=%d FLT_UPDATE=%d)"
++			" status[ddc=%d]=0x%02x (clk=%d ln0=%d ln1=%d ln2=%d ln3=%d flt_ready=%d dsc_fail=%d)\n",
++			link->frl_link_settings.frl_link_rate,
++			update0_ddc_ok, scdc_update.byte[0],
++			scdc_update.fields.FRL_START, scdc_update.fields.FLT_UPDATE,
++			status_ddc_ok, scdc_status.byte,
++			scdc_status.fields.CLOCK_DETECTED, scdc_status.fields.CH0_LOCKED,
++			scdc_status.fields.CH1_LOCKED, scdc_status.fields.CH2_LOCKED,
++			scdc_status.fields.LANE3_LOCKED, scdc_status.fields.FLT_READY,
++			scdc_status.fields.DSC_DECODEFAIL);
++
++	/*
++	 * Log every change of the sink's lock state, once, at a level an ordinary
++	 * journal keeps. Masked to the bits that matter -- CLOCK_DETECTED and the four
++	 * lane locks, plus FRL_START/FLT_UPDATE -- because the sink also toggles its
++	 * character- and RS-error update bits constantly on a healthy link, which would
++	 * make this chatty. Silent while the state is steady, one line per transition.
++	 */
++	if (status_ddc_ok && update0_ddc_ok) {
++		int lock_state = (scdc_status.byte & 0x1f) | ((scdc_update.byte[0] & 0x30) << 8);
++
++		if (lock_state != frl_last_lock_state) {
++			DC_LOG_WARNING("HDMI FRL: sink state changed -- status=0x%02x"
++					" (clk=%d lanes=%d%d%d%d flt_ready=%d) update0=0x%02x rate=%d\n",
++					scdc_status.byte,
++					scdc_status.fields.CLOCK_DETECTED, scdc_status.fields.CH0_LOCKED,
++					scdc_status.fields.CH1_LOCKED, scdc_status.fields.CH2_LOCKED,
++					scdc_status.fields.LANE3_LOCKED, scdc_status.fields.FLT_READY,
++					scdc_update.byte[0], link->frl_link_settings.frl_link_rate);
++			frl_last_lock_state = lock_state;
++		}
++	}
++
++	/*
++	 * Retrain when the sink says the link is down.
++	 *
++	 * The sink reports its lock state in the SCDC status flags and announces a
++	 * change there by setting Status_Update (Update_0 bit 0). The code below only
++	 * reacts to FLT_update, which the sink sets during link training -- so a link
++	 * that comes up, is acknowledged with FRL_START, and then loses lock is never
++	 * noticed: the source keeps transmitting and believes the link is fine.
++	 *
++	 * Measured on an LG C2 after a long DPMS standby (2026-09-20 22:51, 1443
++	 * consecutive polls over five dark minutes, every one identical):
++	 *
++	 *   rate=5 update0=0x43 (STATUS_UPDATE CED_UPDATE RSED_UPDATE, FRL_START=0,
++	 *   FLT_UPDATE=0)  status=0x40 (FLT_READY=1, CLOCK_DETECTED=0, no lane locked)
++	 *
++	 * i.e. the sink was answering DDC, telling us its status had changed, saying it
++	 * was ready to be trained, and reporting no clock and no locked lanes, while
++	 * the source held an active 10G x4 rate and scanned out video. Nothing
++	 * retrained and the panel showed No Signal.
++	 *
++	 * So: while an FRL rate is active and the sink reports neither a detected
++	 * clock nor any locked lane, ask for a retrain. Rate-limited to one request
++	 * every 5 s (this poll runs every 200 ms and dc_link_detect() is expensive);
++	 * the limiter is a file static, which is fine for one FRL link and is the
++	 * reason this is a local patch rather than an upstream candidate.
++	 */
++	if (link->frl_link_settings.frl_link_rate != 0 && status_ddc_ok &&
++			scdc_status.fields.CLOCK_DETECTED == 0 &&
++			scdc_status.fields.CH0_LOCKED == 0 &&
++			scdc_status.fields.CH1_LOCKED == 0 &&
++			scdc_status.fields.CH2_LOCKED == 0) {
++		unsigned long long now = dm_get_timestamp(link->ctx);
++
++		if (frl_last_retrain_ts == 0 ||
++				dm_get_elapse_time_in_ns(link->ctx, now, frl_last_retrain_ts)
++					> 5000000000ULL) {
++			frl_last_retrain_ts = now;
++			DC_LOG_WARNING("HDMI FRL: sink reports loss of lock (status=0x%02x)"
++					" with rate=%d active -- requesting retrain\n",
++					scdc_status.byte, link->frl_link_settings.frl_link_rate);
++			link_update = true;
++		}
++	} else if (scdc_status.fields.CH0_LOCKED) {
++		if (frl_last_retrain_ts != 0)
++			DC_LOG_WARNING("HDMI FRL: sink lock restored (status=0x%02x)\n",
++					scdc_status.byte);
++		frl_last_retrain_ts = 0;
++	}
++
+ 	if (scdc_update.fields.FRL_START == 1) {
+ 		write_buffer[0] = HDMI_SCDC_UPDATE_0;
+ 		/*FLT_START - bit 4*/
+-- 
+2.55.0
+
