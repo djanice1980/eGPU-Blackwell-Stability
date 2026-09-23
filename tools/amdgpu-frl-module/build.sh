@@ -26,6 +26,9 @@
 #     cd linux-cachyos/linux-cachyos && git log --oneline -1 -- PKGBUILD   # must be your version
 #     makepkg --nobuild --nodeps --noconfirm --skippgpcheck
 #   The tree lands in src/cachyos-<ver>-<rel>/ (CachyOS ships a pre-patched tarball).
+#   Repeat those two commands after every kernel update: the override lives under
+#   /usr/lib/modules/<ver>/ and silently stops applying when <ver> changes, so the stock driver
+#   comes back until this is rebuilt for the new kernel.
 #
 #   bash build.sh                 build, then install (asks for sudo at the install step)
 #   bash build.sh --build-only    stop after the build; module left in the source tree
@@ -34,7 +37,10 @@
 set -euo pipefail
 KVER="${KVER:-$(uname -r)}"
 BUILD=/usr/lib/modules/$KVER/build
-SRC="${SRC:-$(ls -d ~/kbuild/linux-cachyos/linux-cachyos/src/cachyos-* 2>/dev/null | head -1)}"
+# the source dir for THIS kernel: 7.2.7-1-cachyos -> src/cachyos-7.2.7-1. Never glob blindly: after a
+# kernel update several versions sit side by side and the wrong one builds a module that will not load.
+SRCROOT=~/kbuild/linux-cachyos/linux-cachyos/src
+SRC="${SRC:-$SRCROOT/cachyos-${KVER%-cachyos}}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # every numbered patch in kernel-patches/, in order; *.amd-staging-drm-next.patch is the
 # upstream rebase of 0001 and must NOT be applied to this tree
@@ -51,12 +57,12 @@ if [ "${1:-}" = "--remove" ]; then
     say "reboot to run the stock module again"; exit 0
 fi
 
-[ -d "$SRC" ] || { say "kernel source not found (see the prerequisite in this script's header)"; exit 1; }
+[ -d "$SRC" ] || { say "no kernel source for $KVER at $SRC"; say "refresh it: cd ~/kbuild/linux-cachyos && git pull && cd linux-cachyos && makepkg --nobuild --nodeps --noconfirm --skippgpcheck"; exit 1; }
 [ -f "$BUILD/Module.symvers" ] || { say "headers for $KVER missing (linux-cachyos-headers)"; exit 1; }
 [ "${#PATCHES[@]}" -gt 0 ] || { say "no patches found under $REPO/kernel-patches"; exit 1; }
 SRCREL=$(sed -nE 's/^#define UTS_RELEASE "(.*)"/\1/p' "$BUILD/include/generated/utsrelease.h")
 [ "$SRCREL" = "$KVER" ] || { say "headers say $SRCREL, running kernel is $KVER"; exit 1; }
-case "$SRC" in *"${KVER%%-*}"*) ;; *) say "source dir $SRC does not look like kernel ${KVER%%-*}"; exit 1;; esac
+case "$SRC" in *"${KVER%-cachyos}"*) ;; *) say "source dir $SRC does not match kernel ${KVER%-cachyos}"; exit 1;; esac
 
 cd "$SRC"
 say "source: $SRC"
@@ -73,8 +79,9 @@ WANT=$(sha256sum "${PATCHES[@]}" | sha256sum | cut -d' ' -f1)
 if [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$WANT" ]; then
     say "patch set unchanged and already applied (${#PATCHES[@]} patches)"
 else
-    TARBALL=$(ls ~/kbuild/linux-cachyos/linux-cachyos/cachyos-*.tar.gz 2>/dev/null | head -1)
-    [ -f "$TARBALL" ] || { say "pristine tarball not found next to the PKGBUILD -- cannot reset the sources"; exit 1; }
+    TARBALL=$SRCROOT/cachyos-${KVER%-cachyos}.tar.gz
+    [ -f "$TARBALL" ] || TARBALL=$(dirname "$SRCROOT")/cachyos-${KVER%-cachyos}.tar.gz
+    [ -f "$TARBALL" ] || { say "pristine tarball for ${KVER%-cachyos} not found -- refresh the PKGBUILD checkout (see the header)"; exit 1; }
     TOP=$(basename "$TARBALL" .tar.gz)
     mapfile -t FILES < <(grep -h '^+++ b/' "${PATCHES[@]}" | sed 's|^+++ b/||' | sort -u)
     [ "${#FILES[@]}" -gt 0 ] || { say "the patch series names no files"; exit 1; }

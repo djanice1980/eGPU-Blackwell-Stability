@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Warn, during a pacman transaction, when a kernel update has left the patched amdgpu module
+# behind. The override lives in /usr/lib/modules/<ver>/updates/amdgpu-frl-lt/ and a new kernel
+# gets a new <ver> directory, so it silently stops applying and the stock driver comes back --
+# which is exactly what happened on the 7.2.6 -> 7.2.7 update (2026-09-23): the HDMI FRL
+# loss-of-lock recovery was simply absent, the external display went dark after login again, and
+# the journal held no clue because the patched module was not loaded.
+#
+# Warning only. It cannot rebuild: that needs the matching kernel source under the user's home
+# and a network fetch, neither of which belongs inside a pacman transaction.
+#
+# Installed by install-amdgpu-frl-check.sh. Reads nothing, changes nothing.
+set -u
+export PATH=/usr/bin:/usr/sbin:/bin:/sbin
+NAME=amdgpu-frl-lt
+BUILD_CMD='bash "/home/davidj/Claude Data/eGPU-Blackwell-Stability/tools/amdgpu-frl-module/build.sh"'
+
+# every installed kernel that has headers (i.e. one this override could be built for)
+mapfile -t HAVE < <(ls -d /usr/lib/modules/*/updates/"$NAME" 2>/dev/null | awk -F/ '{print $5}')
+[ "${#HAVE[@]}" -gt 0 ] || exit 0          # override never installed: nothing to say
+
+mapfile -t KERNELS < <(ls -d /usr/lib/modules/*/kernel 2>/dev/null | awk -F/ '{print $5}')
+MISSING=()
+for k in "${KERNELS[@]}"; do
+    [ -f "/usr/lib/modules/$k/updates/$NAME/amdgpu.ko" ] && continue
+    [ -f "/usr/lib/modules/$k/build/Module.symvers" ] || continue   # no headers: not buildable anyway
+    case "$k" in *-lts) continue ;; esac                            # the fallback kernel: don't nag
+    MISSING+=("$k")
+done
+[ "${#MISSING[@]}" -gt 0 ] || exit 0
+
+echo
+echo "=============================================================================="
+echo " patched amdgpu (HDMI FRL loss-of-lock recovery) is NOT built for:"
+for k in "${MISSING[@]}"; do echo "     $k"; done
+echo " it is built for: ${HAVE[*]}"
+echo
+echo " Those kernels will run the STOCK amdgpu: the external display can come up"
+echo " dark after a wake and nothing will be logged about it."
+echo
+echo " To restore it, after this update finishes:"
+echo "     cd ~/kbuild/linux-cachyos && git pull"
+echo "     cd linux-cachyos && makepkg --nobuild --nodeps --noconfirm --skippgpcheck"
+echo "     $BUILD_CMD"
+echo "     reboot"
+echo "=============================================================================="
+echo
+exit 0

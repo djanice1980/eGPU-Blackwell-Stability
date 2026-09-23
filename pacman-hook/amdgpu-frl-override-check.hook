@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = linux-cachyos
+Target = linux-cachyos-headers
+
+[Action]
+Description = Checking whether the patched amdgpu (HDMI FRL) covers the new kernel...
+When = PostTransaction
+Exec = /usr/local/bin/amdgpu-frl-override-check
