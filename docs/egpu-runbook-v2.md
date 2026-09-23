@@ -1817,3 +1817,40 @@ Next dark screen decides it: `lock restored ... after 1 re-enable request(s)` me
 works and the wait is over. Twelve attempts then `giving up` means the re-enable does not help the
 sink either, and the remaining suspect is the source PHY not driving the wire.
 
+## Sep 22-23 — the link re-enable works: four recoveries, including the overnight wake
+
+First full day with the corrected local patch (boot Sep 22 08:48). Every event recorded by the
+driver itself, no tooling, no watching:
+
+| when | attempts | dark for | note |
+|---|---|---|---|
+| Sep 22 08:48:29 | 1 | <1 s | at the 4K120 switch after login |
+| Sep 22 09:07:17 | 1 | 1 s | |
+| Sep 22 10:02:27 | **0** | 1 s | unlocked and re-locked inside the debounce — no re-enable fired, which is the debounce doing its job |
+| Sep 22 20:13:36 | **0** | — | unlocked, then `polling stops`: the display was being turned off, correctly left alone |
+| Sep 22 22:08:07 | 2 | 10 s | |
+| **Sep 23 08:34:44** | **6** | **27 s** | **the overnight wake — the case that has never recovered on its own in under a minute** |
+
+For comparison, the same wake on the two previous mornings: **56 s** with twelve `dc_link_detect`
+requests that caused no modeset at all, and **six minutes** on Sep 20 before the watchdog existed.
+
+Three things this establishes:
+- `dc_link_dp_handle_link_loss()` reaches the sink where `dc_link_detect(DETECT_REASON_RETRAIN)`
+  never did. Each attempt is a real pipe dpms off/on and re-runs FRL link training; the restore
+  follows an attempt every time, never independently.
+- The debounce is correctly sized: one genuine transient (10:02) and one display-off (20:13) both
+  passed without triggering anything.
+- The 12-attempt cap was never reached and no `giving up` line was printed.
+
+Remaining honest gaps: this is one machine and one sink, and it cannot be proven that the sink
+would not have locked at the same moment anyway on the 6-attempt case — only that the 1- and
+2-attempt cases restored within a second of an attempt, repeatedly. The 5 s interval is also
+arbitrary; the overnight case would likely clear faster with a shorter first retry, at the cost of
+more modesets.
+
+**Upstream shape, when David decides to send anything.** The behaviour is defensible as an upstream
+fix — a sink that reports every lane unlocked while the source holds an active FRL rate is a link
+that needs retraining, and nothing in-tree notices. What is not upstream-shaped is the state: the
+debounce counter, attempt count and timestamp are file statics assuming one FRL link, and would
+need to live in `struct dc_link`. That is a mechanical change whenever it is wanted.
+
