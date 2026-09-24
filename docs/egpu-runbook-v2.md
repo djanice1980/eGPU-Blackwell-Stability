@@ -1854,3 +1854,36 @@ that needs retraining, and nothing in-tree notices. What is not upstream-shaped 
 debounce counter, attempt count and timestamp are file statics assuming one FRL link, and would
 need to live in `struct dc_link`. That is a mechanical change whenever it is wanted.
 
+## Sep 23-24 — patched 7.2.7: second overnight wake recovers in 8 s; running tally
+
+Rebuilt for 7.2.7 (boot Sep 23 18:57, module under `/lib/modules/7.2.7-1-cachyos/updates/`).
+
+| when | attempts | dark for | note |
+|---|---|---|---|
+| Sep 23 18:57:10 | 0 | ~1 s | four 0x40/0x5e flaps at rate 3 during greeter bring-up — all inside the debounce |
+| Sep 23 18:57:40 | 1 | 0.5 s | login, 4K60 -> 4K120 |
+| Sep 23 19:31 / 20:42 | 0 | — | display switched off; correctly left alone |
+| Sep 23 19:50:30 | 2 | 6.3 s | |
+| **Sep 24 08:36:24** | **2** | **7.7 s** | **overnight wake** |
+
+David's account of the morning: *"screen was blank but as SOON as I opened the folio it
+immediately came up. After login everything just worked."* The journal agrees and explains it:
+polling had stopped at 20:42 (output off overnight), so the blank screen before the folio was
+simply the display asleep, and opening the folio *was* the wake (`polling starts` at
+08:36:23.967). The sink then came up with every lane unlocked — the fault — and two re-enables
+brought it back 7.7 s later. Against the old baseline of minutes, that reads as "immediately".
+
+**Running tally since the recovery became a real link re-enable (Sep 22 08:48), across two
+kernels:** seven recoveries (1, 1, 2, 6, 1, 2, 2 attempts), worst case 27 s, **zero give-ups**,
+several transients correctly ignored by the debounce, every display-off correctly ignored.
+
+**Overnight wakes specifically:**
+
+| date | driver | result |
+|---|---|---|
+| Sep 20 | stock watchdog (dead code) | ~6 min dark, recovered by itself |
+| Sep 22 | `dc_link_detect` retry | 56 s dark, twelve requests did nothing |
+| Sep 23 | stock 7.2.7 (override not yet rebuilt) — **control** | several minutes, recovered by itself |
+| Sep 23 | link re-enable (7.2.6) | 27 s, 6 attempts |
+| Sep 24 | link re-enable (7.2.7) | **8 s, 2 attempts** |
+
