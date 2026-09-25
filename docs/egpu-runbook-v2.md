@@ -1887,3 +1887,29 @@ several transients correctly ignored by the debounce, every display-off correctl
 | Sep 23 | link re-enable (7.2.6) | 27 s, 6 attempts |
 | Sep 24 | link re-enable (7.2.7) | **8 s, 2 attempts** |
 
+## Sep 24-25 — three more recoveries; overnight wakes settle at about 27 s
+
+| when | attempts | dark for | note |
+|---|---|---|---|
+| Sep 24 10:45 / 18:27 | 0 | — | display switched off, correctly ignored |
+| Sep 24 11:20:14 | 3 | 13 s | a KWin modeset landed mid-episode (`polling stops/starts` at :18/:20); the attempt counter carried across it as intended |
+| Sep 24 17:03:31 | 1 | 1 s | |
+| **Sep 25 05:21:34** | **6** | **27 s** | **overnight wake** |
+
+**Tally since the recovery became a real link re-enable (Sep 22 08:48):** ten recoveries —
+1, 1, 2, 6, 1, 2, 2, 3, 1, 6 attempts — worst case 27 s, **zero give-ups**, the 12-attempt cap
+never approached.
+
+**A pattern in the overnight wakes.** Patched: 27 s, 8 s, 27 s. Both 27 s cases restored one
+second after attempt 6, i.e. about 26 s after the wake. Attempts fire at wake +1 s and then every
+5 s, and the lock always lands about a second after an attempt, so the restore time is quantised
+to the retry grid. The likeliest reading: after a long standby the TV is not ready to lock for
+roughly 20-25 s whatever the source does, and the re-enable is what completes the lock once it is
+ready — without it the TV took minutes (Sep 20 ~6 min, Sep 23 unpatched control several minutes).
+So the ~27 s floor is the TV, not the patch. A shorter retry interval would shave at most a few
+seconds off it for more modesets; not worth it.
+
+**Failure mode if a night ever needs longer:** the cap gives up after twelve attempts (~56 s) and
+logs one `giving up until its state changes` line, and the system falls back to the stock
+behaviour, where the TV eventually latches by itself. Safe, and visible in the journal.
+
