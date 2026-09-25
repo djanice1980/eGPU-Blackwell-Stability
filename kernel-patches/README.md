@@ -47,8 +47,9 @@ one patch.
 2. **Link re-enable on loss of lock.** While an FRL rate is active and the sink reports all four
    lanes unlocked, run `dc_link_dp_handle_link_loss()` — the DP hot-plug path's recovery, which
    is generic: dpms off then on over the link's pipes, re-running FRL link training. Debounced
-   three polls (~600 ms) so modeset transients are ignored, one attempt per 5 s, capped at
-   twelve. Upstream reacts only to `FLT_UPDATE`, which the sink raises during training, so a
+   three polls (~600 ms) so modeset transients are ignored, then one attempt every 5 s for
+   twelve attempts, then once a minute with no hard stop (Sep 25). A polling gap over 2 s
+   (output switched off) resets the episode. Upstream reacts only to `FLT_UPDATE`, which the sink raises during training, so a
    link that trains, is acknowledged with FRL_START, then loses lock is never noticed.
    `dc_link_detect(DETECT_REASON_RETRAIN)` was tried first and does **not** work: measured
    2026-09-22, twelve requests over 56 s caused no modeset and no lock.
@@ -64,6 +65,6 @@ Confirmation is then passive:
 |---|---|
 | nothing but the boot `DP-HDMI FRL PCON supported` line | the fault did not occur, or the watchdog is not armed (check for the `polling starts` line) |
 | `loss of lock ... requesting retrain` then `lock restored` | the fault occurred and the retrain fixed it — the confirmation being waited for |
-| repeated `loss of lock` with no `lock restored` | the retrain runs and fails; next suspect is the source PHY not transmitting (`clk=0`) |
+| `continuing once a minute` then more `loss of lock` lines | the sink is not locking even after a minute of fast retries; the loop keeps going at one attempt a minute, and a long run of these points at the source PHY or the cable |
 | `sink state changed` lines only | transitions happened without meeting the retrain condition; the sink was reporting lock while the panel was dark |
 

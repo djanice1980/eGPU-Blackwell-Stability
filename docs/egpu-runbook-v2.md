@@ -1913,3 +1913,31 @@ seconds off it for more modesets; not worth it.
 logs one `giving up until its state changes` line, and the system falls back to the stock
 behaviour, where the TV eventually latches by itself. Safe, and visible in the journal.
 
+## Sep 25 — no hard stop: fast retries, then once a minute (David's call)
+
+David: *"so after 56 seconds it just...stops? why wouldn't we program a loop to have it keep
+trying? as long as the display is connected anyways"*. Fair: the 12-attempt cap was insurance from
+before the re-enable was known to work, and ten recoveries later it is only a way to fall back to
+the old minutes-long wait on a bad night.
+
+Rebuilt `kernel-patches/0003-...` (on pristine 7.2.7 sources):
+- **First 12 attempts every 5 s** — unchanged, covers the ~25 s the sink needs after a deep standby.
+- **Then once a minute with no stop**, one warning line when the slow phase starts
+  (`sink still unlocked after 12 re-enable attempts -- continuing once a minute while the output is
+  active`) and one per attempt after that.
+- **"As long as the display is connected" was already the gate**: the watchdog is cancelled when the
+  output is switched off, and a retry needs the sink to answer DDC *and* report every lane
+  unlocked, so an unplugged or powered-off TV never triggers it. The once-a-minute pace bounds the
+  cost in the one remaining case: the TV awake but showing another input (and possibly
+  auto-switching back to the PC when it sees a fresh signal).
+- **Bug found while doing this, fixed:** the debounce and attempt counters survived a display-off,
+  because the watchdog simply stops being called and nothing reset them. A wake that followed an
+  unfinished episode would therefore have started with the debounce already satisfied (visible on
+  Sep 24 11:20:14, where attempt 1 fired in the same second as `polling starts`) and, with the new
+  backoff, could have started straight in the slow phase. Now any gap of more than 2 s between polls
+  resets the episode.
+
+Built clean, no compiler warnings on the edited file, the old `giving up until its state changes`
+string is gone and the new one is present. Needs install and reboot; the observation period
+restarts from that boot.
+
