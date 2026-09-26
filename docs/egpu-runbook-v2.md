@@ -1966,3 +1966,15 @@ second later in the fast phase.
 2, 3, 1, 6, 1, 2, 1, 2, 8 attempts — longest 36 s, **zero failures**, the slow phase not yet
 reached.
 
+## Sep 25-26 late evening — three more wakes
+
+| when | off for | attempts | dark for |
+|---|---|---|---|
+| Sep 25 23:21:37 | 23 min | 3 | 12 s |
+| Sep 26 00:38:07 | 21 min | 0 | <1 s — the sink locked by itself inside the debounce |
+| Sep 26 01:37:01 | 52 min | 3 | 12 s |
+
+**Tally:** seventeen recoveries (1, 1, 2, 6, 1, 2, 2, 3, 1, 6, 1, 2, 1, 2, 8, 3, 3 attempts), longest
+36 s, zero failures, slow phase never reached. The 00:38 wake is the first where the sink came up
+cleanly on its own after a standby and the debounce correctly stayed out of the way.
+
