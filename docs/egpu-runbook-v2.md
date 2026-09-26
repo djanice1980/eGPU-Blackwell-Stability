@@ -1941,3 +1941,28 @@ Built clean, no compiler warnings on the edited file, the old `giving up until i
 string is gone and the new one is present. Needs install and reboot; the observation period
 restarts from that boot.
 
+## Sep 25 — backoff build live (boot 11:40:55); five more recoveries, longest yet 36 s
+
+Verified running: the installed module (11:38) carries `continuing once a minute` and not the old
+`until its state changes`.
+
+| when | attempts | dark for | note |
+|---|---|---|---|
+| 11:41:04 | 0 | <1 s | greeter flap at rate 3, debounced |
+| 11:41:06 | 1 | <1 s | greeter, rate 3 |
+| 11:41:29 | 2 | 6 s | login, 4K60 -> 4K120 |
+| 16:03:31 | 1 | <1 s | wake |
+| 20:09:52 | 2 | 6 s | wake |
+| **22:02:15** | **8** | **36 s** | **wake after only ~21 min off — the longest so far** |
+
+The 22:02 case is the useful one. It needed **eight** attempts, two more than any overnight wake,
+after only about 21 minutes of standby, so the TV's time-to-ready is not simply a function of how
+long it slept. At 36 s it came within 20 s of where the old 12-attempt cap (~56 s) would have given
+up — support for dropping the hard stop. It also shows the episode-reset fix working: polling had
+stopped at 21:40:52, the wake at 22:02:15 started a fresh episode, and attempt 1 fired about a
+second later in the fast phase.
+
+**Tally since the recovery became a real link re-enable:** fifteen recoveries — 1, 1, 2, 6, 1, 2,
+2, 3, 1, 6, 1, 2, 1, 2, 8 attempts — longest 36 s, **zero failures**, the slow phase not yet
+reached.
+
