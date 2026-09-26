@@ -1978,3 +1978,18 @@ reached.
 36 s, zero failures, slow phase never reached. The 00:38 wake is the first where the sink came up
 cleanly on its own after a standby and the debounce correctly stayed out of the way.
 
+## Sep 26 14:34 — longest standby yet (12.5 h), sink locked on the first poll
+
+Output off at 01:55:58, woken at 14:34:00. The journal shows `polling starts` and nothing else:
+no `sink state changed`, no loss of lock. The transition log is edge-triggered against the last
+state seen (locked, 0x5e, at 01:37:13), so silence means the very first poll read the sink locked
+again — a clean wake with nothing for the patch to do. (Silence would also result if the sink
+stopped answering DDC entirely, since both the log and the retry require a successful read; David
+reported no dark screen, so this is the clean case.)
+
+Worth noting: the longest standby so far produced no fault at all, while a 21-minute standby the
+evening before needed eight attempts. Standby length does not predict the fault.
+
+**Tally unchanged at seventeen recoveries, zero failures;** plus two wakes where the sink came up
+on its own (Sep 26 00:38 inside the debounce, and this one on the first poll).
+
