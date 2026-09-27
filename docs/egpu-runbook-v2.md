@@ -1993,3 +1993,21 @@ evening before needed eight attempts. Standby length does not predict the fault.
 **Tally unchanged at seventeen recoveries, zero failures;** plus two wakes where the sink came up
 on its own (Sep 26 00:38 inside the debounce, and this one on the first poll).
 
+## Sep 26-27 — three more clean wakes; overnight wake recovers in 2 s
+
+| when | off for | attempts | dark for |
+|---|---|---|---|
+| Sep 26 14:34:00 | 12.5 h | 0 | — sink locked on the first poll |
+| Sep 26 14:53:25 | 3 min | 0 | — clean |
+| Sep 26 15:04:50 | 3 min | 0 | — clean |
+| Sep 26 15:25:23 | — | 0 | display switched off, correctly ignored |
+| **Sep 27 09:01:23** | **17.6 h** | **1** | **2 s — overnight wake** |
+
+On the 09:01 wake there is no `sink state changed -- status=0x40` line before the request. That is
+correct: the log is edge-triggered and the last state recorded was already 0x40 (at 15:25:23, as
+the output went off), so the wake did not change it. The episode reset still started the wake in
+the fast phase, and one re-enable restored lock two seconds later.
+
+**Tally:** eighteen recoveries, zero failures, longest 36 s; plus four wakes where the sink came up
+on its own. Patched overnight wakes: 27 s, 8 s, 27 s, 2 s.
+
