@@ -2177,6 +2177,13 @@ the patched recoveries, the Sep 27 night) happened on that cable. Combined with 
 4K120 on it, the cable is ruled out by the swap test itself, not just by the counters. The correction
 above stands as a note on method; the conclusion is now settled.
 
-Remaining untested hardware variable: the TV's input port. Moving the laptop to another of the C2's
-HDMI 2.1 inputs for a while would clear that too.
+TV input port: also ruled out. David has used a different C2 HDMI input every day this week, and the
+journal shows dark wakes and recoveries on each of those days.
+
+**Where that leaves it.** Cable, input port, steady-state link quality, EDID, a converter chip (there is
+none), link-training timeout (fixed) and IPS (disabled) are all excluded. What remains is the TV's
+receiver sometimes coming out of standby unlocked and waiting, instead of requesting a retrain. Earlier
+testing had the same setup clean under Windows, so this is not simply a defective TV: the Windows AMD
+driver evidently recovers from that state and the stock Linux driver does not. That is the gap the local
+patch fills, and the main argument for proposing the recovery upstream.
 
