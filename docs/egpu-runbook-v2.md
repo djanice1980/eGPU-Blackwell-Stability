@@ -2169,3 +2169,14 @@ fault happens. The evidence leans toward the TV's receiver (it reports ready wit
 source retrain fixes it within a few attempts), but the only real test of the cable is a swap: a
 certified Ultra High Speed (48 Gbps) cable for a week or two, comparing dark wakes and retry counts.
 
+### Cable: ruled out by an actual swap (David, Sep 27)
+
+David replaced the HDMI cable with a **certified Ultra High Speed (48 Gbps) cable about two weeks before
+Sep 27, i.e. around Sep 13**. Every dark wake recorded in this runbook (Sep 19 onward: the six-minute one,
+the patched recoveries, the Sep 27 night) happened on that cable. Combined with zero steady-state errors at
+4K120 on it, the cable is ruled out by the swap test itself, not just by the counters. The correction
+above stands as a note on method; the conclusion is now settled.
+
+Remaining untested hardware variable: the TV's input port. Moving the laptop to another of the C2's
+HDMI 2.1 inputs for a while would clear that too.
+
