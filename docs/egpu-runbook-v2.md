@@ -2124,3 +2124,29 @@ DMCUB errors slowed the display-off commit enough to open the window, and the PS
 `dm_ism` idle-state code that also showed up blocked. Watch for either recurring:
 `journalctl -k --since yesterday | grep -E "DMCUB error|power_psr"`.
 
+## Sep 27 21:35 — trylock fix installed and exercised; the error-correction lead weakens
+
+Boot 21:35:23 with the fix (`strings $(modinfo -n amdgpu) | grep -c "skipped this pass"` -> 1).
+
+**The skip path fired on the first login:** at 21:37:20 (4K60 -> 4K120 switch) the sink lost lock, the
+watchdog asked to re-enable, found `dc_lock` held by the mode-switch commit, logged `display commit in
+progress -- link re-enable skipped this pass` and let go. Attempt 2 five seconds later went through and
+lock returned at 21:37:29 (8.9 s). Precisely: this commit kept an FRL stream, so it was the harmless kind
+of collision; the deadlocking kind is a commit that *removes* the stream (output going off). But the
+mechanism that makes the watchdog step aside is proven under a real collision, which it never faced
+before without blocking. No `DMCUB error` and no `power_psr` warning in this boot so far.
+
+**The Reed-Solomon lead weakens.** Corrections read at the moment of lock so far:
+
+| lock at | rate | rs_corr |
+|---|---|---|
+| Sep 27 20:19:26 | 6G | 0 |
+| Sep 27 20:19:45 | 10G | 23568 |
+| Sep 27 21:35:29 | 6G | 21078 |
+| Sep 27 21:37:29 | 10G | 0 |
+
+Large counts appear at both rates and zero at both rates, so they track the timing of the read against
+lock acquisition, not the link rate. Most likely the burst of corrections while the receiver locks, not a
+link that is marginal at 10G. `tools/hdmi-frl-errors.sh` (steady-state samples) would settle it
+definitively, but it is now a low-priority check.
+
