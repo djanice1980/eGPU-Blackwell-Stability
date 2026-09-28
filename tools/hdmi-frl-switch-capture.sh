@@ -65,7 +65,10 @@ for o in d["outputs"]:
 say "output $OUTNAME: current mode $ORIG, switching $FROM (4K60) -> $TO (4K120), $CYCLES cycle(s)"
 
 sudo -v || exit 1
-OLD_DBG=$(cat "$DBG")
+OLD_DBG=$(sudo cat "$DBG") || OLD_DBG=""
+# the parameter is root-only (0600); an empty read would make every restore write "" (EINVAL)
+# and leave debug on, flooding the log (Sep 28 first run). No drm.debug on the cmdline = 0.
+[ -n "$OLD_DBG" ] || OLD_DBG=0
 restore() {
     echo "$OLD_DBG" | sudo tee "$DBG" >/dev/null
     [ "$ORIG" != "-" ] && kscreen-doctor "output.$OUTNAME.mode.$ORIG" >/dev/null 2>&1

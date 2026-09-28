@@ -2311,3 +2311,61 @@ Output off at 22:14:16, back at 00:02:01 (1 h 48 min), rate 5 (10G x4). The sink
 The first re-enable landed, and lock followed at 00:02:02, t=+1.0 s. No update flags were raised, no commit collided with the
 re-enable, and there was no DMCUB error or power_psr WARN.
 
+## Sep 28 00:06 — 4K60 -> 4K120 switch capture: training is clean, and MY watchdog kills the fresh link
+
+`tools/hdmi-frl-switch-capture.sh` ran three cycles (log `~/frl-switch-20260928-000611.log`). Results:
+
+| cycle | watchdog re-enables | to lock |
+|---|---|---|
+| 1 | 1 | ~3 s |
+| 2 | 5 | ~22 s |
+| 3 | 2 | ~7 s |
+
+(Script bug, fixed: it read the root-only `drm.debug` parameter without sudo, so the restore wrote an
+empty value and debug stayed on after the run, flooding the kernel log until reset by hand.)
+
+**1. Link training at 10G x4 is not the problem.** All 11 trainings were identical and textbook:
+
+- FLT_READY on the first poll;
+- rate 5 written;
+- the TV requests LTP 5/6/7/8 about 25-80 ms later;
+- all lanes report pass (LTP 0/0/0/0) about 180 ms after that;
+- PASSED;
+- `FRL_START = 1` read about 205 ms later;
+- `LTS:P Success`, then the HDMI stream clock is enabled.
+
+There were no FAILED lines, no retries within an enable, and no FLT_UPDATE after training. The
+trainings that were followed by lock and the ones that were not are indistinguishable. (The
+`HDMISTREAMCLK0_ROOT_GATE_DISABLE` line appears around some enables and not others. It does not track
+the outcome.)
+
+**2. Defect in my patch: the first re-enable fires 21-117 ms after the commit's own training
+completes.** The loss-of-lock debounce (3 polls, ~600 ms) starts counting at the first unlocked poll.
+During a mode switch, that poll is taken *during the commit's link training*, when the TV is
+legitimately unlocked. By the time the commit reaches FRL_START, the debounce is already spent:
+
+| cycle | commit's FRL_START | watchdog re-enable | gap |
+|---|---|---|---|
+| 1 | 00:06:24.905 | 00:06:24.974 | 69 ms |
+| 2 | 00:06:44.049 | 00:06:44.166 | 117 ms |
+| 3 | 00:07:29.472 | 00:07:29.493 | 21 ms |
+
+When the TV did lock, it took 0.42-0.83 s after FRL_START:
+
+- 00:06:25.442 -> 26.277
+- 00:07:04.943 -> 05.365
+- 00:07:35.054 -> 35.885
+
+In none of the three cycles did the commit's link get the time it needed; the watchdog tore it down
+first. Every "attempt 1" at a mode switch is therefore self-inflicted, and the same probably holds at
+login and at wake (00:02:01: first re-enable 0.4 s after polling started).
+
+**3. What remains unexplained: a trained link the TV never locks to.** After some clean trainings
+(cycle 2 attempts 1-4, cycle 3 attempt 1), the TV reported 0x40 on every one of ~22 polls for the next
+4.5 s, until the next re-enable. Its error counters read zero with every valid flag clear, so the
+receiver was not decoding anything. Nothing in the training separates these links from the ones that
+locked.
+
+The question now: does (3) happen on its own, or is it the TV recovering from having a link torn down
+~0.1 s into its lock-up (2)? Only removing (2) and repeating the capture answers that.
+
