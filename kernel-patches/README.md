@@ -97,6 +97,6 @@ Confirmation is then passive. `journalctl -k` covers **only the current boot**, 
 | `display commit in progress -- link re-enable skipped this pass` | a request collided with a commit and stepped aside (point 5); the next attempt follows |
 | `sink raised FLT_UPDATE` / `FRL_START` / `SOURCE_TEST_UPDATE`, then `cleared after N ms` | the watchdog saw a sink flag (point 6); before Sep 27 it would have acted on it lock-free |
 | `FLT_UPDATE still raised after 2 polls ... re-enabling the link` | the sink asked for a retrain that nothing was running; handled through the locked path |
-| `sink locked N ms after the last link training` | lock latency after training (point 7); values near or above 3000 mean the settle window is too short |
+| `sink locked N ms after the last link training` | lock latency after training (point 7); a link is torn down ~3600 ms after training (3 s window + ~0.6 s debounce); values approaching that mean the window is too short |
 | `sink state changed` lines only | transitions happened without meeting the retrain condition; the sink was reporting lock while the panel was dark |
 

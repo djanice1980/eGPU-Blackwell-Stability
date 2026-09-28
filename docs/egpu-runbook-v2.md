@@ -2489,3 +2489,33 @@ build is clean.
 Check with the switch capture. Every `sink locked N ms` value should stay well under 3000. A lock at
 or above ~3000 ms would mean a slow link is being torn down, and the window needs widening.
 
+## Sep 28 00:43 — 3 s build: three switches, three first-link locks, no re-enables
+
+Log: `~/frl-switch-20260928-004254.log`. All three commit links locked on their own, with no watchdog
+re-enable:
+
+| cycle | locked after FRL_START |
+|---|---|
+| 1 | 1949 ms |
+| 2 | **2940 ms** |
+| 3 | 441 ms |
+
+Training was identical to every earlier link: LTP 178-181 ms, FRL_START 204-205 ms after PASSED.
+
+**Correction to "bimodal, <= 2.71 s":** the 2940 ms lock beats the previous maximum. The 15 locks so far
+(ms after FRL_START) are:
+
+    193 196 210 333 421 441 628 830 834 1396 1524 1663 1949 2709 2940
+
+The tail is still growing as samples accumulate. What stands is that none of the 9 links given >= 4.5 s
+ever locked. The range between ~3 s and 4.5 s has almost no data. (My note that "values near 3000 mean
+the window is too short" was also imprecise. The real deadline is ~3.6 s after training: the 3 s window
+plus the ~0.6 s debounce. The 2940 ms lock had ~0.6 s to spare. The README now says so.)
+
+Zero dead links in this run, against about half before, is most likely chance: failures cluster, and
+n=3. The window does not affect whether a link can lock, only how long it is given.
+
+**Decision rule going forward:** keep 3 s, and watch the `sink locked N ms` lines in the journal
+(overnight wakes, logins) and in any further captures. A lock above ~3.2 s means the window should
+grow.
+
