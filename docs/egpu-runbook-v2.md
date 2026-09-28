@@ -2250,3 +2250,58 @@ morning check after a reboot would silently miss the previous night. From now on
 
     journalctl _TRANSPORT=kernel --since yesterday | grep -E "HDMI FRL|frl status polling|DMCUB error|power_psr"
 
+## Sep 27 22:03 — point-6 build live: the watchdog caught a training handshake in flight on the first login
+
+Boot 22:03:17 with fbd9a64 installed. The first login modeset produced the case point 6 was built for:
+
+    22:03:22  200ms frl status polling starts ...
+    22:03:23  sink state changed -- status=0x40 ... update0=0x63 rate=3
+    22:03:23  sink raised FLT_UPDATE -- update0=0x63 ltp_req=5678 test_req=0x00 status=0x40 rate=3
+    22:03:23  sink FLT_UPDATE cleared after 206 ms
+    22:03:23  sink reports loss of lock ... re-enabling the link (attempt 1)
+    22:03:23  display commit in progress -- link re-enable skipped this pass
+    22:03:24  sink lock restored (status=0x5e) after 1 re-enable request(s)     [t=+0.8s]
+
+- `ltp_req=5678` means each lane requested a different LFSR pattern (LTP5-8). That is the normal LTS:3
+  step of a link training, and that training belonged to the login commit that was still running.
+- The flag was gone one poll later. "206 ms" is the poll resolution, not the flag's real lifetime.
+  Training serviced it, and the persistence rule correctly did not fire.
+- The loss-of-lock request also stepped aside, because the commit held `dc_lock`. The commit's own
+  training brought lock 0.8 s after the episode began. (The "after 1 re-enable request(s)" wording
+  counts requests, including skipped ones.)
+
+**What the pre-fbd9a64 code would have done at that poll:** on `FLT_UPDATE` with pattern requests other
+than 0xE, and with no test mode, upstream's poll does all of the following:
+
+1. clears the sink's FRL_Rate to 0 (`hdmi_frl_LTS_clear_Link_Setting`);
+2. clears the flag;
+3. zeroes the training pattern;
+4. starts a second, complete `hdmi_frl_perform_link_training_with_retries` in parallel with the
+   commit's training.
+
+Two trainings would have driven the same SCDC registers and HPO encoder at once. The race is no
+longer theoretical: the first boot of the logging build hit its window. This is the first time the
+retained journal shows the watchdog seeing `FLT_UPDATE`; the 32 earlier transitions never did.
+
+**What it does not explain.** The slow recoveries are all at **rate 5 (10G x4, 4K120)**, and the new
+build still has one:
+
+| episode | rate | re-enables | to lock |
+|---|---|---|---|
+| 09:01:23 | 5 | 1 | 2 s |
+| 11:30:35 | 5 | 12 | 58 s |
+| 19:11:31 | 5 | 5 | 21 s |
+| 20:19:44 | 5 | 1 | 0.8 s |
+| 21:14:40 | 5 | 1 | 4 s |
+| 21:37:20 | 5 | 2 (first skipped) | 8.9 s |
+| **22:05:39** (fbd9a64) | 5 | 3 (first skipped) | 11.2 s |
+| nine rate-3 episodes, 20:11-22:03 | 3 | 0-1 | 0.2-1.3 s |
+
+At 22:05:39 no update flag was seen at all, so the lock-free flag path was not involved. The remaining
+open question is narrower now: after a 10G x4 training that the driver counts as done (the rate stays
+5 and the stream stays up), why does the sink sit unlocked until a second or third full re-enable?
+At 6G x4 it locks almost at once.
+
+- DMCUB errors and the `power_psr` WARN have not recurred in the three boots since the 20:33 deadlock
+  boot (21:14, 21:35, 22:03). Both appeared only in that one boot.
+
