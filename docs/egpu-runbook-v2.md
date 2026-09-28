@@ -2042,3 +2042,38 @@ What each outcome would mean:
 
 Built clean for 7.2.7 (no warnings on the edited file), string verified in the module.
 
+## Sep 27 20:19 — first error-counter data (7.2.8 build, login sequence)
+
+Two short episodes, both fixed by one re-enable:
+
+    6G x4 (greeter)
+      t=+0.0s unlocked  ln0=1235(-) ln1=2927(-) ln2=1275(-) ln3=0(-) rs_corr=32767(-)   <- 32767 = 15-bit ceiling
+      attempt 1
+      t=+1.1s unlocked  all 0(-)
+      t=+1.3s locked    all 0(v)
+    10G x4 (login, 4K60 -> 4K120)
+      t=+0.0s unlocked  ln0=4(-) ln1=0(-) ln2=6(-) ln3=0(-) rs_corr=0(-)
+      attempt 1
+      t=+0.8s locked    ln0-3 0(v)  rs_corr=23568(v)
+
+**Readiness signal: none in these two, and the counters look unlikely to give one.** The valid flags
+stay clear for the whole unlocked period and come on exactly at lock. The numbers seen while unlocked
+are leftovers from the moment the previous link fell over (the 6G episode opens with thousands of
+character errors per lane and the correction counter pinned at its ceiling), and a re-enable resets
+them to zero. These episodes were one attempt long, though; a long overnight episode is the real
+test of whether anything stirs before lock.
+
+**A new lead instead.** At the moment of locking at **10G**, the TV had already corrected **23,568**
+symbols with Reed-Solomon forward error correction; at 6G the figure was **0**. Two readings:
+- the burst that comes with acquiring lock, which would be harmless; or
+- a link that is **marginal at 10 Gbit/s per lane** and stays up only because error correction is
+  working hard. That would matter a great deal: a link running close to the edge is a plausible reason
+  it drops at wake at all, and the fix would then be physical (cable, or the port at that rate), not
+  software.
+
+Only steady-state samples distinguish the two, and the watchdog deliberately never reads the counters on
+a healthy link. `tools/hdmi-frl-errors.sh` reads them **from userspace, read-only**, over the HDMI
+connector's own DDC bus (`/sys/class/drm/card1-HDMI-A-1/ddc` -> `i2c-5`, SCDC at 0x54) with
+`i2ctransfer`, printing lane lock, all five counters with valid flags, and the change in corrections
+between samples. Run it with the picture up at 4K120, then at 4K60 for comparison.
+

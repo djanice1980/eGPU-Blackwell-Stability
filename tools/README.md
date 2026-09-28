@@ -62,3 +62,10 @@ not the one just built, has no `vmlinuz`, and no package owns its module directo
 kernel and `-lts` are never touched. Preview with `bash build.sh --cleanup --dry-run`; run alone
 with `bash build.sh --cleanup`.
 
+## hdmi-frl-errors.sh (Sep 27)
+Read-only sampler for the TV's HDMI 2.1 link-error counters while the picture is on: reads SCDC over
+the connector's DDC bus with `i2ctransfer` every N seconds and prints lane lock, per-lane error counts,
+the Reed-Solomon correction count, and how much it grew since the last sample. Tells a clean link
+(corrections stay near zero) from a marginal one (corrections climbing or pinned at 32767). Needs
+i2c-tools and sudo.
+
