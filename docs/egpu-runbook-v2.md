@@ -2544,3 +2544,36 @@ Every `sink locked` value in the journal since the settle window arrived:
     rate 5: 192 195 208 209 209 210 332 411 440 627 829 1395 1524 1662 1877 1948 2706 2939
     rate 3: 12 43 65 141 144 148 152 160 192 199 230 334 355 844 3271
 
+## Sep 28 day — two more slow locks, and a bug in my settle window: retry links do not get it
+
+**Wakes on the 3 s build:**
+
+| wake | re-enables | TV locked N ms after the last training |
+|---|---|---|
+| 09:29:03 | none | **3123** |
+| 11:07:29 | none | 1871 |
+
+The 3123 ms lock survived with ~0.5 s to spare. Together with the 3271 ms one (00:32), there are now
+two locks above 3.1 s.
+
+**Bug (mine, point 7):** at 17:51:26 a switch to 4K120 needed two re-enables:
+
+- attempt 1 at 17:51:29;
+- attempt 2 at **17:51:32**, 3 s later;
+- lock 835 ms after the third training.
+
+Attempt 2 is too early. A re-enabled link should get the same ~3.6 s after FRL_START as the first
+one, i.e. ~4 s between attempts. The cause is `frl_debounce_polls`:
+
+- it is reset only on lock and on a polling gap, **not when a re-enable is requested**;
+- after attempt 1 it is still >= 3, so the settle window stops it growing but not firing;
+- the request then goes out as soon as the 3 s `FRL_REENABLE_FAST_NS` floor elapses, ~2.5 s after
+  that link's FRL_START.
+
+This did not show on the 4.4 s build, where the old 5 s interval exceeded training plus window. It
+became visible when the interval dropped to 3 s so that the window would govern. Every re-enabled link
+on the 3 s build has had ~2.5 s instead of ~3.6 s. Only the commit's own link got the full window.
+
+Fix: reset `frl_debounce_polls` when a re-enable is requested, so each new link must show three unlocked
+polls after its own window closes.
+
