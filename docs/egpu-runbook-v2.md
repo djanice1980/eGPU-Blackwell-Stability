@@ -2011,3 +2011,34 @@ the fast phase, and one re-enable restored lock two seconds later.
 **Tally:** eighteen recoveries, zero failures, longest 36 s; plus four wakes where the sink came up
 on its own. Patched overnight wakes: 27 s, 8 s, 27 s, 2 s.
 
+## Sep 27 — reading the sink's error counters, to look for a readiness signal
+
+David: *"is there no way to actively poll or ping the television when 0000 is handed over instead of
+1111?"* We already poll it every 200 ms; the problem is that every register read so far looks
+identical while the TV is "not ready yet" and at the moment it becomes ready (status 0x40, update
+0x43, FLT_READY=1), so there is nothing to trigger on — hence retrying on a fixed timer.
+
+**HDMI-CEC, the purpose-built ping, is not available here.** The `cec` module is loaded, but amdgpu
+only registers a CEC *notifier* (`cec_notifier_conn_register`), which hands the TV's physical
+address to a separate CEC adapter driver. The Z13 has no such adapter: no `/dev/cec*`, no
+`/sys/class/cec`. The only route would be an external USB-CEC adapter on another TV input (CEC is a
+bus shared across the TV's HDMI ports); an inline adapter on this cable would break 48 Gbps FRL.
+
+**What was added instead:** the sink's per-lane error counters, which nothing in the driver reads
+although `union hdmi_scdc_ced_data` already describes them (SCDC 0x50-0x5A: 15-bit counts for lanes
+0-3, a checksum, and the Reed-Solomon correction count, each with a valid flag). The local patch now
+reads them only while every lane is unlocked and once when lock returns, never on a healthy link, and
+logs at warning level with the time since the episode started:
+
+    HDMI FRL: t=+0.0s unlocked -- errors ln0=0(-) ln1=0(-) ln2=0(-) ln3=0(-) rs_corr=0(-)
+    HDMI FRL: t=+19.4s unlocked -- errors ln0=37(v) ...        (only on change, at most 1/s)
+    HDMI FRL: t=+26.1s locked -- errors ln0=0(v) ...
+
+What each outcome would mean:
+- **Valid flags or counts start moving some seconds before lock:** the receiver wakes before it can
+  lock, and that change is the moment to re-enable — one attempt instead of a series.
+- **Nothing changes until the lock line:** the counters give no warning, the fixed timer stays, and
+  the possible gain was at most the up-to-5 s between the TV becoming ready and the next attempt.
+
+Built clean for 7.2.7 (no warnings on the edited file), string verified in the module.
+

@@ -1,45 +1,20 @@
-From d6966916054309707579b732d7562a9bdd121e50 Mon Sep 17 00:00:00 2001
+From 134d44000b83d04d92dbf2d38223ef8a5230fdf6 Mon Sep 17 00:00:00 2001
 From: David Janice <djanice1980@gmail.com>
-Date: Fri, 25 Sep 2026 10:55:30 -0500
+Date: Sun, 27 Sep 2026 19:40:44 -0500
 Subject: [PATCH 3/3] drm/amd/display: local HDMI FRL watchdog diagnostics and
- link re-enable on loss of lock
 
-Local debugging patch for an intermittent dark HDMI output on DCN 3.5 (Strix
-Halo, native HDMI FRL, LG C2). Not upstream-shaped: the state is in file statics,
-adequate for one FRL link.
-
-1. Log the sink SCDC state once per 200 ms poll (drm_dbg, silent unless
-   drm.debug=0x2): the DDC result of each read, the Update_0 byte, and the status
-   flags with per-lane lock bits. Upstream ignores the DDC return value, so a sink
-   that has stopped answering reads back as all-zero flags and looks happy.
-
-2. Re-enable the link when the sink reports every lane unlocked while an FRL rate
-   is active. Upstream reacts only to FLT_update, which the sink raises during
-   training, so a link that trains, is acknowledged with FRL_START and then loses
-   lock is never noticed.
-
-   The recovery is dc_link_dp_handle_link_loss(), the same pipe dpms off/on the DP
-   HPD path uses, not dc_link_detect(DETECT_REASON_RETRAIN): with the sink
-   unchanged, detect re-reads the EDID and leaves the link alone. Twelve
-   detect-based attempts over 56 s produced no modeset and no lock.
-
-   Debounced by three polls (~600 ms) so a modeset transient does not trigger it.
-   Then one attempt every 5 s for twelve attempts (after a long standby this sink
-   needs ~25 s before any attempt can land), and after that once a minute with no
-   hard stop. It only runs while an FRL stream is active and the sink answers DDC
-   and reports every lane unlocked, so an off or unplugged display never triggers
-   it; the minute backoff bounds the cost if the sink is showing another input.
-   A gap of more than 2 s between polls (output switched off) resets the episode,
-   so a wake never inherits a half-finished episode and starts in the slow phase.
-
-3. Record lock-state transitions, each re-enable request, the switch to the slow
-   phase and the recovery at warning level, and promote the "200ms frl status
-   polling starts/stops" messages to drm_info, so an ordinary journal tells the
-   whole story: journalctl -k | grep "HDMI FRL"
+4. Read the sink per-lane error counters (SCDC 0x50-0x5A: lanes 0-3 plus the
+   Reed-Solomon correction count, each with a valid flag) while every lane is
+   unlocked, and once more on the first locked poll. Logged at warning level with
+   the time since the episode began: the first unlocked poll, then on any change
+   at most once a second, then a final snapshot at lock. Never read on a healthy
+   link. Purpose: find out whether the receiver shows life (valid flags, moving
+   counts) before it locks, which would give a readiness signal to trigger the
+   re-enable on instead of a fixed timer.
 ---
- .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c |  18 ++-
- .../display/dc/link/protocols/link_hdmi_frl.c | 143 +++++++++++++++++-
- 2 files changed, 157 insertions(+), 4 deletions(-)
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c |  18 +-
+ .../display/dc/link/protocols/link_hdmi_frl.c | 215 +++++++++++++++++-
+ 2 files changed, 229 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 index 83f6528..171c4e8 100644
@@ -80,10 +55,10 @@ index 83f6528..171c4e8 100644
  	/* Allow idle optimization when vblank count is 0 for display off */
  	if ((dm->active_vblank_irq_count == 0) && amdgpu_dm_is_headless(dm->adev))
 diff --git a/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c b/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
-index 85e88b5..b50e75e 100644
+index 85e88b5..da160b7 100644
 --- a/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
 +++ b/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
-@@ -194,6 +194,18 @@ void hdmi_frl_LTS_clear_Update_flag(struct ddc_service *ddc_service)
+@@ -194,6 +194,63 @@ void hdmi_frl_LTS_clear_Update_flag(struct ddc_service *ddc_service)
  }
  
  
@@ -98,11 +73,56 @@ index 85e88b5..b50e75e 100644
 +static int frl_last_lock_state = -1;
 +static unsigned int frl_unlocked_polls;
 +static unsigned int frl_reenable_attempts;
++#define FRL_CED_LOG_MIN_NS         1000000000ULL   /* error-counter lines: at most one a second */
++static unsigned long long frl_episode_start_ts;   /* first unlocked poll of the current episode */
++static unsigned long long frl_last_ced_log_ts;
++static union hdmi_scdc_ced_data frl_last_ced;      /* last snapshot written to the log */
++static bool frl_ced_logged;
++
++/*
++ * The sink's per-lane error counters (SCDC 0x50-0x5A, HDMI 2.1 layout: lanes 0-2, a
++ * checksum, lane 3, then the Reed-Solomon correction count, each 15 bits plus a
++ * valid flag). Read only while the sink reports every lane unlocked and once more
++ * when lock returns, never on a healthy link. The question they answer: does the
++ * sink's receiver show signs of life -- valid flags coming up, counts moving --
++ * some time before it locks? If so, that is the moment to re-enable the link,
++ * instead of retrying on a fixed timer.
++ */
++static bool frl_read_ced(struct dc_link *link, union hdmi_scdc_ced_data *ced)
++{
++	uint8_t offset = HDMI_SCDC_ERR_DETECT;
++
++	return link_query_ddc_data(link->ddc, HDMI_SCDC_ADDRESS, &offset, sizeof(offset),
++			ced->byte, sizeof(ced->byte));
++}
++
++static void frl_log_ced(struct dc_link *link, const char *what,
++		unsigned long long now, const union hdmi_scdc_ced_data *c)
++{
++	unsigned long long ms = 0;
++	DC_LOGGER_INIT(link->ctx->logger);
++
++	if (frl_episode_start_ts)
++		ms = dm_get_elapse_time_in_ns(link->ctx, now, frl_episode_start_ts) / 1000000ULL;
++	DC_LOG_WARNING("HDMI FRL: t=+%llu.%llus %s -- errors ln0=%u%s ln1=%u%s ln2=%u%s"
++			" ln3=%u%s rs_corr=%u%s\n",
++			ms / 1000, (ms % 1000) / 100, what,
++			(unsigned int)(c->fields.CH0_8LOW | (c->fields.CH0_7HIGH << 8)),
++			c->fields.CH0_VALID ? "(v)" : "(-)",
++			(unsigned int)(c->fields.CH1_8LOW | (c->fields.CH1_7HIGH << 8)),
++			c->fields.CH1_VALID ? "(v)" : "(-)",
++			(unsigned int)(c->fields.CH2_8LOW | (c->fields.CH2_7HIGH << 8)),
++			c->fields.CH2_VALID ? "(v)" : "(-)",
++			(unsigned int)(c->fields.LN3_8LOW | (c->fields.LN3_7HIGH << 8)),
++			c->fields.LN3_VALID ? "(v)" : "(-)",
++			(unsigned int)(c->fields.RSC_8LOW | (c->fields.RSC_7HIGH << 8)),
++			c->fields.RSC_VALID ? "(v)" : "(-)");
++}
 +
  bool hdmi_frl_poll_status_flag(struct dc_link *link)
  {
  	uint8_t slave_address = HDMI_SCDC_ADDRESS;
-@@ -210,6 +222,11 @@ bool hdmi_frl_poll_status_flag(struct dc_link *link)
+@@ -210,6 +267,11 @@ bool hdmi_frl_poll_status_flag(struct dc_link *link)
  	struct link_encoder *dio_link_enc = link->link_enc;
  	bool flt_no_timeout = false;
  	bool link_update = false;
@@ -114,7 +134,7 @@ index 85e88b5..b50e75e 100644
  
  	/*Test Condition - FLT_no_timeout avoid link training*/
  	offset = HDMI_SCDC_SOURCE_TEST_REQ;
-@@ -221,10 +238,134 @@ bool hdmi_frl_poll_status_flag(struct dc_link *link)
+@@ -221,10 +283,161 @@ bool hdmi_frl_poll_status_flag(struct dc_link *link)
  	offset = HDMI_SCDC_UPDATE_0;
  
  	/*Check FLT_update flag*/
@@ -206,6 +226,8 @@ index 85e88b5..b50e75e 100644
 +			frl_unlocked_polls = 0;
 +			frl_reenable_attempts = 0;
 +			frl_last_reenable_ts = 0;
++			frl_episode_start_ts = 0;
++			frl_ced_logged = false;
 +		}
 +		frl_last_poll_ts = now;
 +
@@ -217,6 +239,23 @@ index 85e88b5..b50e75e 100644
 +			unsigned long long interval =
 +				frl_reenable_attempts < FRL_REENABLE_FAST_ATTEMPTS ?
 +				FRL_REENABLE_FAST_NS : FRL_REENABLE_SLOW_NS;
++
++			union hdmi_scdc_ced_data ced;
++
++			if (frl_unlocked_polls == 0) {
++				frl_episode_start_ts = now;
++				frl_ced_logged = false;
++			}
++			if (frl_read_ced(link, &ced) &&
++					(!frl_ced_logged ||
++					 (memcmp(&ced, &frl_last_ced, sizeof(ced)) != 0 &&
++					  dm_get_elapse_time_in_ns(link->ctx, now, frl_last_ced_log_ts)
++						>= FRL_CED_LOG_MIN_NS))) {
++				frl_log_ced(link, "unlocked", now, &ced);
++				frl_last_ced = ced;
++				frl_last_ced_log_ts = now;
++				frl_ced_logged = true;
++			}
 +
 +			frl_unlocked_polls++;
 +			if (frl_unlocked_polls >= FRL_UNLOCK_DEBOUNCE_POLLS &&
@@ -237,6 +276,12 @@ index 85e88b5..b50e75e 100644
 +				link_update = true;
 +			}
 +		} else if (scdc_status.fields.CH0_LOCKED) {
++			if (frl_unlocked_polls > 0) {
++				union hdmi_scdc_ced_data ced;
++
++				if (frl_read_ced(link, &ced))
++					frl_log_ced(link, "locked", now, &ced);
++			}
 +			if (frl_reenable_attempts)
 +				DC_LOG_WARNING("HDMI FRL: sink lock restored (status=0x%02x) after"
 +						" %u re-enable request(s)\n",
@@ -244,6 +289,8 @@ index 85e88b5..b50e75e 100644
 +			frl_last_reenable_ts = 0;
 +			frl_unlocked_polls = 0;
 +			frl_reenable_attempts = 0;
++			frl_episode_start_ts = 0;
++			frl_ced_logged = false;
 +		}
 +	}
 +

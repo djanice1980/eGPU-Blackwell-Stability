@@ -53,6 +53,10 @@ one patch.
    link that trains, is acknowledged with FRL_START, then loses lock is never noticed.
    `dc_link_detect(DETECT_REASON_RETRAIN)` was tried first and does **not** work: measured
    2026-09-22, twelve requests over 56 s caused no modeset and no lock.
+4. **Sink error counters (Sep 27).** While every lane is unlocked, and once at lock, read SCDC
+   0x50-0x5A (per-lane error counts + Reed-Solomon corrections, each with a valid flag) and log
+   them with the time since the episode began — at the first unlocked poll, on any change (at
+   most 1/s), and at lock. Looking for a readiness signal to replace the fixed retry timer.
 3. **Warning-level record.** Lock-state transitions (masked to the lock-relevant bits, because the
    sink toggles its error-counter bits constantly), the retrain request, the recovery, and the
    `200ms frl status polling starts/stops` messages all land in an ordinary journal.
