@@ -2369,3 +2369,20 @@ locked.
 The question now: does (3) happen on its own, or is it the TV recovering from having a link torn down
 ~0.1 s into its lock-up (2)? Only removing (2) and repeating the capture answers that.
 
+## Sep 28 — point 7 built: a 2 s settle window after every link training
+
+This fixes defect (2) from the switch capture. Training start and the end of the FRL_START handshake
+(LTS:P) stamp a timestamp. Unlocked polls within 2 s of it do not count toward the loss-of-lock
+debounce, so the first re-enable comes at least ~2.6 s after FRL_START instead of 21-117 ms. When the TV
+locks, the watchdog logs `sink locked N ms after the last link training`, which measures the latency
+the window has to cover. The compile is clean (only the three known DML stack-frame warnings), and
+the module carries the new string.
+
+Test: install, reboot, then rerun `tools/hdmi-frl-switch-capture.sh` (now fixed to restore
+drm.debug). Reading it:
+
+- commit link locks within the window, no re-enable: defect (2) was causing the multi-attempt
+  switches;
+- clean training, still 0x40 after the window: problem (3) is real on its own and needs its own
+  investigation.
+
