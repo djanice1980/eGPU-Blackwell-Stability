@@ -2305,3 +2305,9 @@ At 6G x4 it locks almost at once.
 - DMCUB errors and the `power_psr` WARN have not recurred in the three boots since the 20:33 deadlock
   boot (21:14, 21:35, 22:03). Both appeared only in that one boot.
 
+## Sep 28 00:02 — first wake on the point-6 build: 1 re-enable, lock in 1.0 s
+
+Output off at 22:14:16, back at 00:02:01 (1 h 48 min), rate 5 (10G x4). The sink came up unlocked (status=0x40).
+The first re-enable landed, and lock followed at 00:02:02, t=+1.0 s. No update flags were raised, no commit collided with the
+re-enable, and there was no DMCUB error or power_psr WARN.
+
