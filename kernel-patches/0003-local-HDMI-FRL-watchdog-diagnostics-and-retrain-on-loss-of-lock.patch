@@ -1,7 +1,54 @@
-From 1e8ede7051ffe417ceabd46d989758ee29de2f67 Mon Sep 17 00:00:00 2001
+From 4c2e13bfd2b471edf5b44607f9121a8c6af3cf59 Mon Sep 17 00:00:00 2001
 From: David Janice <djanice1980@gmail.com>
 Date: Sun, 27 Sep 2026 21:18:50 -0500
 Subject: [PATCH 3/3] drm/amd/display: local HDMI FRL watchdog diagnostics and
+ link re-enable on loss of lock
+
+Local debugging patch for an intermittent dark HDMI output on DCN 3.5 (Strix
+Halo, native HDMI FRL, LG C2). Not upstream-shaped: the state is in file statics,
+adequate for one FRL link.
+
+1. Log the sink SCDC state once per 200 ms poll (drm_dbg, silent unless
+   drm.debug=0x2): the DDC result of each read, the Update_0 byte, and the status
+   flags with per-lane lock bits. Upstream ignores the DDC return value, so a sink
+   that has stopped answering reads back as all-zero flags and looks happy.
+
+2. Re-enable the link when the sink reports every lane unlocked while an FRL rate
+   is active. Upstream reacts only to FLT_update, which the sink raises during
+   training, so a link that trains, is acknowledged with FRL_START and then loses
+   lock is never noticed. Measured on a dark screen: 1443 consecutive polls over
+   five minutes, all status=0x40 (FLT_READY, no lane locked) with Update_0=0x43
+   (STATUS_UPDATE set, FLT_UPDATE clear), while the source held 10G x4 and scanned
+   out 10 bpc BT2020.
+
+   The recovery is dc_link_dp_handle_link_loss(), the same pipe dpms off/on the DP
+   HPD path uses, not dc_link_detect(DETECT_REASON_RETRAIN): with the sink
+   unchanged, detect re-reads the EDID and leaves the link alone. Twelve
+   detect-based attempts over 56 s produced no modeset and no lock.
+
+   Debounced by three polls (~600 ms) so a modeset transient does not trigger it.
+   Then one attempt every 5 s for twelve attempts (after a long standby this sink
+   needs ~25 s before any attempt can land), and after that once a minute with no
+   hard stop. It only runs while an FRL stream is active and the sink answers DDC
+   and reports every lane unlocked, so an off or unplugged display never triggers
+   it; the minute backoff bounds the cost if the sink is showing another input.
+   A gap of more than 2 s between polls (output switched off) resets the episode,
+   so a wake never inherits a half-finished episode and starts in the slow phase.
+
+3. Record lock-state transitions, each re-enable request, the switch to the slow
+   phase and the recovery at warning level, and promote the "200ms frl status
+   polling starts/stops" messages to drm_info, so an ordinary journal tells the
+   whole story: journalctl -k | grep "HDMI FRL"
+
+4. Read the sink per-lane error counters (SCDC 0x50-0x5A: lanes 0-3 plus the
+   Reed-Solomon correction count, each with a valid flag) while every lane is
+   unlocked, and once more on the first locked poll. Logged at warning level with
+   the time since the episode began: the first unlocked poll, then on any change
+   at most once a second, then a final snapshot at lock. Never read on a healthy
+   link. Purpose: find out whether the receiver shows life (valid flags, moving
+   counts) before it locks, which would give a readiness signal to trigger the
+   re-enable on instead of a fixed timer. (Answer, 2026-09-27: it does not; the
+   valid flags stay clear until lock.)
 
 5. The watchdog takes dc_lock with mutex_trylock(), never mutex_lock().
    amdgpu_dm_atomic_commit_tail() holds dc_lock while it calls
@@ -13,10 +60,31 @@ Subject: [PATCH 3/3] drm/amd/display: local HDMI FRL watchdog diagnostics and
    pass is skipped (logged at warning level) and the retry schedule tries again.
    The same pattern exists upstream around dc_link_detect(); it was unreachable
    in 7.2.x only because the watchdog never ran (see patch 0002).
+
+6. The watchdog no longer acts on the sink's update flags without the lock.
+   Upstream's poll handled FRL_START, FLT_update and Source_Test_Update in place:
+   it cleared them in the sink, reprogrammed the training pattern and the
+   transmitter FFE and, on FLT_update, re-ran link training, all from the polling
+   work with no lock held. Link training in a commit polls the same Update_0 flags
+   every 2 ms (LTS:3, LTS:P) and clears them itself, and a 10G x4 training takes
+   ~225 ms against a 200 ms poll period, so a poll can land inside a commit's
+   training and consume the FLT_update or FRL_START that training is waiting for,
+   or reprogram the transmitter underneath it. Unreachable upstream only because
+   the watchdog never ran.
+
+   Now each of the three flags is logged at warning level when the sink raises it
+   (with the LTP request, Source_Test_Req and status bytes) and when it clears
+   (with how long it was up). FRL_START and Source_Test_Update get no action.
+   A FLT_update still raised on two consecutive polls, where training services one
+   within 2 ms, has nobody servicing it: the poll requests the full link re-enable
+   of point 2, which runs under the trylock of point 5 and re-trains from LTS:L,
+   clearing the flag. Every 5 s for three requests, then once a minute while it
+   stays raised; each request is logged with its reason, so every re-enable in
+   the journal says whether it was loss of lock or an unserviced FLT_update.
 ---
- .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c |  37 ++-
- .../display/dc/link/protocols/link_hdmi_frl.c | 215 +++++++++++++++++-
- 2 files changed, 247 insertions(+), 5 deletions(-)
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c |  37 +-
+ .../display/dc/link/protocols/link_hdmi_frl.c | 413 +++++++++++++-----
+ 2 files changed, 341 insertions(+), 109 deletions(-)
 
 diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 index 83f6528..270129d 100644
@@ -76,10 +144,19 @@ index 83f6528..270129d 100644
  	/* Allow idle optimization when vblank count is 0 for display off */
  	if ((dm->active_vblank_irq_count == 0) && amdgpu_dm_is_headless(dm->adev))
 diff --git a/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c b/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
-index 85e88b5..da160b7 100644
+index 85e88b5..c7cd1c6 100644
 --- a/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
 +++ b/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
-@@ -194,6 +194,63 @@ void hdmi_frl_LTS_clear_Update_flag(struct ddc_service *ddc_service)
+@@ -71,7 +71,7 @@ static bool hdmi_frl_test_max_rate(struct ddc_service *ddc_service)
+ 	return false;
+ }
+ 
+-static void hdmi_return_preeshoot_and_deemphasis(struct dc_link *link,
++static void __maybe_unused hdmi_return_preeshoot_and_deemphasis(struct dc_link *link,
+ 		union hdmi_scdc_source_test_req *test_req, bool *de_emphasis_only,
+ 		bool *pre_shoot_only, bool *no_ffe)
+ {
+@@ -194,139 +194,342 @@ void hdmi_frl_LTS_clear_Update_flag(struct ddc_service *ddc_service)
  }
  
  
@@ -99,6 +176,13 @@ index 85e88b5..da160b7 100644
 +static unsigned long long frl_last_ced_log_ts;
 +static union hdmi_scdc_ced_data frl_last_ced;      /* last snapshot written to the log */
 +static bool frl_ced_logged;
++#define FRL_FLT_PERSIST_POLLS      2               /* training services FLT_update within 2 ms */
++#define FRL_FLT_FAST_REQUESTS      3               /* then once a minute while it stays raised */
++static unsigned int frl_flt_polls;                 /* consecutive polls that saw FLT_update */
++static unsigned int frl_flt_requests;
++static unsigned long long frl_last_flt_req_ts;
++static uint8_t frl_last_update_flags;              /* FRL_START|FLT_update|Source_Test_Update */
++static unsigned long long frl_flag_raised_ts[3];
 +
 +/*
 + * The sink's per-lane error counters (SCDC 0x50-0x5A, HDMI 2.1 layout: lanes 0-2, a
@@ -143,19 +227,33 @@ index 85e88b5..da160b7 100644
  bool hdmi_frl_poll_status_flag(struct dc_link *link)
  {
  	uint8_t slave_address = HDMI_SCDC_ADDRESS;
-@@ -210,6 +267,11 @@ bool hdmi_frl_poll_status_flag(struct dc_link *link)
- 	struct link_encoder *dio_link_enc = link->link_enc;
- 	bool flt_no_timeout = false;
+ 	uint8_t offset = 0;
+-	uint32_t ln0_pattern = 0;
+-	uint32_t ln1_pattern = 0;
+-	uint32_t ln2_pattern = 0;
+-	uint32_t ln3_pattern = 0;
+-	uint8_t write_buffer[2] = {0};
+ 	union hdmi_scdc_update_read_data scdc_update = {0};
+ 	union hdmi_scdc_source_test_req test_req = {0};
+ 	union hdmi_scdc_LTP_req_data ltp_req = {0};
+-	struct hpo_frl_link_encoder *hpo_frl_link_enc = link->hpo_frl_link_enc;
+-	struct link_encoder *dio_link_enc = link->link_enc;
+-	bool flt_no_timeout = false;
  	bool link_update = false;
 +	bool update0_ddc_ok, status_ddc_ok;
 +	union hdmi_scdc_status_flags_data scdc_status = {0};
 +	uint8_t status_offset = HDMI_SCDC_STATUS_FLAGS;
-+
-+	DC_LOGGER_INIT(link->ctx->logger);
  
- 	/*Test Condition - FLT_no_timeout avoid link training*/
+-	/*Test Condition - FLT_no_timeout avoid link training*/
++	DC_LOGGER_INIT(link->ctx->logger);
++
++	/* Source_Test_Req: logged with the update flags below */
  	offset = HDMI_SCDC_SOURCE_TEST_REQ;
-@@ -221,10 +283,161 @@ bool hdmi_frl_poll_status_flag(struct dc_link *link)
+ 	link_query_ddc_data(link->ddc, slave_address, &offset,
+ 			sizeof(offset), &test_req.byte, sizeof(test_req.byte));
+-	if (test_req.fields.FLT_NO_TIMEOUT)
+-		flt_no_timeout = true;
+ 
  	offset = HDMI_SCDC_UPDATE_0;
  
  	/*Check FLT_update flag*/
@@ -164,6 +262,12 @@ index 85e88b5..da160b7 100644
  					&offset, sizeof(offset), &scdc_update.byte[0],
  					sizeof(scdc_update.byte[0]));
  
+-	if (scdc_update.fields.FRL_START == 1) {
+-		write_buffer[0] = HDMI_SCDC_UPDATE_0;
+-		/*FLT_START - bit 4*/
+-		write_buffer[1] = (scdc_update.fields.FRL_START << 4);
+-		link_query_ddc_data(link->ddc, slave_address,
+-				write_buffer, sizeof(write_buffer), NULL, 0);
 +	/*
 +	 * Local diagnostic. This watchdog runs every 200 ms on an FRL link and
 +	 * acts only when the sink raises FLT_UPDATE; it ignores whether the DDC
@@ -207,8 +311,13 @@ index 85e88b5..da160b7 100644
 +					scdc_update.byte[0], link->frl_link_settings.frl_link_rate);
 +			frl_last_lock_state = lock_state;
 +		}
-+	}
-+
+ 	}
+-	if (scdc_update.fields.FLT_UPDATE) {
+-		offset = HDMI_SCDC_LTP_REQ;
+ 
+-		link_query_ddc_data(link->ddc, slave_address,
+-						&offset, sizeof(offset), ltp_req.byte,
+-						sizeof(ltp_req.byte));
 +	/*
 +	 * Re-enable the link when the sink says it has lost lock.
 +	 *
@@ -233,7 +342,53 @@ index 85e88b5..da160b7 100644
 +	 */
 +	{
 +		unsigned long long now = dm_get_timestamp(link->ctx);
-+
+ 
+-		ln0_pattern = ltp_req.fields.LN0_LTP_REQ;
+-		ln1_pattern = ltp_req.fields.LN1_LTP_REQ;
+-		ln2_pattern = ltp_req.fields.LN2_LTP_REQ;
+-		ln3_pattern = ltp_req.fields.LN3_LTP_REQ;
+-
+-		if (ln0_pattern == 0x03 || ln1_pattern == 0x03 ||
+-				ln2_pattern == 0x03 || ln3_pattern == 0x03) {
+-			if (flt_no_timeout) {
+-				hpo_frl_link_enc->funcs->set_hdmi_training_pattern(
+-					hpo_frl_link_enc,
+-					ln0_pattern - 1,
+-					ln1_pattern - 1,
+-					ln2_pattern - 1,
+-					ln3_pattern - 1);
+-			} else
+-				hpo_frl_link_enc->funcs->set_hdmi_training_pattern(
+-					hpo_frl_link_enc,
+-					(ln0_pattern == 0x03) ? 0xF : ln0_pattern - 1,
+-					(ln1_pattern == 0x03) ? 0xF : ln1_pattern - 1,
+-					(ln2_pattern == 0x03) ? 0xF : ln2_pattern - 1,
+-					(ln3_pattern == 0x03) ? 0xF : ln3_pattern - 1);
+-		} else
+-			hpo_frl_link_enc->funcs->set_hdmi_training_pattern(
+-				hpo_frl_link_enc,
+-				ln0_pattern - 1,
+-				ln1_pattern - 1,
+-				ln2_pattern - 1,
+-				ln3_pattern - 1);
+-		if (ln0_pattern == 0x0E || ln1_pattern == 0x0E ||
+-								ln2_pattern == 0x0E  || ln3_pattern == 0x0E) {
+-			if (scdc_update.fields.FLT_UPDATE) {
+-				if (link->dc->debug.limit_ffe == 0)
+-					return false;
+-
+-				bool de_emphasis_only = false;
+-				bool pre_shoot_only = false;
+-				bool no_ffe = false;
+-
+-				hdmi_return_preeshoot_and_deemphasis(link, &test_req,
+-					&de_emphasis_only, &pre_shoot_only, &no_ffe);
+-
+-				dio_link_enc->funcs->prog_eq_setting(dio_link_enc, 0xEE,
+-						de_emphasis_only,
+-						pre_shoot_only,
+-						no_ffe,
+-						&link->frl_link_settings);
 +		/*
 +		 * A gap in polling means the watchdog was stopped (output switched off)
 +		 * or the link was idle: start the next episode from scratch rather than
@@ -249,6 +404,10 @@ index 85e88b5..da160b7 100644
 +			frl_last_reenable_ts = 0;
 +			frl_episode_start_ts = 0;
 +			frl_ced_logged = false;
++			frl_flt_polls = 0;
++			frl_flt_requests = 0;
++			frl_last_flt_req_ts = 0;
++			frl_last_update_flags = 0;
 +		}
 +		frl_last_poll_ts = now;
 +
@@ -266,7 +425,13 @@ index 85e88b5..da160b7 100644
 +			if (frl_unlocked_polls == 0) {
 +				frl_episode_start_ts = now;
 +				frl_ced_logged = false;
-+			}
+ 			}
+-		} else
+-			if (!flt_no_timeout) {
+-				hdmi_frl_LTS_clear_Link_Setting(link->ddc);
+-				hdmi_frl_LTS_clear_Update_flag(link->ddc);
+-				hpo_frl_link_enc->funcs->set_hdmi_training_pattern(hpo_frl_link_enc, 0, 0, 0, 0);
+-				hdmi_frl_perform_link_training_with_retries(link);
 +			if (frl_read_ced(link, &ced) &&
 +					(!frl_ced_logged ||
 +					 (memcmp(&ced, &frl_last_ced, sizeof(ced)) != 0 &&
@@ -294,12 +459,17 @@ index 85e88b5..da160b7 100644
 +						" with rate=%d active -- re-enabling the link (attempt %u)\n",
 +						scdc_status.byte, link->frl_link_settings.frl_link_rate,
 +						frl_reenable_attempts);
-+				link_update = true;
-+			}
+ 				link_update = true;
+ 			}
 +		} else if (scdc_status.fields.CH0_LOCKED) {
 +			if (frl_unlocked_polls > 0) {
 +				union hdmi_scdc_ced_data ced;
-+
+ 
+-		write_buffer[0] = HDMI_SCDC_UPDATE_0;
+-		/*Clear SCDC Update Flags*/
+-		write_buffer[1] = (scdc_update.fields.FLT_UPDATE << 5);
+-		link_query_ddc_data(link->ddc, slave_address,
+-				write_buffer, sizeof(write_buffer), NULL, 0);
 +				if (frl_read_ced(link, &ced))
 +					frl_log_ced(link, "locked", now, &ced);
 +			}
@@ -313,11 +483,126 @@ index 85e88b5..da160b7 100644
 +			frl_episode_start_ts = 0;
 +			frl_ced_logged = false;
 +		}
-+	}
+ 	}
+-	if (scdc_update.fields.SOURCE_TEST_UPDATE) {
+-		offset = HDMI_SCDC_SOURCE_TEST_REQ;
+-		bool de_emphasis_only = false;
+-		bool pre_shoot_only = false;
+-		bool no_ffe = false;
+-
+-		link_query_ddc_data(link->ddc, slave_address,
+-						&offset, sizeof(offset), &test_req.byte,
+-						sizeof(test_req.byte));
+-
+-		hdmi_return_preeshoot_and_deemphasis(link, &test_req,
+-			&de_emphasis_only, &pre_shoot_only, &no_ffe);
+-
+-		dio_link_enc->funcs->prog_eq_setting(dio_link_enc, 0xFF,
+-				de_emphasis_only,
+-				pre_shoot_only,
+-				no_ffe,
+-				&link->frl_link_settings);
+-
+ 
+-		write_buffer[0] = HDMI_SCDC_UPDATE_0;
+-		/*Clear SCDC Update Flags*/
+-		write_buffer[1] = (scdc_update.fields.SOURCE_TEST_UPDATE << 3);
+-		link_query_ddc_data(link->ddc, slave_address,
+-				write_buffer, sizeof(write_buffer), NULL, 0);
++	/*
++	 * Sink-raised update flags: logged, and where they need action handed to
++	 * the locked path -- never acted on here.
++	 *
++	 * Upstream handled FRL_START, FLT_update and Source_Test_Update in place:
++	 * it cleared them in the sink, reprogrammed the training pattern and the
++	 * transmitter FFE, and on FLT_update re-ran link training -- all from this
++	 * polling work, which holds no lock. Link training in a commit polls the
++	 * same Update_0 flags every 2 ms (LTS:3, LTS:P) and clears them itself, so
++	 * a poll landing inside a commit's training could consume the FLT_update or
++	 * FRL_START the training was waiting for, or reprogram the transmitter
++	 * underneath it. Harmless upstream only because the watchdog never ran;
++	 * live since this series revived it.
++	 *
++	 * Now every flag is logged when raised and when cleared, with its detail.
++	 * FRL_START and Source_Test_Update get no action: the first is bookkeeping
++	 * link training does itself, the second is a compliance-tester request. A
++	 * FLT_update still raised on FRL_FLT_PERSIST_POLLS consecutive polls (200 ms
++	 * or more, where training services one within 2 ms) has nobody servicing
++	 * it: request the full link re-enable, which the DM work runs under dc_lock
++	 * and which re-trains from LTS:L, clearing the flag. Rate-limited: every
++	 * 5 s for the first FRL_FLT_FAST_REQUESTS, then once a minute while it
++	 * stays raised.
++	 */
++	if (update0_ddc_ok) {
++		static const struct { uint8_t bit; const char *name; } flags[] = {
++			{ 0x10, "FRL_START" },
++			{ 0x20, "FLT_UPDATE" },
++			{ 0x08, "SOURCE_TEST_UPDATE" },
++		};
++		unsigned long long now = dm_get_timestamp(link->ctx);
++		uint8_t cur = scdc_update.byte[0] & 0x38;
++		unsigned int i;
 +
- 	if (scdc_update.fields.FRL_START == 1) {
- 		write_buffer[0] = HDMI_SCDC_UPDATE_0;
- 		/*FLT_START - bit 4*/
++		if (scdc_update.fields.FLT_UPDATE) {
++			offset = HDMI_SCDC_LTP_REQ;
++			link_query_ddc_data(link->ddc, slave_address, &offset,
++					sizeof(offset), ltp_req.byte, sizeof(ltp_req.byte));
++		}
+ 
++		for (i = 0; i < ARRAY_SIZE(flags); i++) {
++			bool was = frl_last_update_flags & flags[i].bit;
++			bool is = cur & flags[i].bit;
++
++			if (is && !was) {
++				frl_flag_raised_ts[i] = now;
++				DC_LOG_WARNING("HDMI FRL: sink raised %s -- update0=0x%02x"
++						" ltp_req=%x%x%x%x test_req=0x%02x status=0x%02x rate=%d\n",
++						flags[i].name, scdc_update.byte[0],
++						ltp_req.fields.LN0_LTP_REQ, ltp_req.fields.LN1_LTP_REQ,
++						ltp_req.fields.LN2_LTP_REQ, ltp_req.fields.LN3_LTP_REQ,
++						test_req.byte, scdc_status.byte,
++						link->frl_link_settings.frl_link_rate);
++			} else if (!is && was) {
++				DC_LOG_WARNING("HDMI FRL: sink %s cleared after %llu ms\n",
++						flags[i].name,
++						dm_get_elapse_time_in_ns(link->ctx, now,
++							frl_flag_raised_ts[i]) / 1000000ULL);
++			}
++		}
++		frl_last_update_flags = cur;
++
++		if (scdc_update.fields.FLT_UPDATE) {
++			unsigned long long interval =
++				frl_flt_requests < FRL_FLT_FAST_REQUESTS ?
++				FRL_REENABLE_FAST_NS : FRL_REENABLE_SLOW_NS;
++
++			frl_flt_polls++;
++			if (frl_flt_polls >= FRL_FLT_PERSIST_POLLS && !link_update &&
++					(frl_last_flt_req_ts == 0 ||
++					 dm_get_elapse_time_in_ns(link->ctx, now, frl_last_flt_req_ts)
++						> interval)) {
++				frl_last_flt_req_ts = now;
++				frl_flt_requests++;
++				DC_LOG_WARNING("HDMI FRL: FLT_UPDATE still raised after %u polls"
++						" (ltp_req=%x%x%x%x status=0x%02x) -- nothing is servicing"
++						" it; re-enabling the link (request %u)\n",
++						frl_flt_polls,
++						ltp_req.fields.LN0_LTP_REQ, ltp_req.fields.LN1_LTP_REQ,
++						ltp_req.fields.LN2_LTP_REQ, ltp_req.fields.LN3_LTP_REQ,
++						scdc_status.byte, frl_flt_requests);
++				link_update = true;
++			}
++		} else {
++			if (frl_flt_requests)
++				DC_LOG_WARNING("HDMI FRL: FLT_UPDATE serviced after %u re-enable"
++						" request(s)\n", frl_flt_requests);
++			frl_flt_polls = 0;
++			frl_flt_requests = 0;
++			frl_last_flt_req_ts = 0;
++		}
+ 	}
+ 
+ 	return link_update;
 -- 
 2.55.0
 

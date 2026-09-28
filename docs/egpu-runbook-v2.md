@@ -2187,3 +2187,66 @@ testing had the same setup clean under Windows, so this is not simply a defectiv
 driver evidently recovers from that state and the stock Linux driver does not. That is the gap the local
 patch fills, and the main argument for proposing the recovery upstream.
 
+## Sep 27 late — code review of my own patches: the revived watchdog races link training
+
+The "where that leaves it" paragraph above was written before I re-checked my own code. David asked me
+to do that first, and the review found a real defect in what patch 0002 switched on.
+
+**The defect.** Upstream's poll, `hdmi_frl_poll_status_flag()`, does not just read the sink's flags. It acts
+on them directly, from the polling work, with **no lock held**:
+
+- `FRL_START`: clears it in the sink.
+- `FLT_UPDATE`: reads the LTP request, reprograms the training pattern and the transmitter FFE, and in the
+  common case re-runs the entire link training (`hdmi_frl_perform_link_training_with_retries`). Then it
+  clears the flag. None of this is logged at a level the journal keeps.
+- `SOURCE_TEST_UPDATE`: reprograms the transmitter FFE and clears the flag.
+
+A commit's own link training polls those same Update_0 flags every 2 ms (LTS:3, LTS:P) and clears them
+itself. A 10G x4 training takes ~225 ms, longer than the 200 ms poll period. So a watchdog poll can land
+inside a commit's training and do two kinds of damage:
+
+- consume the `FLT_UPDATE` or `FRL_START` that the training is waiting for, which makes the training
+  time out;
+- reprogram the transmitter underneath it.
+
+Upstream is only safe because patch 0002's bug kept the watchdog from ever running. Reviving the
+watchdog revived this race too. It is the same class of mistake as the 20:33 deadlock: the upstream
+watchdog path had never been exercised.
+
+**Has it actually fired? No sign so far.** Any poll that sees either flag set changes the logged lock
+state, so it produces a `sink state changed` line with bit 0x10 or 0x20 in `update0`. In the retained
+journal (Sep 27 09:01 onward) there are 32 transitions. Every one shows `update0=0x43` or `0x41`: status,
+CED and RSED updates only, never `FRL_START` or `FLT_UPDATE`. This fits the timing: a flag raised during
+training lives about 2 ms, and a poll comes every 200 ms. So the race is a real hole, but there is no
+evidence that it caused any of the multi-attempt recoveries. It is fixed on principle, and it is now
+directly logged.
+
+**The build (measure + fix together, David's call).** Patch 0003 point 6:
+
+- The watchdog no longer writes to the sink or touches the transmitter. All three flags are logged at
+  warning level when raised and when cleared:
+  - on raise: the LTP request, Source_Test_Req and status bytes;
+  - on clear: how long the flag was up.
+- `FRL_START` and `SOURCE_TEST_UPDATE` get no action. `FRL_START` is bookkeeping that training does
+  itself. `SOURCE_TEST_UPDATE` is a compliance-tester request.
+- If `FLT_UPDATE` is still raised on two consecutive polls, nothing is servicing it; training would have
+  handled it within 2 ms. The poll then requests the same full link re-enable used for loss of lock. That
+  re-enable runs under the `dc_lock` trylock and re-trains from LTS:L, which clears the flag.
+- Requests go every 5 s for the first three, then once a minute while the flag stays up. Every re-enable
+  in the journal now states its reason: loss of lock, or an unserviced `FLT_UPDATE`.
+
+Our two files compiled with no warnings. The module carries the new strings.
+
+| new journal line | reading |
+|---|---|
+| `sink raised FLT_UPDATE ... ltp_req=...` then `cleared after N ms` (small N) | the watchdog caught a training handshake in flight and left it alone; the case the fix is for |
+| `FLT_UPDATE still raised after 2 polls ... re-enabling the link` | the TV asked for a retrain that nobody was running; before this build, the watchdog did it silently and lock-free |
+| `sink raised FRL_START` with no `cleared` line | the TV set FRL_START outside a training; upstream used to clear it, this build does not; tells us whether that matters |
+| `sink raised SOURCE_TEST_UPDATE` | not expected from a TV; worth a look if it appears |
+| none of these, as in the 32 transitions so far | the upstream flag path never ran, and the race was not a factor in the dark wakes |
+
+**Journal command correction.** `journalctl -k` implies `-b` (current boot only), even with `--since`. A
+morning check after a reboot would silently miss the previous night. From now on:
+
+    journalctl _TRANSPORT=kernel --since yesterday | grep -E "HDMI FRL|frl status polling|DMCUB error|power_psr"
+

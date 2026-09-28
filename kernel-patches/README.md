@@ -53,22 +53,38 @@ one patch.
    link that trains, is acknowledged with FRL_START, then loses lock is never noticed.
    `dc_link_detect(DETECT_REASON_RETRAIN)` was tried first and does **not** work: measured
    2026-09-22, twelve requests over 56 s caused no modeset and no lock.
-4. **Sink error counters (Sep 27).** While every lane is unlocked, and once at lock, read SCDC
-   0x50-0x5A (per-lane error counts + Reed-Solomon corrections, each with a valid flag) and log
-   them with the time since the episode began — at the first unlocked poll, on any change (at
-   most 1/s), and at lock. Looking for a readiness signal to replace the fixed retry timer.
 3. **Warning-level record.** Lock-state transitions (masked to the lock-relevant bits, because the
    sink toggles its error-counter bits constantly), the retrain request, the recovery, and the
    `200ms frl status polling starts/stops` messages all land in an ordinary journal.
+4. **Sink error counters (Sep 27).** While every lane is unlocked, and once at lock, read SCDC
+   0x50-0x5A (per-lane error counts + Reed-Solomon corrections, each with a valid flag) and log
+   them with the time since the episode began — at the first unlocked poll, on any change (at
+   most 1/s), and at lock. Looking for a readiness signal to replace the fixed retry timer. There
+   is none: the valid flags stay clear until lock.
+5. **`mutex_trylock`, never `mutex_lock` (Sep 27).** `amdgpu_dm_atomic_commit_tail()` holds
+   `dc_lock` while it calls `cancel_delayed_work_sync()` on this work; a blocking lock here froze
+   the desktop at 20:33 on Sep 27. A commit holding the lock is changing the display anyway, so
+   the pass is skipped (logged) and the retry schedule tries again.
+6. **No lock-free action on the sink's update flags (Sep 27).** Upstream's poll cleared
+   `FRL_START`/`FLT_UPDATE`/`SOURCE_TEST_UPDATE` in the sink and reprogrammed the transmitter, even
+   re-running link training, with no lock held. That races a commit's own training, which polls
+   the same flags every 2 ms. Now the flags are only logged (raised, cleared, how long). A
+   `FLT_UPDATE` still up on two consecutive polls requests the same locked full re-enable as
+   point 2: every 5 s for three requests, then once a minute. Every re-enable is logged with its
+   reason.
 
-Confirmation is then passive:
+Confirmation is then passive. `journalctl -k` covers **only the current boot**, even with
+`--since`, so this form reads every boot in range:
 
-    journalctl -k --since yesterday | grep -E "HDMI FRL|frl status polling"
+    journalctl _TRANSPORT=kernel --since yesterday | grep -E "HDMI FRL|frl status polling|DMCUB error|power_psr"
 
 | what the journal shows | reading |
 |---|---|
 | nothing but the boot `DP-HDMI FRL PCON supported` line | the fault did not occur, or the watchdog is not armed (check for the `polling starts` line) |
-| `loss of lock ... requesting retrain` then `lock restored` | the fault occurred and the retrain fixed it — the confirmation being waited for |
-| `continuing once a minute` then more `loss of lock` lines | the sink is not locking even after a minute of fast retries; the loop keeps going at one attempt a minute, and a long run of these points at the source PHY or the cable |
+| `loss of lock ... re-enabling the link` then `lock restored` | the fault occurred and the re-enable fixed it |
+| `continuing once a minute` then more `loss of lock` lines | the sink is not locking even after a minute of fast retries; the loop keeps going at one attempt a minute |
+| `display commit in progress -- link re-enable skipped this pass` | a request collided with a commit and stepped aside (point 5); the next attempt follows |
+| `sink raised FLT_UPDATE` / `FRL_START` / `SOURCE_TEST_UPDATE`, then `cleared after N ms` | the watchdog saw a sink flag (point 6); before Sep 27 it would have acted on it lock-free |
+| `FLT_UPDATE still raised after 2 polls ... re-enabling the link` | the sink asked for a retrain that nothing was running; handled through the locked path |
 | `sink state changed` lines only | transitions happened without meeting the retrain condition; the sink was reporting lock while the panel was dark |
 
