@@ -69,3 +69,12 @@ the Reed-Solomon correction count, and how much it grew since the last sample. T
 (corrections stay near zero) from a marginal one (corrections climbing or pinned at 32767). Needs
 i2c-tools and sudo.
 
+
+## hdmi-frl-switch-capture.sh (Sep 28)
+Traces link training across a 4K60 -> 4K120 switch, the case that most reliably needs several link
+re-enables at 10G x4. Each cycle switches to 4K60 and waits for lock, then turns on drm.debug=0x2,
+switches to 4K120 and waits for lock (`LOCK_TIMEOUT`, default 120 s), then turns debug off. Default
+is 3 cycles (`CYCLES=`). Every training start, rate, PASSED/FAILED and retry lands next to the
+watchdog's 200 ms status polls and re-enables. Each cycle ends with a summary and timeline, and at the
+end the original mode is restored. Run it from the desktop session as your user; it needs
+kscreen-doctor, python3 and sudo. Output goes to `~/frl-switch-<stamp>.log`.
