@@ -30,9 +30,10 @@
 #   under /usr/lib/modules/<ver>/ and silently stops applying when <ver> changes, and when the
 #   source for the new <ver> is missing this script pulls the PKGBUILD and fetches it itself.
 #
-#   bash build.sh                 build, then install (asks for sudo at the install step)
+#   bash build.sh                 build, install, then clean up after kernels no longer installed
 #   bash build.sh --build-only    stop after the build; module left in the source tree
 #   bash build.sh --remove        remove the override, depmod, rebuild initramfs
+#   bash build.sh --cleanup [--dry-run]   only the clean-up (see prune_old_kernels)
 # Reboot after install or remove: the running amdgpu cannot be unloaded under a live desktop.
 set -euo pipefail
 KVER="${KVER:-$(uname -r)}"
@@ -49,6 +50,61 @@ DEST=/usr/lib/modules/$KVER/updates/amdgpu-frl-lt
 FRL=drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
 say() { echo "[amdgpu-frl] $*"; }
 rebuild_initramfs() { if command -v limine-mkinitcpio >/dev/null 2>&1; then sudo limine-mkinitcpio; else sudo mkinitcpio -P; fi; }
+
+# Clean up after kernels that are no longer installed. Every kernel update leaves ~4 GB here
+# (source tree + tarball + object tree) and a /usr/lib/modules/<ver> directory the kernel package no
+# longer owns -- it survives because the out-of-tree modules put into it (this amdgpu override, the
+# NVIDIA hook's modules) are not package files. A version is stale only when ALL of these hold:
+#   - it looks like a mainline CachyOS kernel (7.2.8-1-cachyos; never -lts or anything else)
+#   - it is not the running kernel and not the one being built now
+#   - /usr/lib/modules/<ver>/vmlinuz is gone and no package owns /usr/lib/modules/<ver>
+# ~/kbuild files are removed as the user; the /usr/lib/modules directory needs sudo.
+prune_old_kernels() {
+    local dry=${1:-} running v base kb=~/kbuild pkgdir=~/kbuild/linux-cachyos/linux-cachyos
+    local -a cand=() stale=() paths=()
+    running=$(uname -r)
+    mapfile -t cand < <( {
+        ls /usr/lib/modules 2>/dev/null
+        ls -d "$kb"/obj-* 2>/dev/null | sed 's|.*/obj-||'
+        ls -d "$pkgdir"/src/cachyos-* 2>/dev/null | grep -v '\.tar' | sed 's|.*/cachyos-||; s|$|-cachyos|'
+    } | sort -u )
+    for v in "${cand[@]}"; do
+        [[ "$v" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?-[0-9]+-cachyos$ ]] || continue
+        [ "$v" = "$running" ] && continue
+        [ "$v" = "$KVER" ] && continue
+        [ -f "/usr/lib/modules/$v/vmlinuz" ] && continue
+        pacman -Qqo "/usr/lib/modules/$v" >/dev/null 2>&1 && continue
+        stale+=("$v")
+    done
+    if [ "${#stale[@]}" -eq 0 ]; then say "clean-up: nothing left over from old kernels"; return 0; fi
+    for v in "${stale[@]}"; do
+        base=${v%-cachyos}
+        for f in "$pkgdir/src/cachyos-$base" "$kb/obj-$v" \
+                 "$pkgdir/src/cachyos-$base.tar.gz" "$pkgdir/src/cachyos-$base.tar.gz.asc" \
+                 "$pkgdir/cachyos-$base.tar.gz" "$pkgdir/cachyos-$base.tar.gz.asc" \
+                 "$kb/amdgpu-frl-lt-$v.ko" "$kb/prepare-$base.log" "/usr/lib/modules/$v"; do
+            [ -e "$f" ] || [ -L "$f" ] && paths+=("$f")
+        done
+    done
+    say "clean-up: kernels no longer installed: ${stale[*]}"
+    say "clean-up: $(du -shc "${paths[@]}" 2>/dev/null | tail -1 | cut -f1) in ${#paths[@]} path(s)"
+    if [ "$dry" = "--dry-run" ]; then
+        printf '    would remove %s\n' "${paths[@]}"
+        return 0
+    fi
+    for f in "${paths[@]}"; do
+        case "$f" in
+            /usr/lib/modules/*) sudo rm -rf -- "$f" ;;
+            *) rm -rf -- "$f" ;;
+        esac
+    done
+    say "clean-up: done"
+}
+
+if [ "${1:-}" = "--cleanup" ]; then
+    prune_old_kernels "${2:-}"
+    exit 0
+fi
 
 if [ "${1:-}" = "--remove" ]; then
     sudo rm -rf "$DEST"; sudo depmod "$KVER"
@@ -150,5 +206,6 @@ else
     say "depmod still resolves amdgpu to $NOW -- not installed as expected"; exit 1
 fi
 rebuild_initramfs
+prune_old_kernels
 say "done. REBOOT, then: bash $REPO/tools/hdmi-frl-lt-capture.sh at 4K120 and look for PASSED on try 1."
 say "revert: bash $REPO/tools/amdgpu-frl-module/build.sh --remove, then reboot."

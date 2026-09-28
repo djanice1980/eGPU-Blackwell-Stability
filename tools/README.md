@@ -53,3 +53,12 @@ morning the TV says No Signal. Answers whether the sink asks for anything during
 minutes (the driver's 200 ms FRL watchdog would retrain if it did) or whether the link is
 silent until the TV locks by itself.
 
+### amdgpu-frl-module/build.sh clean-up (Sep 27)
+After a successful install the script removes what old kernels leave behind: the ~4 GB of source,
+tarball and object tree per version in `~/kbuild`, and the `/usr/lib/modules/<ver>` directory that
+survives a kernel removal because it still holds out-of-tree modules (this override, the NVIDIA
+hook's modules). A version is removed only if it is a mainline CachyOS kernel, not the running one,
+not the one just built, has no `vmlinuz`, and no package owns its module directory — so the current
+kernel and `-lts` are never touched. Preview with `bash build.sh --cleanup --dry-run`; run alone
+with `bash build.sh --cleanup`.
+
