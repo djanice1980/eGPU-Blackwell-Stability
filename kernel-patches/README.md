@@ -76,8 +76,10 @@ one patch.
    a commit's own link training, when the TV is unlocked by definition. At a 4K60 -> 4K120 switch
    that made the watchdog tear down the fresh link 21-117 ms after FRL_START, but the TV needs
    0.42-0.83 s after FRL_START to lock. Every training start and the end of the FRL_START
-   handshake now stamp a timestamp, and unlocked polls within 2 s of it are not counted. When
-   the TV locks, the watchdog logs `sink locked N ms after the last link training`.
+   handshake now stamp a timestamp, and unlocked polls within 4.4 s of it are not counted, so
+   the first re-enable comes ~5 s after training, the same time every retry link gets. (It was
+   2 s at first, and was lengthened after locks up to 2.7 s were measured.) When the TV locks,
+   the watchdog logs `sink locked N ms after the last link training`.
 
 Confirmation is then passive. `journalctl -k` covers **only the current boot**, even with
 `--since`, so this form reads every boot in range:
@@ -92,6 +94,6 @@ Confirmation is then passive. `journalctl -k` covers **only the current boot**, 
 | `display commit in progress -- link re-enable skipped this pass` | a request collided with a commit and stepped aside (point 5); the next attempt follows |
 | `sink raised FLT_UPDATE` / `FRL_START` / `SOURCE_TEST_UPDATE`, then `cleared after N ms` | the watchdog saw a sink flag (point 6); before Sep 27 it would have acted on it lock-free |
 | `FLT_UPDATE still raised after 2 polls ... re-enabling the link` | the sink asked for a retrain that nothing was running; handled through the locked path |
-| `sink locked N ms after the last link training` | lock latency after training (point 7); values near or above 2000 mean the settle window is too short |
+| `sink locked N ms after the last link training` | lock latency after training (point 7); values near or above 4400 mean the settle window is too short |
 | `sink state changed` lines only | transitions happened without meeting the retrain condition; the sink was reporting lock while the panel was dark |
 

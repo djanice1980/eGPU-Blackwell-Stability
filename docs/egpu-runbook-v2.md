@@ -2421,3 +2421,16 @@ The error counters stay invalid until lock. The TV either locks all four lanes w
 FRL_START or not at all within 4.6 s. (That cycle also caught a mid-training FLT_UPDATE, ltp 5678,
 which point 6 correctly left alone.)
 
+## Sep 28 — settle window lengthened to 4.4 s (David's call)
+
+With the 2 s window, the first re-enable could fire ~2.6 s after FRL_START, inside the measured lock
+tail (up to 2706 ms). The window is now 4.4 s. With the ~0.6 s debounce, the first re-enable comes
+~5 s after training, the same time each re-enabled link already gets before the next attempt.
+
+Trade-off: a link that will never lock (a dark wake) waits ~2.4 s longer for its first retry.
+
+The build is clean. To check it, rerun the switch capture:
+
+- no switch whose lock latency is below ~5 s should get a re-enable;
+- latencies should keep appearing in `sink locked N ms after the last link training`.
+
