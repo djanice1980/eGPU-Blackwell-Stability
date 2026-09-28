@@ -26,9 +26,9 @@
 #     cd linux-cachyos/linux-cachyos && git log --oneline -1 -- PKGBUILD   # must be your version
 #     makepkg --nobuild --nodeps --noconfirm --skippgpcheck
 #   The tree lands in src/cachyos-<ver>-<rel>/ (CachyOS ships a pre-patched tarball).
-#   Repeat those two commands after every kernel update: the override lives under
-#   /usr/lib/modules/<ver>/ and silently stops applying when <ver> changes, so the stock driver
-#   comes back until this is rebuilt for the new kernel.
+#   After that, a kernel update needs nothing but this script and a reboot: the override lives
+#   under /usr/lib/modules/<ver>/ and silently stops applying when <ver> changes, and when the
+#   source for the new <ver> is missing this script pulls the PKGBUILD and fetches it itself.
 #
 #   bash build.sh                 build, then install (asks for sudo at the install step)
 #   bash build.sh --build-only    stop after the build; module left in the source tree
@@ -57,7 +57,25 @@ if [ "${1:-}" = "--remove" ]; then
     say "reboot to run the stock module again"; exit 0
 fi
 
-[ -d "$SRC" ] || { say "no kernel source for $KVER at $SRC"; say "refresh it: cd ~/kbuild/linux-cachyos && git pull && cd linux-cachyos && makepkg --nobuild --nodeps --noconfirm --skippgpcheck"; exit 1; }
+# After a kernel update the matching source is not here yet, so fetch it: pull the CachyOS
+# PKGBUILD checkout and let `makepkg --nobuild` download and extract the pre-patched tarball for
+# that version. Its prepare() then fails for lack of `bc`; that does not matter, only the extracted
+# tree and the tarball are used. Refuses when upstream's PKGBUILD is not the running version (for
+# example CachyOS has already moved on), rather than building from the wrong source.
+fetch_source() {
+    local checkout=~/kbuild/linux-cachyos pkgdir=~/kbuild/linux-cachyos/linux-cachyos want have log
+    want=${KVER%-cachyos}                                   # 7.2.8-1-cachyos -> 7.2.8-1
+    log=~/kbuild/prepare-$want.log
+    [ -d "$checkout/.git" ] || { say "no CachyOS PKGBUILD checkout at $checkout (see the header)"; exit 1; }
+    say "no source for $want yet -- pulling the CachyOS PKGBUILD and fetching it (a few minutes)"
+    git -C "$checkout" pull -q --ff-only || { say "git pull in $checkout failed"; exit 1; }
+    have="$(sed -n 's/^_major=//p' "$pkgdir/PKGBUILD" | head -1).$(sed -n 's/^_minor=//p' "$pkgdir/PKGBUILD" | head -1)-$(sed -n 's/^pkgrel=//p' "$pkgdir/PKGBUILD" | head -1)"
+    [ "$have" = "$want" ] || { say "the CachyOS PKGBUILD is at $have but the running kernel is $want -- no matching source to fetch"; exit 1; }
+    ( cd "$pkgdir" && makepkg --nobuild --nodeps --noconfirm --skippgpcheck ) > "$log" 2>&1 || true
+    [ -d "$SRC" ] || { say "the fetch did not produce $SRC -- see $log"; exit 1; }
+    say "source for $want ready"
+}
+[ -d "$SRC" ] || fetch_source
 [ -f "$BUILD/Module.symvers" ] || { say "headers for $KVER missing (linux-cachyos-headers)"; exit 1; }
 [ "${#PATCHES[@]}" -gt 0 ] || { say "no patches found under $REPO/kernel-patches"; exit 1; }
 SRCREL=$(sed -nE 's/^#define UTS_RELEASE "(.*)"/\1/p' "$BUILD/include/generated/utsrelease.h")

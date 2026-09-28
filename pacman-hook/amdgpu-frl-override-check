@@ -38,9 +38,7 @@ echo
 echo " Those kernels will run the STOCK amdgpu: the external display can come up"
 echo " dark after a wake and nothing will be logged about it."
 echo
-echo " To restore it, after this update finishes:"
-echo "     cd ~/kbuild/linux-cachyos && git pull"
-echo "     cd linux-cachyos && makepkg --nobuild --nodeps --noconfirm --skippgpcheck"
+echo " To restore it, after this update finishes (the script fetches the new source itself):"
 echo "     $BUILD_CMD"
 echo "     reboot"
 echo "=============================================================================="
