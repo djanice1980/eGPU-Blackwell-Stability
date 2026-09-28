@@ -2386,3 +2386,38 @@ drm.debug). Reading it:
 - clean training, still 0x40 after the window: problem (3) is real on its own and needs its own
   investigation.
 
+## Sep 28 00:21 — settle window installed, switch capture rerun (6 cycles)
+
+Logs: `~/frl-switch-20260928-002113.log` and `~/frl-switch-20260928-002245.log`. The script's debug
+restore now works (`drm debug restored to 0`).
+
+| cycle | watchdog re-enables | TV locked N ms after the last training |
+|---|---|---|
+| run 1 / 1 | 1 | 2706 (after the re-enable) |
+| run 1 / 2 | **0** | 192 |
+| run 1 / 3 | **0** | 1395 |
+| run 2 / 1 | **0** | 195 |
+| run 2 / 2 | **0** | 1524 |
+| run 2 / 3 | 3 | 627 (after the third re-enable) |
+
+**Defect (2) was real and is fixed.** Before the window, 0 of 3 switches locked on the commit's own
+link; now 4 of 6 do. Two of those four (1395 and 1524 ms) would have been torn down under the old
+~600 ms debounce. At least part of the "multi-attempt login switches" was the watchdog's doing.
+
+**Lock latency is wider than the first sample suggested:** 192 to 2706 ms after FRL_START. The two
+fast values (~0.2 s) are one poll after FRL_START. The 2706 ms lock (run 1/1) arrived *after* the
+2 s window had expired. It survived only because the 5 s interval since the previous re-enable had
+not elapsed. In the same cycle, the commit's own link was torn down 2.52 s after its FRL_START. It
+might have locked too with a little more time; that cannot be told from the log.
+
+**Problem (3) is real on its own.** In run 2/3:
+
+- the commit's link and the links from re-enables 1 and 2 all trained textbook-clean;
+- the TV stayed at 0x40 for 2.5 s, then 4.6 s, then 4.6 s;
+- re-enable 3 locked in 627 ms.
+
+The watchdog saw only two status values across both runs, 0x40 and 0x5e: never a partial lane lock.
+The error counters stay invalid until lock. The TV either locks all four lanes within ~2.7 s of
+FRL_START or not at all within 4.6 s. (That cycle also caught a mid-training FLT_UPDATE, ltp 5678,
+which point 6 correctly left alone.)
+

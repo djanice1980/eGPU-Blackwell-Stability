@@ -141,7 +141,7 @@ for c in $(seq 1 "$CYCLES"); do
     echo "  watchdog re-enables: $(grep -c "re-enabling the link" <<< "$sec"), skipped for a commit: $(grep -c "skipped this pass" <<< "$sec")"
     grep -qE "Missed|suppressed" <<< "$sec" && echo "  NOTE: the kernel log dropped messages in this window; the timeline may have gaps"
     echo "  timeline:"
-    grep -E "Starting FRL Link Training|Write link rate|FRL_START = 1|PASSED|FAILED|lower link rate|Retry count|re-enabling the link|skipped this pass|sink state changed|lock restored|sink raised|cleared after" <<< "$sec" \
+    grep -E "Starting FRL Link Training|Write link rate|FRL_START = 1|PASSED|FAILED|lower link rate|Retry count|re-enabling the link|skipped this pass|sink state changed|lock restored|sink locked|sink raised|cleared after" <<< "$sec" \
         | sed -E 's/^([A-Za-z]+ [0-9]+ )?([0-9:.]+) .*(FRL LINK TRAINING:|HDMI FRL:) */    \2  /'
     sleep 3
 done
