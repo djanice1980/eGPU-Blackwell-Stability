@@ -47,8 +47,9 @@ one patch.
 2. **Link re-enable on loss of lock.** While an FRL rate is active and the sink reports all four
    lanes unlocked, run `dc_link_dp_handle_link_loss()` — the DP hot-plug path's recovery, which
    is generic: dpms off then on over the link's pipes, re-running FRL link training. Debounced
-   three polls (~600 ms) so modeset transients are ignored, then one attempt every 5 s for
-   twelve attempts, then once a minute with no hard stop (Sep 25). A polling gap over 2 s
+   three polls (~600 ms) so modeset transients are ignored, then one attempt every ~4 s (5 s
+   until Sep 28; see point 7) for twelve attempts, then once a minute with no hard stop
+   (Sep 25). A polling gap over 2 s
    (output switched off) resets the episode. Upstream reacts only to `FLT_UPDATE`, which the sink raises during training, so a
    link that trains, is acknowledged with FRL_START, then loses lock is never noticed.
    `dc_link_detect(DETECT_REASON_RETRAIN)` was tried first and does **not** work: measured
@@ -70,16 +71,18 @@ one patch.
    re-running link training, with no lock held. That races a commit's own training, which polls
    the same flags every 2 ms. Now the flags are only logged (raised, cleared, how long). A
    `FLT_UPDATE` still up on two consecutive polls requests the same locked full re-enable as
-   point 2: every 5 s for three requests, then once a minute. Every re-enable is logged with its
+   point 2: every 3 s for three requests, then once a minute. Every re-enable is logged with its
    reason.
 7. **Settle window after link training (Sep 28).** The debounce used to count polls taken during
    a commit's own link training, when the TV is unlocked by definition. At a 4K60 -> 4K120 switch
    that made the watchdog tear down the fresh link 21-117 ms after FRL_START, but the TV needs
    0.42-0.83 s after FRL_START to lock. Every training start and the end of the FRL_START
-   handshake now stamp a timestamp, and unlocked polls within 4.4 s of it are not counted, so
-   the first re-enable comes ~5 s after training, the same time every retry link gets. (It was
-   2 s at first, and was lengthened after locks up to 2.7 s were measured.) When the TV locks,
-   the watchdog logs `sink locked N ms after the last link training`.
+   handshake now stamp a timestamp, and unlocked polls within 3 s of it are not counted, so every
+   link gets ~3.6 s after FRL_START before it is torn down. The fast retry interval dropped from
+   5 s to 3 s, so the window now sets the retry spacing (~4 s). The window went 2 s -> 4.4 s ->
+   3 s: across 29 measured links, lock came within 2.71 s of FRL_START or not at all, and 4.4 s
+   bought no extra locks. When the TV locks, the watchdog logs `sink locked N ms after the last
+   link training`.
 
 Confirmation is then passive. `journalctl -k` covers **only the current boot**, even with
 `--since`, so this form reads every boot in range:
@@ -94,6 +97,6 @@ Confirmation is then passive. `journalctl -k` covers **only the current boot**, 
 | `display commit in progress -- link re-enable skipped this pass` | a request collided with a commit and stepped aside (point 5); the next attempt follows |
 | `sink raised FLT_UPDATE` / `FRL_START` / `SOURCE_TEST_UPDATE`, then `cleared after N ms` | the watchdog saw a sink flag (point 6); before Sep 27 it would have acted on it lock-free |
 | `FLT_UPDATE still raised after 2 polls ... re-enabling the link` | the sink asked for a retrain that nothing was running; handled through the locked path |
-| `sink locked N ms after the last link training` | lock latency after training (point 7); values near or above 4400 mean the settle window is too short |
+| `sink locked N ms after the last link training` | lock latency after training (point 7); values near or above 3000 mean the settle window is too short |
 | `sink state changed` lines only | transitions happened without meeting the retrain condition; the sink was reporting lock while the panel was dark |
 

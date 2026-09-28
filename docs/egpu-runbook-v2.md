@@ -2469,3 +2469,23 @@ on Sep 20 (11:50, 11:52) while the watchdog was still dead code, i.e. with no SC
 watchdog could still change the *rate* (its SCDC reads, including the 11-byte error-counter read, run
 every 200 ms during lock-up), but it is not the origin.
 
+## Sep 28 — settle window 3 s, fast retry interval 3 s (David's call)
+
+The per-link table showed that lock is bimodal: within 2.71 s of FRL_START, or never. The 4.4 s
+window therefore only made each dead link cost more. The new settings:
+
+- **`FRL_SETTLE_NS` = 3 s.** With the ~0.6 s debounce, every link gets ~3.6 s after FRL_START before
+  it is torn down. That is above every lock measured (the maximum was 2709 ms).
+- **`FRL_REENABLE_FAST_NS` 5 s -> 3 s.** It is now only a floor. The window sets the real spacing,
+  so the commit's link and each re-enabled link get the same ~3.6 s, and retries run ~4 s apart
+  instead of 5.
+- **The fast phase** is 12 attempts over ~48 s instead of 60. That still covers the ~25 s this TV
+  needs after a deep standby. The once-a-minute phase follows as before.
+- **The FLT_UPDATE rate limit** follows the same interval: 3 s.
+
+Expected saving per dead link: ~1.4 s against 4.4 s, and ~1 s against the original 5 s spacing. The
+build is clean.
+
+Check with the switch capture. Every `sink locked N ms` value should stay well under 3000. A lock at
+or above ~3000 ms would mean a slow link is being torn down, and the window needs widening.
+

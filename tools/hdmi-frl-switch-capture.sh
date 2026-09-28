@@ -34,7 +34,7 @@
 set -u
 OUT="${1:-$HOME/frl-switch-$(date +%Y%m%d-%H%M%S).log}"
 CYCLES="${CYCLES:-3}"
-LOCK_TIMEOUT="${LOCK_TIMEOUT:-120}"   # the watchdog does 12 attempts 5 s apart, then 1/min
+LOCK_TIMEOUT="${LOCK_TIMEOUT:-120}"   # the watchdog does 12 attempts ~4 s apart, then 1/min
 DBG=/sys/module/drm/parameters/debug
 
 say() { echo "[frl-switch] $*"; }

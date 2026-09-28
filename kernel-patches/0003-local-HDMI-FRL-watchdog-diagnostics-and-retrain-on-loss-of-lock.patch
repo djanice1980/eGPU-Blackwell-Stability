@@ -1,4 +1,4 @@
-From df644aeee7030da5dad772182f8e3603d7b704cc Mon Sep 17 00:00:00 2001
+From f9c1f52bd745da567554a2e349f53e484df625f6 Mon Sep 17 00:00:00 2001
 From: David Janice <djanice1980@gmail.com>
 Date: Sun, 27 Sep 2026 21:18:50 -0500
 Subject: [PATCH 3/3] drm/amd/display: local HDMI FRL watchdog diagnostics and
@@ -27,7 +27,7 @@ adequate for one FRL link.
    detect-based attempts over 56 s produced no modeset and no lock.
 
    Debounced by three polls (~600 ms) so a modeset transient does not trigger it.
-   Then one attempt every 5 s for twelve attempts (after a long standby this sink
+   Then one attempt every ~4 s for twelve attempts (after a long standby this sink
    needs ~25 s before any attempt can land), and after that once a minute with no
    hard stop. It only runs while an FRL stream is active and the sink answers DDC
    and reports every lane unlocked, so an off or unplugged display never triggers
@@ -78,7 +78,7 @@ adequate for one FRL link.
    A FLT_update still raised on two consecutive polls, where training services one
    within 2 ms, has nobody servicing it: the poll requests the full link re-enable
    of point 2, which runs under the trylock of point 5 and re-trains from LTS:L,
-   clearing the flag. Every 5 s for three requests, then once a minute while it
+   clearing the flag. Every 3 s for three requests, then once a minute while it
    stays raised; each request is logged with its reason, so every re-enable in
    the journal says whether it was loss of lock or an unserviced FLT_update.
 
@@ -92,15 +92,17 @@ adequate for one FRL link.
    unlocked polls within FRL_SETTLE_NS of it do not count toward the
    debounce. On lock the watchdog logs how long after the last training the sink
    locked, the latency this window has to cover.
-   The window was 2 s at first; a rerun (six switches) measured locks 192-2706
-   ms after FRL_START, the slowest outside it. It is now 4.4 s: with the ~0.6 s
-   debounce the first re-enable comes ~5 s after training, the same time every
-   re-enabled link already gets. Measured with the 2 s window: 4 of 6 switches
-   locked on the commit's link with no re-enable, against 0 of 3 before.
+   Measured with a 2 s window: 4 of 6 switches locked on the commit's link with
+   no re-enable, against 0 of 3 before. Across 29 links over four captures, lock
+   was bimodal: within 2.71 s of FRL_START or never (nine links given >= 4.5 s
+   never locked late). FRL_SETTLE_NS is 3 s, so with the ~0.6 s debounce every
+   link gets ~3.6 s after FRL_START; the fast re-enable interval drops from 5 s
+   to 3 s so that the window, not the interval, sets the retry spacing (~4 s).
+   A 4.4 s window was tried in between and bought no extra locks.
 ---
  .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c |  37 +-
- .../display/dc/link/protocols/link_hdmi_frl.c | 458 ++++++++++++++----
- 2 files changed, 385 insertions(+), 110 deletions(-)
+ .../display/dc/link/protocols/link_hdmi_frl.c | 460 ++++++++++++++----
+ 2 files changed, 387 insertions(+), 110 deletions(-)
 
 diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 index 83f6528..270129d 100644
@@ -160,7 +162,7 @@ index 83f6528..270129d 100644
  	/* Allow idle optimization when vblank count is 0 for display off */
  	if ((dm->active_vblank_irq_count == 0) && amdgpu_dm_is_headless(dm->adev))
 diff --git a/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c b/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
-index 85e88b5..51c6bca 100644
+index 85e88b5..f9fd0a5 100644
 --- a/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
 +++ b/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
 @@ -71,7 +71,7 @@ static bool hdmi_frl_test_max_rate(struct ddc_service *ddc_service)
@@ -172,14 +174,14 @@ index 85e88b5..51c6bca 100644
  		union hdmi_scdc_source_test_req *test_req, bool *de_emphasis_only,
  		bool *pre_shoot_only, bool *no_ffe)
  {
-@@ -194,139 +194,381 @@ void hdmi_frl_LTS_clear_Update_flag(struct ddc_service *ddc_service)
+@@ -194,139 +194,383 @@ void hdmi_frl_LTS_clear_Update_flag(struct ddc_service *ddc_service)
  }
  
  
 +/* watchdog state; see the comment in hdmi_frl_poll_status_flag(). Single FRL link assumed. */
 +#define FRL_UNLOCK_DEBOUNCE_POLLS  3               /* ~600 ms: ride out the transient at a modeset */
-+#define FRL_REENABLE_FAST_NS       5000000000ULL   /* first minute: one attempt every 5 s */
-+#define FRL_REENABLE_FAST_ATTEMPTS 12              /* covers the ~25 s the sink needs after deep standby */
++#define FRL_REENABLE_FAST_NS       3000000000ULL   /* floor; FRL_SETTLE_NS makes it ~4 s in practice */
++#define FRL_REENABLE_FAST_ATTEMPTS 12              /* ~48 s: covers the ~25 s the sink needs after deep standby */
 +#define FRL_REENABLE_SLOW_NS       60000000000ULL  /* then once a minute, for as long as it lasts */
 +#define FRL_WATCH_GAP_NS           2000000000ULL   /* polls are 200 ms apart; a longer gap = new session */
 +static unsigned long long frl_last_reenable_ts;
@@ -202,12 +204,14 @@ index 85e88b5..51c6bca 100644
 + * without the window the watchdog re-enabled 21-117 ms after a commit's training
 + * and tore down a link that had not had the chance to lock. With a 2 s window,
 + * locks came 192-2706 ms after FRL_START (the 2706 ms one outside the window).
-+ * 4.4 s plus the ~0.6 s debounce puts the first re-enable ~5 s after training,
-+ * the same time every re-enabled link gets before the next attempt
-+ * (FRL_REENABLE_FAST_NS). A link that never locks costs ~2.4 s more than with
-+ * 2 s before its first retry.
++ * Across 29 links lock was bimodal: within 2.71 s of FRL_START or never (nine
++ * links given >= 4.5 s never locked late). 3 s plus the ~0.6 s debounce gives
++ * every link ~3.6 s after FRL_START before it is torn down -- the commit's and
++ * each re-enabled one alike, since this window, not FRL_REENABLE_FAST_NS, sets
++ * the retry spacing. (Tried at 4.4 s first: it bought no extra locks and cost
++ * ~1.4 s per dead link.)
 + */
-+#define FRL_SETTLE_NS              4400000000ULL
++#define FRL_SETTLE_NS              3000000000ULL
 +static unsigned long long frl_last_training_ts;
 +static unsigned int frl_debounce_polls;            /* unlocked polls outside the window */
 +
@@ -377,7 +381,7 @@ index 85e88b5..51c6bca 100644
 +	 * Debounced by FRL_UNLOCK_DEBOUNCE_POLLS, counted only outside the settle
 +	 * window (FRL_SETTLE_NS after the last link training, see frl_note_training()),
 +	 * because a modeset leaves the sink unlocked while it trains and for up to
-+	 * ~2.7 s after FRL_START. Then one attempt every 5 s for FRL_REENABLE_FAST_ATTEMPTS
++	 * ~2.7 s after FRL_START. Then one attempt every ~4 s for FRL_REENABLE_FAST_ATTEMPTS
 +	 * (after a long standby this LG needs ~25 s before any attempt can land), and
 +	 * after that once a minute for as long as the condition holds. There is no
 +	 * hard stop: this only runs while an FRL stream is active (the watchdog is
@@ -580,7 +584,7 @@ index 85e88b5..51c6bca 100644
 +	 * or more, where training services one within 2 ms) has nobody servicing
 +	 * it: request the full link re-enable, which the DM work runs under dc_lock
 +	 * and which re-trains from LTS:L, clearing the flag. Rate-limited: every
-+	 * 5 s for the first FRL_FLT_FAST_REQUESTS, then once a minute while it
++	 * 3 s for the first FRL_FLT_FAST_REQUESTS, then once a minute while it
 +	 * stays raised.
 +	 */
 +	if (update0_ddc_ok) {
@@ -659,7 +663,7 @@ index 85e88b5..51c6bca 100644
  	}
  
  	return link_update;
-@@ -344,6 +586,7 @@ void hdmi_frl_poll_start(struct ddc_service *ddc_service)
+@@ -344,6 +588,7 @@ void hdmi_frl_poll_start(struct ddc_service *ddc_service)
  	bool flt_no_timeout = false;
  
  	DC_LOGGER_INIT(ddc_service->link->ctx->logger);
@@ -667,7 +671,7 @@ index 85e88b5..51c6bca 100644
  
  	/*Test Condition - FLT_no_timeout avoid link training*/
  	offset = HDMI_SCDC_SOURCE_TEST_REQ;
-@@ -383,6 +626,8 @@ void hdmi_frl_poll_start(struct ddc_service *ddc_service)
+@@ -383,6 +628,8 @@ void hdmi_frl_poll_start(struct ddc_service *ddc_service)
  			break;
  		}
  	}
@@ -676,7 +680,7 @@ index 85e88b5..51c6bca 100644
  	return;
  }
  
-@@ -439,6 +684,7 @@ static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_s
+@@ -439,6 +686,7 @@ static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_s
  
  	DC_LOGGER_INIT(ddc_service->link->ctx->logger);
  	FRL_INFO("FRL LINK TRAINING:  Starting FRL Link Training.\n");
