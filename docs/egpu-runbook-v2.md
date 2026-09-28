@@ -2519,3 +2519,28 @@ n=3. The window does not affect whether a link can lock, only how long it is giv
 (overnight wakes, logins) and in any further captures. A lock above ~3.2 s means the window should
 grow.
 
+## Sep 28 morning — first overnight wake on the 3 s build, and a 3271 ms lock that trips the widen rule
+
+**Overnight wake 08:36:53 (rate 5, output off since 00:52:12):**
+
+- the sink came up unlocked;
+- one re-enable at 08:36:56, ~3.6 s after the commit's training, as designed;
+- lock 209 ms after that training;
+- ~4 s dark in all.
+
+A second wake at 08:59:30 locked on the commit's own link, 1877 ms after training, with no re-enable.
+Neither wake logged a DMCUB error or a power_psr warning.
+
+**Login after the 00:42 boot (3 s build):** the rate-3 link locked in 65 ms. The switch to 4K120 at
+00:42:28 did not lock, the re-enable came at 00:42:32, and lock followed 829 ms later.
+
+**A lock at 3271 ms (00:32:35).** This was the login modeset right after the 00:32 reboot, at rate 3
+(6G x4), with the 4.4 s build running, so it was not torn down. It is the slowest lock yet at any rate.
+Under the 3 s build it would have had only ~0.3 s to spare. It trips the rule written at 00:43 ("a lock
+above ~3.2 s means the window should grow").
+
+Every `sink locked` value in the journal since the settle window arrived:
+
+    rate 5: 192 195 208 209 209 210 332 411 440 627 829 1395 1524 1662 1877 1948 2706 2939
+    rate 3: 12 43 65 141 144 148 152 160 192 199 230 334 355 844 3271
+
