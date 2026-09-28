@@ -80,8 +80,9 @@ one patch.
    handshake now stamp a timestamp, and unlocked polls within 3 s of it are not counted, so every
    link gets ~3.6 s after FRL_START before it is torn down. The fast retry interval dropped from
    5 s to 3 s, so the window now sets the retry spacing (~4 s). The window went 2 s -> 4.4 s ->
-   3 s: across 29 measured links, lock came within 2.71 s of FRL_START or not at all, and 4.4 s
-   bought no extra locks. When the TV locks, the watchdog logs `sink locked N ms after the last
+   3 s: across the first 29 measured links, lock came within 2.71 s of FRL_START or not at all,
+   and 4.4 s bought no extra locks. A later lock at 2.94 s (Sep 28 00:43) shows the tail still
+   growing; if one appears above ~3.2 s, widen the window. When the TV locks, the watchdog logs `sink locked N ms after the last
    link training`.
 
 Confirmation is then passive. `journalctl -k` covers **only the current boot**, even with
