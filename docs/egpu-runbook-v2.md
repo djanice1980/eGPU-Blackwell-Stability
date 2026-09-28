@@ -2150,7 +2150,7 @@ lock acquisition, not the link rate. Most likely the burst of corrections while 
 link that is marginal at 10G. `tools/hdmi-frl-errors.sh` (steady-state samples) would settle it
 definitively, but it is now a low-priority check.
 
-## Sep 27 21:41 — steady-state link errors at 4K120: zero. Marginal-link lead closed.
+## Sep 27 21:41 — steady-state link errors at 4K120: zero (not marginal in normal running)
 
 `tools/hdmi-frl-errors.sh`, output at 3840x2160@120 (10G x4, no mode change since the 21:37:29 lock),
 12 samples 10 s apart:
@@ -2160,7 +2160,12 @@ definitively, but it is now a low-priority check.
 Every counter valid and zero for two minutes: no character errors on any lane and not one Reed-Solomon
 correction. (Whether the TV clears the counters on read or accumulates them, zero is zero.) The 10G link
 is clean in steady state, so the large correction counts seen at some lock moments are the burst while
-the receiver acquires lock, not a marginal cable or port. **Closed: the cable and port are not the cause.**
-The fault remains what it has been since Sep 20 — the TV sometimes comes out of standby unlocked, with
-nothing wrong on the wire, and needs the source to retrain.
+the receiver acquires lock, not a cable that is marginal during normal viewing.
+
+**What this does NOT rule out** (corrected after David pushed back on "can never be the cable"): the
+sample covered two minutes of steady state, at one temperature, with the connector seated one way. It
+says nothing about link training at wake, which is the hardest moment for a cable and exactly where the
+fault happens. The evidence leans toward the TV's receiver (it reports ready with no lane locked, and a
+source retrain fixes it within a few attempts), but the only real test of the cable is a swap: a
+certified Ultra High Speed (48 Gbps) cable for a week or two, comparing dark wakes and retry counts.
 
