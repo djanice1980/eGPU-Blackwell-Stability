@@ -2434,3 +2434,38 @@ The build is clean. To check it, rerun the switch capture:
 - no switch whose lock latency is below ~5 s should get a re-enable;
 - latencies should keep appearing in `sink locked N ms after the last link training`.
 
+## Sep 28 00:33 — 4.4 s window live; per-link table across all four switch captures
+
+The window works as built: the first re-enable came 5.02 s after the commit's FRL_START
+(00:33:36.168 -> 00:33:41.187). This run needed 2, 1 and 0 re-enables.
+
+`tools/hdmi-frl-links.py` (new) splits every capture into individual trained links. It covers 29
+links in 12 switches; links torn down within 0.2 s by the pre-window bug are excluded below.
+
+| | links | detail |
+|---|---|---|
+| locked | 12 | 193, 196, 210, 333, 421, 628, 830, 834, 1396, 1524, 1663, 2709 ms after FRL_START |
+| never locked, given >= 4.5 s | 9 | status 0x40 on every poll until torn down |
+| never locked, given ~2.5 s | 3 | window was 2 s then; cannot tell |
+
+**Training is identical between the two groups:**
+
+- LTP 5/6/7/8 -> 0 took 178-181 ms every time;
+- PASSED -> FRL_START took 202-205 ms (67-71 LTS:P polls) in 27 of 29 links.
+
+The two exceptions, where FRL_START came early (26 and 46 polls, 81 and 139 ms), both locked fast
+(196 and 210 ms). That is suggestive, but n=2.
+
+**Lock is bimodal.** Every lock came within 2.71 s of FRL_START, and no link that waited 2.7-4.6 s
+locked late. So a link either locks within ~2.7 s or not at all. The extra time from 4.4 s over 2 s
+bought nothing in this sample: each dead link now costs ~5 s instead of ~2.6 s.
+
+**Roughly half of all 10G x4 links never lock** (9-12 of 21-24), and failures cluster: four dead links
+in a row in one cycle, three in a row in two others. That looks more like a sink state lasting several
+seconds than independent coin flips.
+
+**Not caused by the watchdog.** The same "clean training, FRL_START=1, no picture" state was captured
+on Sep 20 (11:50, 11:52) while the watchdog was still dead code, i.e. with no SCDC polling at all. The
+watchdog could still change the *rate* (its SCDC reads, including the 11-byte error-counter read, run
+every 200 ms during lock-up), but it is not the origin.
+

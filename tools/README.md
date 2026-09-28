@@ -78,3 +78,6 @@ is 3 cycles (`CYCLES=`). Every training start, rate, PASSED/FAILED and retry lan
 watchdog's 200 ms status polls and re-enables. Each cycle ends with a summary and timeline, and at the
 end the original mode is restored. Run it from the desktop session as your user; it needs
 kscreen-doctor, python3 and sudo. Output goes to `~/frl-switch-<stamp>.log`.
+
+## hdmi-frl-links.py (Sep 28)
+Splits `hdmi-frl-switch-capture.sh` logs into individual trained links and shows each one's training timing (LTP request -> pass, PASSED -> FRL_START) and its outcome: locked N ms after FRL_START, or torn down unlocked after N s. Usage: `python3 tools/hdmi-frl-links.py ~/frl-switch-*.log`.
