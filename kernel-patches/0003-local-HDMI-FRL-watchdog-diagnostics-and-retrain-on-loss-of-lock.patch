@@ -1,30 +1,51 @@
-From 134d44000b83d04d92dbf2d38223ef8a5230fdf6 Mon Sep 17 00:00:00 2001
+From 1e8ede7051ffe417ceabd46d989758ee29de2f67 Mon Sep 17 00:00:00 2001
 From: David Janice <djanice1980@gmail.com>
-Date: Sun, 27 Sep 2026 19:40:44 -0500
+Date: Sun, 27 Sep 2026 21:18:50 -0500
 Subject: [PATCH 3/3] drm/amd/display: local HDMI FRL watchdog diagnostics and
 
-4. Read the sink per-lane error counters (SCDC 0x50-0x5A: lanes 0-3 plus the
-   Reed-Solomon correction count, each with a valid flag) while every lane is
-   unlocked, and once more on the first locked poll. Logged at warning level with
-   the time since the episode began: the first unlocked poll, then on any change
-   at most once a second, then a final snapshot at lock. Never read on a healthy
-   link. Purpose: find out whether the receiver shows life (valid flags, moving
-   counts) before it locks, which would give a readiness signal to trigger the
-   re-enable on instead of a fixed timer.
+5. The watchdog takes dc_lock with mutex_trylock(), never mutex_lock().
+   amdgpu_dm_atomic_commit_tail() holds dc_lock while it calls
+   cancel_delayed_work_sync() on this work item whenever a commit leaves no FRL
+   stream (the output switching off). A blocking lock in the work deadlocks the
+   two: measured 2026-09-27 20:33, a re-enable request raced the display going off
+   and kwin_wayland, this work and dm_ism_delayed_work_func sat in D state until
+   power-off. A commit holding the lock is changing the display anyway, so the
+   pass is skipped (logged at warning level) and the retry schedule tries again.
+   The same pattern exists upstream around dc_link_detect(); it was unreachable
+   in 7.2.x only because the watchdog never ran (see patch 0002).
 ---
- .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c |  18 +-
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c |  37 ++-
  .../display/dc/link/protocols/link_hdmi_frl.c | 215 +++++++++++++++++-
- 2 files changed, 229 insertions(+), 4 deletions(-)
+ 2 files changed, 247 insertions(+), 5 deletions(-)
 
 diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-index 83f6528..171c4e8 100644
+index 83f6528..270129d 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -2030,7 +2030,19 @@ static void hdmi_frl_status_polling_work(struct work_struct *work)
+@@ -2029,8 +2029,37 @@ static void hdmi_frl_status_polling_work(struct work_struct *work)
+ 
  		link_update = dc_link_frl_poll_status_flag(dc_link);
  		if (link_update) {
- 			mutex_lock(&dm->dc_lock);
+-			mutex_lock(&dm->dc_lock);
 -			dc_link_detect(dc_link, DETECT_REASON_RETRAIN);
++			/*
++			 * trylock, never lock. amdgpu_dm_atomic_commit_tail() holds dc_lock
++			 * while it calls cancel_delayed_work_sync() on this very work item
++			 * (whenever a commit leaves no FRL stream, e.g. the output switching
++			 * off). If this work blocks on dc_lock at that moment, the commit waits
++			 * for the work and the work waits for the commit's lock: deadlock.
++			 * Measured 2026-09-27 20:33 -- a re-enable request raced the display
++			 * going off; kwin_wayland (in commit_tail -> cancel_delayed_work_sync),
++			 * this work (in __mutex_lock) and dm_ism_delayed_work_func all sat in
++			 * D state and the desktop stayed frozen until power-off. A commit that
++			 * holds the lock is changing the display anyway, so skipping this pass
++			 * is correct; the retry schedule tries again.
++			 */
++			if (!mutex_trylock(&dm->dc_lock)) {
++				drm_warn(adev_to_drm(dm->adev),
++					 "HDMI FRL: display commit in progress -- link re-enable skipped this pass\n");
++				continue;
++			}
 +			/*
 +			 * Full link re-enable, the path the DP HPD handler uses for link
 +			 * loss: it disables and re-enables every master pipe on the link,
@@ -41,7 +62,7 @@ index 83f6528..171c4e8 100644
  			mutex_unlock(&dm->dc_lock);
  		}
  	}
-@@ -11302,10 +11314,10 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_commit *state,
+@@ -11302,10 +11331,10 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_commit *state,
  		if (queue_delayed_work(dm->hdmi_frl_status_polling_wq,
  				       &dm->hdmi_frl_status_polling_work,
  				       msecs_to_jiffies(dm->hdmi_frl_status_polling_delay_ms)))

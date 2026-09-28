@@ -2077,3 +2077,50 @@ connector's own DDC bus (`/sys/class/drm/card1-HDMI-A-1/ddc` -> `i2c-5`, SCDC at
 `i2ctransfer`, printing lane lock, all five counters with valid flags, and the change in corrections
 between samples. Run it with the picture up at 4K120, then at 4K60 for comparison.
 
+## Sep 27 20:33 — DESKTOP HANG, root-caused: a deadlock my patches made reachable
+
+David: *"I left the computer and when i came back the screen was unresponsive and the computer appeared
+non-responsive as well when i opened the folio."* Boot 20:19:11 ended in a power-off at 21:13; the
+kernel stayed alive throughout (journald kept writing; `z13ctl-plus` logged `display reconciliation
+failed err="signal: killed"` every 3 s), but anything touching the display was stuck.
+
+Sequence (kernel log, 7.2.8 with the three-patch module):
+
+    20:27:14  WARNING power_psr.c:236 mod_power_set_psr_event   (stock eDP PSR code, via
+              dm_ism_commit_idle_optimization_state; a warning, not fatal)
+    20:33:44.452  HDMI FRL: sink state changed -- status=0x40 ... rate=5
+    20:33:44.870  HDMI FRL: sink reports loss of lock ... re-enabling the link (attempt 1)
+    20:33:44.948 -> 20:33:46.850  five x  *ERROR* dc_dmub_srv_log_diagnostic_data: DMCUB error
+    20:37:36  INFO: task kwin_wayland blocked for more than 122 seconds
+              INFO: task kworker (hdmi_frl_status_polling_work) blocked ...
+              INFO: task kworker (dm_ism_delayed_work_func) blocked ... on a mutex owned by kwin_wayland
+
+The stack traces make it an ABBA deadlock on `dm->dc_lock`:
+- **kwin_wayland**: `amdgpu_dm_atomic_commit_tail` took `dc_lock` (amdgpu_dm.c:11299), then, because the
+  commit left no FRL stream (the output going off after David walked away), called
+  `cancel_delayed_work_sync(&dm->hdmi_frl_status_polling_work)` (line 11319) — which waits for the
+  running watchdog pass to finish.
+- **hdmi_frl_status_polling_work**: had just decided to re-enable the link and was in
+  `mutex_lock(&dm->dc_lock)` (line 2032) — waiting for kwin.
+- `dm_ism_delayed_work_func` queued behind the same lock.
+
+The pattern is upstream's: the watchdog has always taken `dc_lock` for its `dc_link_detect()`, and
+commit_tail has always cancelled it synchronously under that lock. It was harmless in 7.2.x only because
+the watchdog was dead code; patch 0002 revived it, and 0003 makes it take the lock far more often — every
+loss of lock, which clusters exactly around display state changes. Eighteen earlier recoveries got
+lucky with timing; here the display-off commit was slow (the DMCUB errors) and the 600 ms debounce
+expired inside it.
+
+**Fix (in local patch 0003, built for 7.2.8, clean):** the watchdog takes `dc_lock` with
+`mutex_trylock()`. If a commit holds it, the display is being changed anyway: the pass is skipped with
+`HDMI FRL: display commit in progress -- link re-enable skipped this pass` and the retry schedule tries
+again. The work can therefore never block while commit_tail waits for it. Upstream's staging tree has the
+same deadlock whenever an `FLT_UPDATE` retrain coincides with a stream-removing commit — worth reporting
+with these traces.
+
+**Open, new in 7.2.8:** in ~40 boots on 7.2.6/7.2.7 there was not a single `DMCUB error` nor a
+`power_psr.c` warning; this boot had both. They are not the hang (the traces are unambiguous), but the
+DMCUB errors slowed the display-off commit enough to open the window, and the PSR warning comes from
+`dm_ism` idle-state code that also showed up blocked. Watch for either recurring:
+`journalctl -k --since yesterday | grep -E "DMCUB error|power_psr"`.
+
