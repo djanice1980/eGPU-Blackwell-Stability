@@ -82,8 +82,8 @@ one patch.
    dropped from 5 s to 3 s, so the window now sets the retry spacing (~4.5 s). The debounce count
    restarts at each re-enable request, so re-enabled links get the window too; before that fix
    (Sep 28 evening) they got only ~2.5 s. The window went 2 s -> 4.4 s (no extra locks) -> 3 s ->
-   3.5 s, after locks of 3123 and 3271 ms. No link given 4.5 s or more has ever locked late. When the TV locks, the watchdog logs `sink locked N ms after the last
-   link training`.
+   3.5 s, after locks of 3123 and 3271 ms. No link given 4.5 s or more has ever locked late.
+   When the TV locks, the watchdog logs `sink locked N ms after the last link training`.
 
 Confirmation is then passive. `journalctl -k` covers **only the current boot**, even with
 `--since`, so this form reads every boot in range:
