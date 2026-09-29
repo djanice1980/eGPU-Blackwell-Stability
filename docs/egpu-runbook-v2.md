@@ -2577,3 +2577,21 @@ on the 3 s build has had ~2.5 s instead of ~3.6 s. Only the commit's own link go
 Fix: reset `frl_debounce_polls` when a re-enable is requested, so each new link must show three unlocked
 polls after its own window closes.
 
+## Sep 28 evening — debounce reset on re-enable + settle window 3.5 s (David's call: "build both")
+
+- **Fix:** `frl_debounce_polls` is now reset whenever a re-enable is requested. Each re-enabled link
+  must show three unlocked polls after its *own* settle window, the same as the commit's link. It no
+  longer fires on the 3 s interval floor ~2.5 s after its FRL_START.
+- **`FRL_SETTLE_NS` 3 s -> 3.5 s,** following the rule (locks of 3123 and 3271 ms). Every link now gets
+  ~4.1 s after FRL_START.
+- **Retry spacing** is now ~4.5 s (training ~0.45 s + 3.5 s window + ~0.6 s debounce). The fast phase
+  of 12 attempts takes ~55 s. The once-a-minute phase is unchanged.
+
+The build is clean (only the three known DML stack-frame warnings).
+
+**How to check:**
+
+- in a multi-attempt episode, consecutive `re-enabling the link (attempt N)` lines should be ~4.5 s
+  apart, not 3 s;
+- every `sink locked N ms` value should stay below ~4100.
+

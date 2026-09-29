@@ -47,7 +47,7 @@ one patch.
 2. **Link re-enable on loss of lock.** While an FRL rate is active and the sink reports all four
    lanes unlocked, run `dc_link_dp_handle_link_loss()` — the DP hot-plug path's recovery, which
    is generic: dpms off then on over the link's pipes, re-running FRL link training. Debounced
-   three polls (~600 ms) so modeset transients are ignored, then one attempt every ~4 s (5 s
+   three polls (~600 ms) so modeset transients are ignored, then one attempt every ~4.5 s (5 s
    until Sep 28; see point 7) for twelve attempts, then once a minute with no hard stop
    (Sep 25). A polling gap over 2 s
    (output switched off) resets the episode. Upstream reacts only to `FLT_UPDATE`, which the sink raises during training, so a
@@ -77,12 +77,12 @@ one patch.
    a commit's own link training, when the TV is unlocked by definition. At a 4K60 -> 4K120 switch
    that made the watchdog tear down the fresh link 21-117 ms after FRL_START, but the TV needs
    0.42-0.83 s after FRL_START to lock. Every training start and the end of the FRL_START
-   handshake now stamp a timestamp, and unlocked polls within 3 s of it are not counted, so every
-   link gets ~3.6 s after FRL_START before it is torn down. The fast retry interval dropped from
-   5 s to 3 s, so the window now sets the retry spacing (~4 s). The window went 2 s -> 4.4 s ->
-   3 s: across the first 29 measured links, lock came within 2.71 s of FRL_START or not at all,
-   and 4.4 s bought no extra locks. A later lock at 2.94 s (Sep 28 00:43) shows the tail still
-   growing; if one appears above ~3.2 s, widen the window. When the TV locks, the watchdog logs `sink locked N ms after the last
+   handshake now stamp a timestamp, and unlocked polls within 3.5 s of it are not counted, so
+   every link gets ~4.1 s after FRL_START before it is torn down. The fast retry interval
+   dropped from 5 s to 3 s, so the window now sets the retry spacing (~4.5 s). The debounce count
+   restarts at each re-enable request, so re-enabled links get the window too; before that fix
+   (Sep 28 evening) they got only ~2.5 s. The window went 2 s -> 4.4 s (no extra locks) -> 3 s ->
+   3.5 s, after locks of 3123 and 3271 ms. No link given 4.5 s or more has ever locked late. When the TV locks, the watchdog logs `sink locked N ms after the last
    link training`.
 
 Confirmation is then passive. `journalctl -k` covers **only the current boot**, even with
@@ -98,6 +98,6 @@ Confirmation is then passive. `journalctl -k` covers **only the current boot**, 
 | `display commit in progress -- link re-enable skipped this pass` | a request collided with a commit and stepped aside (point 5); the next attempt follows |
 | `sink raised FLT_UPDATE` / `FRL_START` / `SOURCE_TEST_UPDATE`, then `cleared after N ms` | the watchdog saw a sink flag (point 6); before Sep 27 it would have acted on it lock-free |
 | `FLT_UPDATE still raised after 2 polls ... re-enabling the link` | the sink asked for a retrain that nothing was running; handled through the locked path |
-| `sink locked N ms after the last link training` | lock latency after training (point 7); a link is torn down ~3600 ms after training (3 s window + ~0.6 s debounce); values approaching that mean the window is too short |
+| `sink locked N ms after the last link training` | lock latency after training (point 7); a link is torn down ~4100 ms after training (3.5 s window + ~0.6 s debounce); values approaching that mean the window is too short |
 | `sink state changed` lines only | transitions happened without meeting the retrain condition; the sink was reporting lock while the panel was dark |
 
