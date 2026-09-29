@@ -2638,3 +2638,40 @@ LTS:P starts.
 
 No DMCUB errors and no power_psr warnings.
 
+## Sep 29 18:49 — HDR off: 4 of 4 links at 10G x4 locked first time
+
+David turned HDR off in KDE at 18:49 and reran the switch capture. `kscreen-doctor -o` afterwards showed
+HDMI-A-1 with:
+
+- `HDR: disabled`;
+- `Wide Color Gamut: disabled`;
+- `Color resolution: automatic (10)`.
+
+So the change is SDR/BT.709 signalling in place of HDR/BT.2020. The bit depth stayed at 10 and the FRL
+rate stayed at 5.
+
+| link | re-enables | locked after FRL_START |
+|---|---|---|
+| 18:49:44, the HDR-off modeset itself | 0 | 1087 ms |
+| capture cycle 1 | 0 | 116 ms |
+| capture cycle 2 | 0 | 506 ms |
+| capture cycle 3 | 0 | 694 ms |
+
+Training was identical to every HDR-on link (LTP 180-181 ms, FRL_START after 67-68 polls). All three
+capture links had *normal* FRL_START timing and still locked, so an early FRL_START is not required
+for a good link.
+
+**How much this proves:** with HDR on, links with normal FRL_START timing locked 15 times out of 31
+(~48%). Four locks in a row at that rate would happen by chance ~5% of the time. HDR-on runs have
+also produced clean streaks (Sep 28 00:43, 3/3). So this points at HDR/BT.2020 entry, but it is not
+yet proof.
+
+**What would settle it:** a larger paired run in one sitting, so the time-of-day and warm-up clustering
+affects both arms equally:
+
+- `CYCLES=10` with HDR off;
+- then `CYCLES=10` with HDR on.
+
+If HDR off stays at or near 10/10 while HDR on loses about half its links, HDR entry is the trigger
+for the never-lock state. That was the leading suspect on Sep 20; this is the first data on it.
+
