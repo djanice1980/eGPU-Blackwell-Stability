@@ -2595,3 +2595,46 @@ The build is clean (only the three known DML stack-frame warnings).
   apart, not 3 s;
 - every `sink locked N ms` value should stay below ~4100.
 
+## Sep 29 18:44 — back at the TV: the debounce-reset fix and the 3.5 s window confirmed
+
+The build installed Sep 28 21:31 was first exercised at the Sep 29 18:44 boot. Log:
+`~/frl-switch-20260929-184554.log`, plus the journal.
+
+**Retry spacing is fixed.** Capture cycle 1 needed four re-enables:
+
+| attempt | at | time since the previous link's FRL_START |
+|---|---|---|
+| 1 | 18:46:11.339 | 4.08 s |
+| 2 | 18:46:15.747 | 3.95 s |
+| 3 | 18:46:20.211 | 3.96 s |
+| 4 | 18:46:24.675 | 3.96 s |
+
+Consecutive attempts were 4.41-4.46 s apart, where the old bug gave 3 s (Sep 28 17:51). Every link got
+~4 s, the first link and each re-enabled one alike, as designed.
+
+**Locks in this boot** (ms after training):
+
+- rate 5: 1877, 212, 366, 2208;
+- rate 3: 828, 1127, 35, 132, 147.
+
+All are well under the ~4100 ms deadline.
+
+**Point 6 again:** at 18:45:58 the watchdog caught `FRL_START` raised during a rate-3 training
+(status already 0x5e), left it alone, and training cleared it 205 ms later.
+
+**Dead links are still clustered:** four in a row in cycle 1, then a lock. Totals over all six
+captures, excluding links torn down in under 1 s by the old bug:
+
+| FRL_START raised | locked | never locked |
+|---|---|---|
+| early (0-46 LTS:P polls, 4-139 ms after PASSED) | 3 | 0 |
+| normal (67-71 polls, ~205 ms after PASSED) | 15 | 16 |
+
+The three early-FRL_START links all locked within ~215 ms. The one in cycle 1 (link 4) also trained
+unusually fast: LTP 5/6/7/8 -> pass in 68 ms instead of ~180. The count is still small (3/3 against
+15/31, p ~0.1), but it is the only thing yet that separates good links from bad on the source-visible
+side. It suggests that on the good links the TV's receiver is already locked, or nearly so, by the time
+LTS:P starts.
+
+No DMCUB errors and no power_psr warnings.
+
