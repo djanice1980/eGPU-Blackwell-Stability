@@ -20,7 +20,15 @@ for path in sys.argv[1:]:
     for ln in lines + ["===== end"]:
         if ln.startswith("====="):
             for i, l in enumerate(links):
-                print(f"{cyc:>5} {i:>4} {l.get('ltp','?'):>13} {l.get('p2s','?'):>16} {l.get('polls','?'):>11}  {l.get('out','never locked (torn down after %s s)' % l.get('life','?'))}")
+                if "out" in l:
+                    out = l["out"]
+                elif "life" in l:
+                    out = "never locked (torn down after %s s)" % l["life"]
+                else:
+                    # no unlocked poll and no re-enable: the sink locked before the
+                    # watchdog's first poll saw it unlocked (Sep 29 18:58:11)
+                    out = "LOCKED (never seen unlocked; < 200 ms)"
+                print(f"{cyc:>5} {i:>4} {l.get('ltp','?'):>13} {l.get('p2s','?'):>16} {l.get('polls','?'):>11}  {out}")
             cyc += 1; links = []; cur = None
             continue
         t = ts(ln)

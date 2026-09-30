@@ -2675,3 +2675,38 @@ affects both arms equally:
 If HDR off stays at or near 10/10 while HDR on loses about half its links, HDR entry is the trigger
 for the never-lock state. That was the leading suspect on Sep 20; this is the first data on it.
 
+## Sep 29 18:57 — HDR off, 10 cycles: better, but dead links still happen
+
+Log: `~/frl-switch-20260929-185732.log`, with HDR still off.
+
+- **9 of 10 switches** locked on the first link, with no re-enable.
+- **Cycle 7** lost three links in a row, and the fourth locked in 211 ms.
+- **Cycle 2** locked before the watchdog's first poll ever saw it unlocked: LTP pass in 67 ms and
+  FRL_START on the first LTS:P poll.
+- **Tool fixes, both for cycle 2:**
+  - `hdmi-frl-links.py` had labelled that link "never locked". It now reports "LOCKED (never seen
+    unlocked; < 200 ms)".
+  - The capture's "locked after ~10 s" for cycle 2 was its 8 s fallback wait, now 3 s.
+
+**Tally, all captures** (links torn down < 1 s by the pre-window bug excluded):
+
+| | links locked | never locked | lock rate | first link of a switch |
+|---|---|---|---|---|
+| HDR on (Sep 28 - Sep 29 18:46) | 18 | 16 | 53% | 10 locked, 5 never |
+| HDR off (Sep 29 18:49 onward) | 13 | 3 | 81% | 12 locked, 1 never |
+
+**Early FRL_START** (fewer than 60 LTS:P polls, i.e. the TV asks for video almost at once): 7 of 7 locked,
+all within ~215 ms, at either HDR setting. Every dead link so far had normal FRL_START timing, raised
+~205 ms after PASSED. It looks as though the TV raises FRL_START early when its receiver has already
+acquired the link, and falls back to raising it on a ~200 ms timer when it has not. Links in that
+second group lock later (0.1-3 s) or never.
+
+**Reading:**
+
+- HDR off lowers the dead-link rate (19% against 47% of links), but does **not** remove it: cycle 7
+  is three dead links in a row with HDR off.
+- HDR/BT.2020 entry is therefore at most an aggravating factor, not the cause.
+- The difference is still not conclusive (roughly p ~0.07). The HDR-on arm was also collected on
+  other days, at other times, and partly with other builds.
+- The same-session control, `CYCLES=10` with HDR back on, is still needed to compare like with like.
+

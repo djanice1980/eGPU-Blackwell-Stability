@@ -78,12 +78,12 @@ trap restore EXIT
 
 # The TV's lock state as the watchdog last logged it. It logs only on change, so the newest line
 # since $1 is the current state. If a switch never showed the watchdog an unlocked poll there is no
-# line since $1; after 8 s, fall back to the newest line this boot (the state it has held since).
+# line since $1; after 3 s, fall back to the newest line this boot (the state it has held since).
 lock_state() {
     local since="$1" t="$2" last
     last=$(journalctl -k --since "$since" --no-pager -o cat 2>/dev/null \
            | grep "HDMI FRL: sink state changed" | tail -1)
-    if [ -z "$last" ] && [ "$t" -ge 8 ]; then
+    if [ -z "$last" ] && [ "$t" -ge 3 ]; then
         last=$(journalctl -k --no-pager -o cat 2>/dev/null \
                | grep "HDMI FRL: sink state changed" | tail -1)
     fi
