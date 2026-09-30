@@ -37,3 +37,27 @@ Two things learned from a hard eGPU drop at game launch on 615 (see the runbook)
   second and rotated the journal, destroying the evidence of what caused the drop.
 Applies on top of 01–06. Build-verified on 7.2.5-1-cachyos. Not yet exercised by a real drop.
 
+
+## 08-C8-lost-gpu-page-table-teardown (added 2026-09-30, ours)
+
+This covers the lost-GPU path that C5 and C7 do not. On 2026-09-30 01:10:30 the Core X V2 link dropped
+at idle. RM's virtual-memory teardown then kept walking the GPU page tables and invalidating TLBs of the
+lost GPU. `_gmmuWalkCBFillEntries` could not map the page table (`pEntries == NULL`) and returned no
+progress, and the walker asserted at every level. The result was ~11,800 lines in 0.3 s, of which
+journald missed 4,969. The host then hard-locked, with no stack trace because `nowatchdog` was set.
+
+Keyed on `PDB_PROP_GPU_IS_LOST`, and only in that state:
+
+- the walker callbacks FillEntries, UpdatePde and CopyEntries report success without touching GPU
+  memory, so the host-side bookkeeping completes;
+- `gvaspaceInvalidateTlb` and the flush and invalidate in `_gvaspaceInternalFree` are skipped;
+- `kgmmuInvalidateTlb_GM107` logs `NV_ERR_GPU_IS_LOST` once instead of on every call.
+
+Each skipped path logs once.
+
+Applies on top of 01-07; the whole set was verified to apply in order on a pristine 615.71.09 tag.
+Build-verified on 7.2.8-1-cachyos (LLVM): 0 warnings in the touched files, and the objtool warning
+count is unchanged from the Sep 27 build.
+
+**Not proven to prevent the lockup.** It removes the flood and the hardware-touching work from
+teardown; a real or deliberate drop will show whether the host now survives.
