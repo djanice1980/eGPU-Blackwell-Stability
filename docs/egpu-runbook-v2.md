@@ -2742,3 +2742,53 @@ deadline.
 **Early FRL_START:** cycles 6, 7, 9 and 8/link 1 (0-20 LTS:P polls) all locked within 211 ms. That is
 now 11 of 11 across all captures. Every dead link (20 of them) had normal ~205 ms FRL_START timing.
 
+## Sep 30 01:10 — overnight hang: eGPU Thunderbolt link dropped at idle, NVRM storm, machine wedged
+
+Report (David, morning): the laptop was making a repeating wake/connect-style sound, both screens were
+black, and a hard power-off was needed. After the reboot the TV showed nothing until after login.
+
+**Journal of boot -1 (18:44 -> 01:10:31):**
+
+    01:04:15.986  amdgpu: 200ms frl status polling stops ...      <- output off (DPMS); last amdgpu line
+    01:10:30.739  thunderbolt 1-0:2.1: retimer disconnected
+    01:10:30.739  pcieport 0000:00:01.2: pciehp: Slot(0-1): Link Down / Card not present
+    01:10:30.739  thunderbolt 1-2: device disconnected                (boltd: Core X V2 disconnected)
+    01:10:30.903  NVRM: Xid 79, GPU has fallen off the bus; Xid 154 -> recovery action "OS Reboot"
+    01:10:30.985  nvidia-drm: Removing device (v4 G10 teardown entry; gpuLost=true)
+    01:10:30.991+ NVRM: kgmmuInvalidateTlb ... failed / mmuWalkUnmap failed / virtmemDestruct failed
+                  -- ~6,300 lines within about a second --
+    01:10:31.035  (journal ends)
+
+**What it is not:** the amdgpu FRL watchdog. It had been stopped since 01:04:15, because polling stops
+when the output switches off, and there is no amdgpu line of any kind between then and the end. The
+first failing event is on the USB4/Thunderbolt link to the Core X V2, at idle, ~6 minutes after the
+displays went off.
+
+**What it looks like:** the eGPU hard-loss path.
+
+- The link drops; the GPU is lost.
+- The patched nvidia-drm teardown correctly skips hardware-touching calls.
+- NVRM then floods TLB-invalidate/unmap failures while memory is freed against the lost GPU, and
+  the machine stops logging within about a second.
+
+Two separate questions:
+
+1. Why did the TB link drop at idle? Unknown. No earlier `retimer disconnected` or Xid 79 exists in the
+   retained journal (Sep 27 onward).
+2. Why does a GPU loss take the whole machine down, instead of leaving it running without the eGPU
+   as C7 intends?
+
+**State after the reboot (08:34):** `boltctl` shows the Core X V2 *disconnected*, no NVIDIA device on
+the bus, nvidia-smi fails. This matches the Sep 5 pattern: after a hard power-off during an eGPU
+freeze, the laptop EC holds the USB4 host wedged until a power-button drain. See
+`z13-egpu-freeze-ec-recovery`.
+
+The TV side at this boot:
+
+- 4K60 link locked at 08:34:11, during the login screen;
+- relocked at 08:34:14;
+- 4K120 after login locked in 978 ms, with no re-enable.
+
+The source was sending a picture during the login screen. A black TV there is what the greeter drew
+on that output, or the TV was still waking; it is not a link failure.
+
