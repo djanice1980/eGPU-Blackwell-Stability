@@ -2792,3 +2792,5 @@ The TV side at this boot:
 The source was sending a picture during the login screen. A black TV there is what the greeter drew
 on that output, or the TV was still waking; it is not a link failure.
 
+**Recovery (08:41):** David unplugged the TB cable, switched the enclosure off, waited ~10 s, switched it on and replugged. The eGPU came straight back: Core X V2 `authorized`, 5070 Ti on the bus, Gen3 x4 (the standing cap), P8 idle, patched 615.71.09 module loaded, no Xid. **No laptop EC drain was needed this time**, so the Sep 5 EC-wedge pattern I suggested did not apply. The stuck part this morning was the enclosure side, and an enclosure power cycle plus replug cleared it. Try that first next time; do the EC drain only if the enclosure cycle does not bring it back.
+
