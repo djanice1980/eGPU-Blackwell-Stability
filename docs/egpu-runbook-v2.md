@@ -2710,3 +2710,35 @@ second group lock later (0.1-3 s) or never.
   other days, at other times, and partly with other builds.
 - The same-session control, `CYCLES=10` with HDR back on, is still needed to compare like with like.
 
+## Sep 29 20:24 — same-session control, HDR on: HDR is NOT the factor
+
+Log: `~/frl-switch-20260929-202424.log`. `kscreen-doctor -o` confirmed HDR enabled and Wide Color Gamut
+enabled, at 10-bit.
+
+- **9 of 10 switches** locked on the first link, with no re-enable.
+- **Cycle 8** lost one link; the re-enabled link locked in 211 ms.
+- **Links:** 10 locked, 1 never (91%).
+
+| session | HDR | links locked / never | first link of a switch |
+|---|---|---|---|
+| Sep 29 18:57 | off | 10 / 3 | 9 of 10 |
+| Sep 29 20:24 | **on** | 10 / 1 | 9 of 10 |
+
+Under matched conditions HDR on did as well as HDR off. The earlier 53%-vs-81% gap came from comparing
+different days, times and builds, not from HDR. **HDR/BT.2020 is ruled out** as the trigger for the
+never-lock state. Leave HDR on.
+
+What the sessions do show is that the dead-link rate varies **between sessions**:
+
+- about half of links on Sep 28 00:06-00:34 and Sep 29 18:46;
+- about 1 in 10 this evening.
+
+Something about the TV's (or the link's) state at the time matters more than any setting tested so far.
+
+**New maximum lock latency: 3295 ms** (cycle 2). The current deadline is ~4.1 s (3.5 s window + ~0.6 s
+debounce), so there was ~0.8 s to spare. Keep watching; widen if a lock comes within ~0.5 s of the
+deadline.
+
+**Early FRL_START:** cycles 6, 7, 9 and 8/link 1 (0-20 LTS:P polls) all locked within 211 ms. That is
+now 11 of 11 across all captures. Every dead link (20 of them) had normal ~205 ms FRL_START timing.
+
