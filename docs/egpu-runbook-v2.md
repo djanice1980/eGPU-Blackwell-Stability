@@ -2794,3 +2794,54 @@ on that output, or the TV was still waking; it is not a link failure.
 
 **Recovery (08:41):** David unplugged the TB cable, switched the enclosure off, waited ~10 s, switched it on and replugged. The eGPU came straight back: Core X V2 `authorized`, 5070 Ti on the bus, Gen3 x4 (the standing cap), P8 idle, patched 615.71.09 module loaded, no Xid. **No laptop EC drain was needed this time**, so the Sep 5 EC-wedge pattern I suggested did not apply. The stuck part this morning was the enclosure side, and an enclosure power cycle plus replug cleared it. Try that first next time; do the EC drain only if the enclosure cycle does not bring it back.
 
+## Sep 30 — why the eGPU loss took the whole machine down (investigation, part 1)
+
+**What stopped, and when:**
+
+- **Journal:** ends at 01:10:31.035, 0.3 s after the link drop.
+- **The storm was far bigger than the log shows:** 6,808 lines were written, and journald also reported
+  4,969 kernel messages it *missed*, i.e. ~11,800 NVRM messages in 0.3 s.
+- **Every message fails fast** with `status=0xf` = `NV_ERR_GPU_IS_LOST`. They are immediate
+  failures, not timeouts.
+- **Last sign of life:** one file write at 01:10:37 (`~/.config/Claude/TransportSecurity`). After that
+  there are **zero** file writes in `/home`, `/var/log`, `/var/lib/systemd` or `/var/tmp` for 7 h 20 min.
+  The same tree normally sees about one write a minute (40 between 00:30 and 01:10:30: Steam caches,
+  Chrome, Claude, the user journal).
+- **Conclusion:** the whole kernel stopped within ~6 s of the drop, not just the displays or KWin.
+- **The repeating sound fits a hard lockup:** the HDA DMA ring keeps replaying its last buffer when the
+  CPUs stop. The last sound was most likely the KDE device-removed chime for `usb 8-1: USB disconnect`
+  at 01:10:30.935.
+
+**Where the storm came from:** RM freeing clients' GPU memory on the lost GPU. By count:
+
+| messages | path |
+|---|---|
+| 1,432 | `kgmmuInvalidateTlb ... failed` |
+| ~1,300 | `mmuWalkUnmap` failures and asserts |
+| 818 | `pEntries != NULL @ gmmu_walk.c` |
+| 225 | `dmaFreeMapping_GM107: error updating VA space` |
+| 70 | `virtmemDestruct_IMPL: memmgrFree failed` |
+
+The frees belong to clients c1d00011, c1d00012 and c1d00159.
+
+**C7 does not cover this path.** C7's log-once is on the *interrupt* path (`intr.c`, "Failed GPU reg
+read") and its guards are in nvidia-drm master set/drop. C5's G10 guard skips the hardware-touching
+calls in `nv_drm_remove`. None of them touch RM's memory-teardown path (`virtmemDestruct` ->
+`dmaFreeMapping` -> `mmuWalkUnmap` / `kgmmuInvalidateTlb`), which still walks GPU page tables and
+asserts on every level after the GPU is gone. This was the first real drop on the 615.71.09 + C7
+module (built Sep 27 for 7.2.8).
+
+**Why there is no stack trace:** `nowatchdog` is on the kernel command line (CachyOS default, in
+`/etc/default/limine`). `/proc/sys/kernel/{watchdog,nmi_watchdog,soft_watchdog}` are all 0, so a
+soft or hard lockup is completely silent. The kernel has `CONFIG_EFI_VARS_PSTORE=y`, so a
+*panic* would be saved to EFI pstore and recovered into `/var/lib/systemd/pstore` at the next boot.
+It is currently empty.
+
+**What is established:**
+
+- The machine hard-locked within ~6 s of an idle eGPU link drop.
+- In that window, RM's memory-teardown path ran unguarded on a lost GPU and flooded the log.
+
+**What is not established:** which code path locked the CPUs. The flood is the obvious suspect, and the
+teardown touches hardware paths after the loss, but nothing yet ties the lockup to a specific call.
+
