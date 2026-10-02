@@ -2845,3 +2845,9 @@ It is currently empty.
 **What is not established:** which code path locked the CPUs. The flood is the obvious suspect, and the
 teardown touches hardware paths after the loss, but nothing yet ties the lockup to a specific call.
 
+## Oct 1 20:34 — kernel 7.2.8-1 -> 7.2.8-2 dropped the amdgpu override; C8 went in with the NVIDIA hook
+
+- `linux-cachyos` 7.2.8-1 -> 7.2.8-2 (a CachyOS pkgrel bump). The amdgpu override exists only under `/usr/lib/modules/7.2.8-1-cachyos/updates`, so the 22:09 boot loaded the **stock** amdgpu, with no FRL watchdog. David saw the old symptom at once: TV dark at the login screen, picture only when the login switch to 4K120 retrained the link. Fix: rerun `tools/amdgpu-frl-module/build.sh`, which fetches the 7.2.8-2 source itself, then reboot.
+- The NVIDIA pacman hook rebuilt 615.71.09 for 7.2.8-2 at 20:35 from the tree HEAD, which already carried **C8** (`c26ac2d2`). The installed `nvidia.ko.zst` contains the three C8 log strings, so C8 is live from the 22:09 boot.
+- Oct 1 08:32 (7.2.8-1, patched): an overnight wake needed 7 re-enables and 31 s, a bad-session wake of the kind seen on Sep 28. 11:53: FLT_UPDATE caught mid-training again, left alone, one re-enable, lock 2914 ms after training.
+
