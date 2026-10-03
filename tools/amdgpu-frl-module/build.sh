@@ -61,8 +61,15 @@ rebuild_initramfs() { if command -v limine-mkinitcpio >/dev/null 2>&1; then sudo
 # ~/kbuild files are removed as the user; the /usr/lib/modules directory needs sudo.
 prune_old_kernels() {
     local dry=${1:-} running v base kb=~/kbuild pkgdir=~/kbuild/linux-cachyos/linux-cachyos
-    local -a cand=() stale=() paths=()
+    local -a cand=() stale=() paths=() keep=()
     running=$(uname -r)
+    # source trees still in use: the running kernel's and the one being built, followed through the
+    # symlink reuse_pkgrel_rebuild leaves (7.2.8-2 -> 7.2.8-1). Their tree and tarball are never
+    # pruned, even when the version they are named after is gone.
+    for v in "$running" "$KVER"; do
+        [ -e "$pkgdir/src/cachyos-${v%-cachyos}" ] || continue
+        base=$(basename "$(readlink -f "$pkgdir/src/cachyos-${v%-cachyos}")"); keep+=("${base#cachyos-}")
+    done
     mapfile -t cand < <( {
         ls /usr/lib/modules 2>/dev/null
         ls -d "$kb"/obj-* 2>/dev/null | sed 's|.*/obj-||'
@@ -79,6 +86,13 @@ prune_old_kernels() {
     if [ "${#stale[@]}" -eq 0 ]; then say "clean-up: nothing left over from old kernels"; return 0; fi
     for v in "${stale[@]}"; do
         base=${v%-cachyos}
+        if printf '%s\n' "${keep[@]}" | grep -qxF "$base"; then
+            # the tree is reused by a newer pkgrel: drop only what belongs to the old kernel itself
+            for f in "$kb/obj-$v" "$kb/amdgpu-frl-lt-$v.ko" "/usr/lib/modules/$v"; do
+                [ -e "$f" ] || [ -L "$f" ] && paths+=("$f")
+            done
+            continue
+        fi
         for f in "$pkgdir/src/cachyos-$base" "$kb/obj-$v" \
                  "$pkgdir/src/cachyos-$base.tar.gz" "$pkgdir/src/cachyos-$base.tar.gz.asc" \
                  "$pkgdir/cachyos-$base.tar.gz" "$pkgdir/cachyos-$base.tar.gz.asc" \
@@ -126,12 +140,50 @@ fetch_source() {
     say "no source for $want yet -- pulling the CachyOS PKGBUILD and fetching it (a few minutes)"
     git -C "$checkout" pull -q --ff-only || { say "git pull in $checkout failed"; exit 1; }
     have="$(sed -n 's/^_major=//p' "$pkgdir/PKGBUILD" | head -1).$(sed -n 's/^_minor=//p' "$pkgdir/PKGBUILD" | head -1)-$(sed -n 's/^pkgrel=//p' "$pkgdir/PKGBUILD" | head -1)"
-    [ "$have" = "$want" ] || { say "the CachyOS PKGBUILD is at $have but the running kernel is $want -- no matching source to fetch"; exit 1; }
+    if [ "$have" != "$want" ]; then
+        reuse_pkgrel_rebuild "$have" "$want" "$pkgdir" && return 0
+        say "the CachyOS PKGBUILD is at $have but the running kernel is $want -- no matching source to fetch"; exit 1
+    fi
     ( cd "$pkgdir" && makepkg --nobuild --nodeps --noconfirm --skippgpcheck ) > "$log" 2>&1 || true
     [ -d "$SRC" ] || { say "the fetch did not produce $SRC -- see $log"; exit 1; }
     say "source for $want ready"
 }
+
+# .config symbols that kconfig fills in by probing the compiler/assembler/linker. They change when
+# the same kernel is rebuilt with a newer toolchain and say nothing about the source.
+TOOLCHAIN_SYMS='^(# )?CONFIG_([A-Z0-9_]*VERSION[A-Z0-9_]*|CC_[A-Z0-9_]+|AS_[A-Z0-9_]+|LD_[A-Z0-9_]+|RUSTC_[A-Z0-9_]+|TOOLS_SUPPORT_[A-Z0-9_]+|WARN_CONTEXT_ANALYSIS)[= ]'
+
+# CachyOS sometimes ships a new pkgrel of the same kernel without publishing a PKGBUILD change:
+# 7.2.8-2 (Oct 1) is 7.2.8-1 rebuilt with clang 23.1.1 instead of 22.1.8, while the PKGBUILD still
+# says pkgrel=1. The source is then the PKGBUILD's tree. Reuse it, but only when the running kernel's
+# .config matches the one that tree was last built against apart from toolchain-probed symbols, by
+# symlinking src/cachyos-<running> to it. Anything else still refuses: the wrong source builds a
+# module that may load and misbehave.
+reuse_pkgrel_rebuild() {
+    local have=$1 want=$2 pkgdir=$3 hsrc ref diffs ntool
+    [ "${have%-*}" = "${want%-*}" ] || return 1             # different upstream version: no reuse
+    [ -f "$BUILD/.config" ] || { say "headers for $KVER missing (linux-cachyos-headers)"; exit 1; }
+    hsrc=$SRCROOT/cachyos-$have
+    if [ ! -d "$hsrc" ]; then
+        ( cd "$pkgdir" && makepkg --nobuild --nodeps --noconfirm --skippgpcheck ) > ~/kbuild/prepare-$have.log 2>&1 || true
+        [ -d "$hsrc" ] || { say "could not fetch the $have source to reuse -- see ~/kbuild/prepare-$have.log"; return 1; }
+    fi
+    ref=$(ls -t "$hsrc"/.egpu-kconfig-* 2>/dev/null | head -1 || true)
+    [ -n "$ref" ] || ref=~/kbuild/obj-$have-cachyos/.config
+    [ -f "$ref" ] || { say "no recorded .config for $have to compare with -- cannot show that $want is only a rebuild"; return 1; }
+    diffs=$(diff <(grep -vE "$TOOLCHAIN_SYMS" "$ref") <(grep -vE "$TOOLCHAIN_SYMS" "$BUILD/.config") || true)
+    if [ -n "$diffs" ]; then
+        say "$want differs from $have in more than toolchain-probed .config symbols -- not reusing its source:"
+        printf '%s\n' "$diffs" | head -20
+        return 1
+    fi
+    ntool=$(diff "$ref" "$BUILD/.config" | grep -c '^[<>]' || true)
+    say "$want is a rebuild of $have: .config identical apart from $ntool toolchain-probed line(s); reusing the $have source"
+    ln -sfn "cachyos-$have" "$SRCROOT/cachyos-$want"
+}
 [ -d "$SRC" ] || fetch_source
+# the real source tree (src/cachyos-<ver> may be a symlink made by reuse_pkgrel_rebuild)
+SRCVER=$(basename "$(readlink -f "$SRC")"); SRCVER=${SRCVER#cachyos-}
 [ -f "$BUILD/Module.symvers" ] || { say "headers for $KVER missing (linux-cachyos-headers)"; exit 1; }
 [ "${#PATCHES[@]}" -gt 0 ] || { say "no patches found under $REPO/kernel-patches"; exit 1; }
 SRCREL=$(sed -nE 's/^#define UTS_RELEASE "(.*)"/\1/p' "$BUILD/include/generated/utsrelease.h")
@@ -153,9 +205,9 @@ WANT=$(sha256sum "${PATCHES[@]}" | sha256sum | cut -d' ' -f1)
 if [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$WANT" ]; then
     say "patch set unchanged and already applied (${#PATCHES[@]} patches)"
 else
-    TARBALL=$SRCROOT/cachyos-${KVER%-cachyos}.tar.gz
-    [ -f "$TARBALL" ] || TARBALL=$(dirname "$SRCROOT")/cachyos-${KVER%-cachyos}.tar.gz
-    [ -f "$TARBALL" ] || { say "pristine tarball for ${KVER%-cachyos} not found -- refresh the PKGBUILD checkout (see the header)"; exit 1; }
+    TARBALL=$SRCROOT/cachyos-$SRCVER.tar.gz
+    [ -f "$TARBALL" ] || TARBALL=$(dirname "$SRCROOT")/cachyos-$SRCVER.tar.gz
+    [ -f "$TARBALL" ] || { say "pristine tarball for $SRCVER not found -- refresh the PKGBUILD checkout (see the header)"; exit 1; }
     TOP=$(basename "$TARBALL" .tar.gz)
     mapfile -t FILES < <(grep -h '^+++ b/' "${PATCHES[@]}" | sed 's|^+++ b/||' | sort -u)
     [ "${#FILES[@]}" -gt 0 ] || { say "the patch series names no files"; exit 1; }
@@ -180,6 +232,15 @@ if [ ! -f "$OBJ/Module.symvers" ]; then
     say "copying the headers tree to a writable object tree: $OBJ"
     rm -rf "$OBJ"; cp -a "$(readlink -f "$BUILD")" "$OBJ"
 fi
+# makepkg's prepare() leaves .config and include/generated/ (utsrelease.h, autoconf.h) in the source
+# tree. kbuild searches $(srctree)/include before $(objtree)/include, so those win over the running
+# kernel's: the first 7.2.8-2 build (Oct 2) picked up 7.2.8-1's utsrelease.h and came out with
+# vermagic 7.2.8-1 (and would have used 7.2.8-1's autoconf.h). Everything generated must come from the
+# object tree, so keep the source tree free of it.
+if [ -e "$SRC/.config" ] || [ -e "$SRC/include/generated" ] || [ -e "$SRC/include/config" ]; then
+    say "source tree carries generated config/headers from makepkg's prepare() -- make mrproper"
+    make -C "$SRC" mrproper > "$HOME/kbuild/mrproper.log" 2>&1 || { say "make mrproper failed -- see ~/kbuild/mrproper.log"; exit 1; }
+fi
 say "building drivers/gpu/drm/amd/amdgpu (srctree=$SRC, O=$OBJ) with clang (several minutes)..."
 LOG=$HOME/kbuild/amdgpu-build.log
 make O="$OBJ" M=drivers/gpu/drm/amd/amdgpu LLVM=1 LLVM_IAS=1 -j"$(nproc)" modules > "$LOG" 2>&1 \
@@ -189,6 +250,8 @@ KO=$OBJ/drivers/gpu/drm/amd/amdgpu/amdgpu.ko
 [ -f "$KO" ] || { say "build produced no amdgpu.ko"; exit 1; }
 VM=$(modinfo -F vermagic "$KO")
 [ "${VM%% *}" = "$KVER" ] || { say "vermagic '$VM' does not match $KVER"; exit 1; }
+# record the .config this source was built against, for reuse_pkgrel_rebuild's comparison next time
+cp "$BUILD/.config" "$(readlink -f "$SRC")/.egpu-kconfig-$KVER"
 # the packaged module is installed with INSTALL_MOD_STRIP=1; the fresh one carries ~650 MB of DWARF
 STRIPPED=$HOME/kbuild/amdgpu-frl-lt-$KVER.ko
 cp "$KO" "$STRIPPED" && llvm-strip --strip-debug "$STRIPPED"

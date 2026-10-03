@@ -2851,3 +2851,34 @@ teardown touches hardware paths after the loss, but nothing yet ties the lockup 
 - The NVIDIA pacman hook rebuilt 615.71.09 for 7.2.8-2 at 20:35 from the tree HEAD, which already carried **C8** (`c26ac2d2`). The installed `nvidia.ko.zst` contains the three C8 log strings, so C8 is live from the 22:09 boot.
 - Oct 1 08:32 (7.2.8-1, patched): an overnight wake needed 7 re-enables and 31 s, a bad-session wake of the kind seen on Sep 28. 11:53: FLT_UPDATE caught mid-training again, left alone, one re-enable, lock 2914 ms after training.
 
+## Oct 2 — build.sh: CachyOS pkgrel-only rebuilds, and a header-shadowing bug found on the way
+
+**Why the rerun failed:** `linux-cachyos` 7.2.8-2 has no published PKGBUILD. The CachyOS git repo still
+says `pkgrel=1`, so `build.sh` refused ("no matching source"). The -2 kernel is a toolchain rebuild of
+-1: `/proc/version` shows clang 23.1.1 (was 22.1.8). Its `.config` matches 7.2.8-1 exactly apart from
+15 compiler-probed lines (`*_VERSION`, `CC_MS_EXTENSIONS`, `WARN_CONTEXT_ANALYSIS`). There is no
+source change.
+
+**Changes to `build.sh`:**
+
+- **`reuse_pkgrel_rebuild`:** when the PKGBUILD's version has the same upstream x.y.z as the running
+  kernel and only the pkgrel differs, the script compares the running kernel's `.config` with the one
+  the existing source was last built against. Toolchain-probed symbols are ignored. If nothing else
+  differs, it symlinks `src/cachyos-<running>` to that tree. Any other difference still refuses, and
+  the differing lines are printed.
+- **Each successful build records its `.config`** as `<source>/.egpu-kconfig-<kver>`, the reference for
+  the next comparison.
+- **Cleanup never deletes a source tree** that the running kernel or the kernel being built reaches
+  through such a symlink. For the old kernel it removes only the object tree, the built `.ko` and
+  `/usr/lib/modules/<old>`.
+- **Bug found by the first -2 build:** `makepkg`'s `prepare()` had left `.config` and
+  `include/generated/` in the source tree. kbuild searches `$(srctree)/include` before
+  `$(objtree)/include`, so 7.2.8-1's `utsrelease.h` won and the module came out with vermagic 7.2.8-1.
+  The existing vermagic check refused to install it. 7.2.8-1's `autoconf.h` would have shadowed the
+  running kernel's in the same way. On 7.2.8-1 the two matched, so the defect never showed.
+  `build.sh` now runs `make mrproper` on the source tree when any generated config or headers are
+  present, so everything generated comes from the object tree (a copy of the running kernel's headers).
+
+The result: a build-only run gives vermagic `7.2.8-2-cachyos`, with all three patch markers present and
+only the three known DML warnings. A cleanup dry run keeps the shared 7.2.8-1 source and tarball.
+
