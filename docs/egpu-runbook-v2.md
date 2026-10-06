@@ -2882,3 +2882,21 @@ source change.
 The result: a build-only run gives vermagic `7.2.8-2-cachyos`, with all three patch markers present and
 only the three known DML warnings. A cleanup dry run keeps the shared 7.2.8-1 source and tarball.
 
+## Oct 6 — kernel 7.2.9-1: override dropped again; build.sh assumed source tree = pkgrel
+
+`linux-cachyos` 7.2.8-2 -> 7.2.9-1 (Oct 3). The TV was dark at login again (stock amdgpu). The
+rebuild failed with "the fetch did not produce src/cachyos-7.2.9-1": the PKGBUILD matched (7.2.9-1)
+and makepkg worked, but CachyOS names the tarball and tree by its own tag revision, `_tagrel`
+(`_srcname=cachyos-${_major}.${_minor}-${_tagrel}`), not by pkgrel. 7.2.9-1 has `_tagrel=2`, so
+the tree is `src/cachyos-7.2.9-2`. At 7.2.8-1 both were 1, which hid the assumption.
+
+**`build.sh` fix:** read `_tagrel` from the PKGBUILD and link `src/cachyos-<running>` to the real
+tree. `reuse_pkgrel_rebuild` (Oct 2) had the same assumption and now uses the `_tagrel` name too.
+
+**Result:**
+
+- all three patches applied unchanged to 7.2.9;
+- vermagic `7.2.9-1-cachyos`, all patch markers present;
+- 0 compiler warnings (the old DML stack-frame warnings are gone on 7.2.9);
+- the cleanup dry run keeps the 7.2.9 tree and drops 4.4 GB of 7.2.8 leftovers.
+

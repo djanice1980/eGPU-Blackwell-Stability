@@ -133,18 +133,26 @@ fi
 # tree and the tarball are used. Refuses when upstream's PKGBUILD is not the running version (for
 # example CachyOS has already moved on), rather than building from the wrong source.
 fetch_source() {
-    local checkout=~/kbuild/linux-cachyos pkgdir=~/kbuild/linux-cachyos/linux-cachyos want have log
+    local checkout=~/kbuild/linux-cachyos pkgdir=~/kbuild/linux-cachyos/linux-cachyos want have log srcname
     want=${KVER%-cachyos}                                   # 7.2.8-1-cachyos -> 7.2.8-1
     log=~/kbuild/prepare-$want.log
     [ -d "$checkout/.git" ] || { say "no CachyOS PKGBUILD checkout at $checkout (see the header)"; exit 1; }
     say "no source for $want yet -- pulling the CachyOS PKGBUILD and fetching it (a few minutes)"
     git -C "$checkout" pull -q --ff-only || { say "git pull in $checkout failed"; exit 1; }
     have="$(sed -n 's/^_major=//p' "$pkgdir/PKGBUILD" | head -1).$(sed -n 's/^_minor=//p' "$pkgdir/PKGBUILD" | head -1)-$(sed -n 's/^pkgrel=//p' "$pkgdir/PKGBUILD" | head -1)"
+    # The tarball and tree are named by CachyOS's own tag revision (_tagrel), not by pkgrel:
+    # linux-cachyos 7.2.9-1 unpacks src/cachyos-7.2.9-2 (_tagrel=2). For 7.2.8-1 the two matched.
+    srcname="cachyos-$(sed -n 's/^_major=//p' "$pkgdir/PKGBUILD" | head -1).$(sed -n 's/^_minor=//p' "$pkgdir/PKGBUILD" | head -1)-$(sed -n 's/^_tagrel=//p' "$pkgdir/PKGBUILD" | head -1)"
     if [ "$have" != "$want" ]; then
-        reuse_pkgrel_rebuild "$have" "$want" "$pkgdir" && return 0
+        reuse_pkgrel_rebuild "$have" "$want" "$pkgdir" "$srcname" && return 0
         say "the CachyOS PKGBUILD is at $have but the running kernel is $want -- no matching source to fetch"; exit 1
     fi
     ( cd "$pkgdir" && makepkg --nobuild --nodeps --noconfirm --skippgpcheck ) > "$log" 2>&1 || true
+    # link the kernel's name to the real (_tagrel-named) tree, as reuse_pkgrel_rebuild does
+    if [ ! -e "$SRC" ] && [ "$SRCROOT/$srcname" != "$SRC" ] && [ -d "$SRCROOT/$srcname" ]; then
+        ln -sfn "$srcname" "$SRC"
+        say "CachyOS tag $srcname is the source for $want; linked"
+    fi
     [ -d "$SRC" ] || { say "the fetch did not produce $SRC -- see $log"; exit 1; }
     say "source for $want ready"
 }
@@ -160,10 +168,10 @@ TOOLCHAIN_SYMS='^(# )?CONFIG_([A-Z0-9_]*VERSION[A-Z0-9_]*|CC_[A-Z0-9_]+|AS_[A-Z0
 # symlinking src/cachyos-<running> to it. Anything else still refuses: the wrong source builds a
 # module that may load and misbehave.
 reuse_pkgrel_rebuild() {
-    local have=$1 want=$2 pkgdir=$3 hsrc ref diffs ntool
+    local have=$1 want=$2 pkgdir=$3 srcname=$4 hsrc ref diffs ntool
     [ "${have%-*}" = "${want%-*}" ] || return 1             # different upstream version: no reuse
     [ -f "$BUILD/.config" ] || { say "headers for $KVER missing (linux-cachyos-headers)"; exit 1; }
-    hsrc=$SRCROOT/cachyos-$have
+    hsrc=$SRCROOT/$srcname
     if [ ! -d "$hsrc" ]; then
         ( cd "$pkgdir" && makepkg --nobuild --nodeps --noconfirm --skippgpcheck ) > ~/kbuild/prepare-$have.log 2>&1 || true
         [ -d "$hsrc" ] || { say "could not fetch the $have source to reuse -- see ~/kbuild/prepare-$have.log"; return 1; }
@@ -179,7 +187,7 @@ reuse_pkgrel_rebuild() {
     fi
     ntool=$(diff "$ref" "$BUILD/.config" | grep -c '^[<>]' || true)
     say "$want is a rebuild of $have: .config identical apart from $ntool toolchain-probed line(s); reusing the $have source"
-    ln -sfn "cachyos-$have" "$SRCROOT/cachyos-$want"
+    ln -sfn "$srcname" "$SRCROOT/cachyos-$want"
 }
 [ -d "$SRC" ] || fetch_source
 # the real source tree (src/cachyos-<ver> may be a symlink made by reuse_pkgrel_rebuild)
