@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# pacman PostTransaction hook: build and install the patched amdgpu (HDMI FRL link recovery) for
+# every installed CachyOS kernel that does not have it yet -- in practice the kernel the update just
+# installed, so the reboot into it already has the fix.
+#
+# Why: the override lives in /usr/lib/modules/<ver>/updates/amdgpu-frl-lt/ and a new kernel gets a
+# new <ver>, so every kernel update silently brought back the stock amdgpu (7.2.7, 7.2.8-2, 7.2.9-1:
+# TV dark at the login screen and after wakes until build.sh was rerun by hand).
+#
+# How: the build half runs as BUILD_USER (makepkg refuses root; the source tree and ~/kbuild are
+# theirs): build.sh --build-only with KVER set to the new kernel, which fetches the CachyOS source
+# when needed (network, a few minutes) and builds. The install half runs here as root:
+# build.sh --install-only (install, depmod, initramfs). Then build.sh --cleanup drops what old
+# kernels left behind. Named zy-* so it runs after 90-mkinitcpio-install and nvidia-egpu-rebuild:
+# the initramfs it rebuilds is the final one.
+#
+# Never fails the transaction. On a failed build it prints what to run by hand after the update.
+# Config: /etc/amdgpu-frl-rebuild.conf (BUILD_USER, REPO), written by install-amdgpu-frl-rebuild.sh.
+# Log:    /var/log/amdgpu-frl-rebuild.log
+set -u
+export PATH=/usr/bin:/usr/sbin:/bin:/sbin
+CONF=/etc/amdgpu-frl-rebuild.conf
+LOG=/var/log/amdgpu-frl-rebuild.log
+NAME=amdgpu-frl-lt
+say() { echo "[amdgpu-frl-rebuild] $*"; }
+
+[ -f "$CONF" ] || { say "$CONF missing -- rerun pacman-hook/install-amdgpu-frl-rebuild.sh"; exit 0; }
+# shellcheck disable=SC1090
+. "$CONF"
+: "${BUILD_USER:=}" "${REPO:=}"
+UHOME=$(getent passwd "$BUILD_USER" | cut -d: -f6)
+BUILD="$REPO/tools/amdgpu-frl-module/build.sh"
+[ -n "$UHOME" ] && [ -f "$BUILD" ] || { say "BUILD_USER/REPO in $CONF do not point at build.sh -- skipping"; exit 0; }
+
+# every installed kernel that has headers (so the override can be built) but not the override;
+# -lts is the fallback kernel and is left stock on purpose
+MISSING=()
+for d in /usr/lib/modules/*/kernel; do
+    [ -d "$d" ] || continue
+    k=$(basename "$(dirname "$d")")
+    case "$k" in *-lts) continue ;; esac
+    [ -f "/usr/lib/modules/$k/updates/$NAME/amdgpu.ko" ] && continue
+    [ -f "/usr/lib/modules/$k/build/Module.symvers" ] || continue
+    MISSING+=("$k")
+done
+[ "${#MISSING[@]}" -gt 0 ] || exit 0
+
+echo "===== $(date '+%F %T') kernels without the override: ${MISSING[*]}" >> "$LOG"
+FAILED=()
+for k in "${MISSING[@]}"; do
+    say "building the patched amdgpu (HDMI FRL recovery) for $k"
+    say "  fetches the CachyOS source if it is not here yet -- several minutes; log: $LOG"
+    if runuser -u "$BUILD_USER" -- env HOME="$UHOME" KVER="$k" bash "$BUILD" --build-only >> "$LOG" 2>&1 \
+       && env HOME="$UHOME" KVER="$k" bash "$BUILD" --install-only >> "$LOG" 2>&1; then
+        say "patched amdgpu installed for $k"
+    else
+        FAILED+=("$k")
+    fi
+done
+
+# drop source/object trees and module dirs of kernels no longer installed (keeps the running
+# kernel's and the one just built); as root, with HOME pointing build.sh at the user's ~/kbuild
+env HOME="$UHOME" KVER="${MISSING[-1]}" bash "$BUILD" --cleanup >> "$LOG" 2>&1 || true
+
+if [ "${#FAILED[@]}" -gt 0 ]; then
+    echo
+    echo "=============================================================================="
+    echo " patched amdgpu (HDMI FRL recovery) could NOT be built for:"
+    for k in "${FAILED[@]}"; do echo "     $k"; done
+    echo " Those kernels boot with the STOCK amdgpu: the TV can stay dark at login and"
+    echo " after wakes. Details: $LOG (last lines below). After rebooting into the new"
+    echo " kernel, as $BUILD_USER:"
+    echo "     bash \"$BUILD\""
+    echo "     reboot"
+    echo "------------------------------------------------------------------------------"
+    tail -n 8 "$LOG" | sed 's/^/   /'
+    echo "=============================================================================="
+    echo
+fi
+exit 0

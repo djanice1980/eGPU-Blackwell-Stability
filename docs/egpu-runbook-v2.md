@@ -2900,3 +2900,30 @@ tree. `reuse_pkgrel_rebuild` (Oct 2) had the same assumption and now uses the `_
 - 0 compiler warnings (the old DML stack-frame warnings are gone on 7.2.9);
 - the cleanup dry run keeps the 7.2.9 tree and drops 4.4 GB of 7.2.8 leftovers.
 
+## Oct 6 — automatic rebuild hook for the amdgpu override (David's call)
+
+The override has now been dropped by three kernel updates, and the warning hook meant to catch that
+was never installed. In place of a warning, `pacman-hook/zy-amdgpu-frl-rebuild.hook` now rebuilds the
+module during the update:
+
+- it builds as the user (`build.sh --build-only`, `KVER=<new kernel>`, fetching the source if needed);
+- it installs as root (`build.sh --install-only`);
+- it cleans up old kernels' leftovers.
+
+It runs after the kernel's own initramfs hook and after the NVIDIA rebuild hook. It never fails the
+transaction, and prints what to run by hand if a build fails.
+
+**`build.sh` changes:**
+
+- new `--install-only` mode;
+- `KVER=` targeting documented;
+- every privileged step goes through `as_root`, which runs directly as root and otherwise uses sudo.
+  No password prompt can occur inside a pacman transaction.
+
+**Tested:**
+
+- the build half as the hook runs it (KVER=7.2.9-1-cachyos, 2 s with the tree already built);
+- the missing-kernel detection (7.2.9-1 already has the override; -lts skipped).
+
+The root half is exercised by the install test below or by the next kernel update.
+

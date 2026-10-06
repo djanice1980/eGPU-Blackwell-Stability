@@ -31,7 +31,11 @@
 #   source for the new <ver> is missing this script pulls the PKGBUILD and fetches it itself.
 #
 #   bash build.sh                 build, install, then clean up after kernels no longer installed
-#   bash build.sh --build-only    stop after the build; module left in the source tree
+#   bash build.sh --build-only    stop after the build; module left in ~/kbuild
+#   bash build.sh --install-only  install a module already built by --build-only (the pacman
+#                                 hook's root half; the build half runs as the user)
+#   KVER=<ver> bash build.sh ...  target a kernel other than the running one (the hook builds for
+#                                 the kernel just installed, before rebooting into it)
 #   bash build.sh --remove        remove the override, depmod, rebuild initramfs
 #   bash build.sh --cleanup [--dry-run]   only the clean-up (see prune_old_kernels)
 # Reboot after install or remove: the running amdgpu cannot be unloaded under a live desktop.
@@ -49,7 +53,10 @@ mapfile -t PATCHES < <(ls "$REPO"/kernel-patches/0*.patch 2>/dev/null | grep -v 
 DEST=/usr/lib/modules/$KVER/updates/amdgpu-frl-lt
 FRL=drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
 say() { echo "[amdgpu-frl] $*"; }
-rebuild_initramfs() { if command -v limine-mkinitcpio >/dev/null 2>&1; then sudo limine-mkinitcpio; else sudo mkinitcpio -P; fi; }
+# root steps: direct when already root (the pacman hook), else sudo -- never a password prompt
+# inside a pacman transaction
+as_root() { if [ "$EUID" -eq 0 ]; then "$@"; else sudo "$@"; fi; }
+rebuild_initramfs() { if command -v limine-mkinitcpio >/dev/null 2>&1; then as_root limine-mkinitcpio; else as_root mkinitcpio -P; fi; }
 
 # Clean up after kernels that are no longer installed. Every kernel update leaves ~4 GB here
 # (source tree + tarball + object tree) and a /usr/lib/modules/<ver> directory the kernel package no
@@ -108,7 +115,7 @@ prune_old_kernels() {
     fi
     for f in "${paths[@]}"; do
         case "$f" in
-            /usr/lib/modules/*) sudo rm -rf -- "$f" ;;
+            /usr/lib/modules/*) as_root rm -rf -- "$f" ;;
             *) rm -rf -- "$f" ;;
         esac
     done
@@ -121,10 +128,35 @@ if [ "${1:-}" = "--cleanup" ]; then
 fi
 
 if [ "${1:-}" = "--remove" ]; then
-    sudo rm -rf "$DEST"; sudo depmod "$KVER"
+    as_root rm -rf "$DEST"; as_root depmod "$KVER"
     say "override removed; amdgpu now resolves to $(modinfo -k "$KVER" -n amdgpu)"
     rebuild_initramfs
     say "reboot to run the stock module again"; exit 0
+fi
+
+# Install the built module as the override for $KVER, check depmod resolves to it, rebuild the
+# initramfs (amdgpu is in it for early KMS). Shared by a normal run and --install-only.
+STRIPPED=$HOME/kbuild/amdgpu-frl-lt-$KVER.ko
+install_override() {
+    local vm now
+    [ -f "$STRIPPED" ] || { say "no built module at $STRIPPED -- run with --build-only first"; exit 1; }
+    vm=$(modinfo -F vermagic "$STRIPPED")
+    [ "${vm%% *}" = "$KVER" ] || { say "vermagic '$vm' of $STRIPPED does not match $KVER"; exit 1; }
+    as_root install -D -m 644 "$STRIPPED" "$DEST/amdgpu.ko"
+    as_root depmod "$KVER"
+    now=$(modinfo -k "$KVER" -n amdgpu)
+    # compare real paths: modinfo reports /lib/modules/..., which is /usr/lib/modules/... on Arch
+    if [ "$(readlink -f "$now")" = "$(readlink -f "$DEST/amdgpu.ko")" ]; then
+        say "override active for $KVER: $now"
+    else
+        say "depmod still resolves amdgpu to $now -- not installed as expected"; exit 1
+    fi
+    rebuild_initramfs
+}
+if [ "${1:-}" = "--install-only" ]; then
+    install_override
+    say "installed for $KVER -- reboot into it"
+    exit 0
 fi
 
 # After a kernel update the matching source is not here yet, so fetch it: pull the CachyOS
@@ -267,16 +299,7 @@ say "built: $(du -h "$STRIPPED" | cut -f1) after strip-debug  vermagic='$VM'  pa
 
 [ "${1:-}" = "--build-only" ] && { say "--build-only: module at $STRIPPED"; exit 0; }
 
-sudo install -D -m 644 "$STRIPPED" "$DEST/amdgpu.ko"
-sudo depmod "$KVER"
-NOW=$(modinfo -k "$KVER" -n amdgpu)
-# compare real paths: modinfo reports /lib/modules/..., which is /usr/lib/modules/... on Arch
-if [ "$(readlink -f "$NOW")" = "$(readlink -f "$DEST/amdgpu.ko")" ]; then
-    say "override active: $NOW"
-else
-    say "depmod still resolves amdgpu to $NOW -- not installed as expected"; exit 1
-fi
-rebuild_initramfs
+install_override
 prune_old_kernels
 say "done. REBOOT, then: bash $REPO/tools/hdmi-frl-lt-capture.sh at 4K120 and look for PASSED on try 1."
 say "revert: bash $REPO/tools/amdgpu-frl-module/build.sh --remove, then reboot."
