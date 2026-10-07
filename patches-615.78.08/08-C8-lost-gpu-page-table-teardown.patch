@@ -1,0 +1,213 @@
+From c26ac2d2469efe4bcd007a23e97ea55c609ba8a0 Mon Sep 17 00:00:00 2001
+From: egpu <egpu@local>
+Date: Wed, 30 Sep 2026 09:00:07 -0500
+Subject: [PATCH] C8: lost-GPU page-table teardown -- stop touching GPU memory
+ and TLBs once the GPU is gone
+
+On 2026-09-30 01:10:30 the Core X V2 Thunderbolt link dropped at idle (retimer
+disconnected, pciehp Link Down, Xid 79). cleanupGpuLostStateAtomic set
+PDB_PROP_GPU_IS_LOST at 01:10:30.903 and the nvidia-drm G10 teardown ran at .985.
+Then RM tore down the clients' virtual memory, and within 0.3 s it produced
+~11,800 log lines (6,808 recorded; journald reported 4,969 more missed):
+
+  1,432  kgmmuInvalidateTlb: TLB invalidation failed ... (status=NV_ERR_GPU_IS_LOST)
+    818  pEntries != NULL @ gmmu_walk.c  (FillEntries could not map the page table)
+ ~1,400  mmu_walk*.c progress / status asserts on every level above it
+    626  mmuWalkUnmap: Failed to unmap VA Range
+    225  dmaFreeMapping_GM107: error updating VA space
+     85  mmuWalkSparsify failures
+     70  virtmemDestruct_IMPL: memmgrFree failed
+      2  memmgrMemWrite ... NV_ERR_INSUFFICIENT_RESOURCES @ gmmu_walk.c (UpdatePde)
+
+The host then hard-locked: the journal ends at 01:10:31.035, the last file write
+anywhere was at 01:10:37, nothing for the next 7 h, and a hard power-off was needed.
+(The lockup itself is not captured -- nowatchdog was on the command line.)
+
+C7's log-once covers the interrupt path; C5's G10 guard covers nv_drm_remove.
+Neither covers RM's memory-teardown path, which keeps walking GPU page tables and
+invalidating TLBs of a GPU that no longer exists. C8 short-circuits it, keyed on
+PDB_PROP_GPU_IS_LOST (the same predicate C5 uses), and only in the lost state:
+
+- gmmu_walk.c _gmmuWalkCBFillEntries: report the range as written without mapping
+  GPU memory. The walker's host-side bookkeeping then completes and page levels
+  are released normally, instead of asserting at every level.
+- gmmu_walk.c _gmmuWalkCBUpdatePde: skip the PDE write.
+- gmmu_walk.c _gmmuWalkCBCopyEntries: skip the copy.
+- gpu_vaspace.c gvaspaceInvalidateTlb: return NV_OK (no TLB left to invalidate).
+- gpu_vaspace.c _gvaspaceInternalFree: skip kbusFlush and the TLB invalidate.
+- kern_gmmu_gm107.c kgmmuInvalidateTlb_GM107: NV_ERR_GPU_IS_LOST from the pending-
+  invalidate check is logged once instead of on every call (covers its other callers).
+
+Each skipped path logs once per module lifetime via NV_GPU_LOST_LOG_ONCE.
+
+Not proven: that the flood, or this path, is what locked the host. It removes the
+flood and the hardware-touching work from teardown; the next real (or deliberate)
+drop shows whether the machine survives.
+
+Build-verified 2026-09-30 on 7.2.8-1-cachyos (LLVM): 0 warnings in the touched files;
+objtool warning count unchanged from the Sep 27 build (9,231).
+---
+ .../gpu/mmu/arch/maxwell/kern_gmmu_gm107.c    |  8 +++++
+ src/nvidia/src/kernel/gpu/mmu/gmmu_walk.c     | 35 ++++++++++++++++++-
+ src/nvidia/src/kernel/mem_mgr/gpu_vaspace.c   | 31 +++++++++++++---
+ 3 files changed, 68 insertions(+), 6 deletions(-)
+
+diff --git a/src/nvidia/src/kernel/gpu/mmu/arch/maxwell/kern_gmmu_gm107.c b/src/nvidia/src/kernel/gpu/mmu/arch/maxwell/kern_gmmu_gm107.c
+index 3d1a380b..da738523 100644
+--- a/src/nvidia/src/kernel/gpu/mmu/arch/maxwell/kern_gmmu_gm107.c
++++ b/src/nvidia/src/kernel/gpu/mmu/arch/maxwell/kern_gmmu_gm107.c
+@@ -26,6 +26,7 @@
+ #include "gpu/mmu/kern_gmmu.h"
+ #include "gpu/bus/kern_bus.h"
+ #include "vgpu/rpc.h"
++#include "gpu/nv-gpu-lost.h"            // C8: NV_GPU_LOST_LOG_ONCE for lost-GPU TLB invalidates
+ 
+ #include "published/maxwell/gm107/dev_fb.h"
+ #include "published/maxwell/gm107/dev_hubmmu_base_addendum.h"
+@@ -178,6 +179,13 @@ kgmmuInvalidateTlb_GM107
+         params.gfid = gfid;
+ 
+         status = kgmmuCheckPendingInvalidates_HAL(pGpu, pKernelGmmu, &params.timeout);
++        if (status == NV_ERR_GPU_IS_LOST)
++        {
++            // C8: expected on every call once the GPU has left the bus; log once.
++            NV_GPU_LOST_LOG_ONCE(LEVEL_ERROR,
++                                 "TLB invalidation skipped: GPU is lost\n");
++            return status;
++        }
+         if (status != NV_OK)
+         {
+             NV_PRINTF(LEVEL_ERROR,
+diff --git a/src/nvidia/src/kernel/gpu/mmu/gmmu_walk.c b/src/nvidia/src/kernel/gpu/mmu/gmmu_walk.c
+index 75c5784f..8200d62d 100644
+--- a/src/nvidia/src/kernel/gpu/mmu/gmmu_walk.c
++++ b/src/nvidia/src/kernel/gpu/mmu/gmmu_walk.c
+@@ -30,6 +30,7 @@
+ #include "kernel/gpu/fifo/kernel_fifo.h"
+ #include "gpu/mem_mgr/mem_desc.h"
+ #include "nvrm_registry.h"  // NV_REG_STR_RM_*
++#include "gpu/nv-gpu-lost.h"  // C8: NV_GPU_LOST_LOG_ONCE for lost-GPU page-table teardown
+ 
+ #include "mmu/gmmu_fmt.h"
+ #include "mmu/mmu_fmt.h"
+@@ -764,6 +765,19 @@ _gmmuWalkCBUpdatePde
+         nvFieldSet32(&pPdeMulti->fldSizeRecipExp, recipExp, entry.v8);
+     }
+ 
++    //
++    // C8: on a lost GPU the page directory lives in memory that no longer
++    // exists. memmgrMemWrite fails (NV_ERR_INSUFFICIENT_RESOURCES, observed
++    // 2026-09-30 01:10:30) and every walker level above asserts. The walker's
++    // host-side state is all that matters during teardown: report success.
++    //
++    if (pGpu->getProperty(pGpu, PDB_PROP_GPU_IS_LOST))
++    {
++        NV_GPU_LOST_LOG_ONCE(LEVEL_ERROR,
++                             "GPU lost: skipping PDE writes during page-table teardown\n");
++        return NV_TRUE;
++    }
++
+     for (i = 0; i < maxPgDirs; i++)
+     {
+         TRANSFER_SURFACE dest = {0};
+@@ -803,6 +817,23 @@ _gmmuWalkCBFillEntries
+     NvU8              *pEntries;
+     NvU32              transferFlags = TRANSFER_FLAGS_SHADOW_ALLOC;
+ 
++    //
++    // C8: on a lost GPU memmgrMemBeginTransfer cannot map the page table
++    // (pEntries == NULL), this callback returned without reporting progress,
++    // and mmuWalk asserted at every level on the way back up: ~1,400 asserts
++    // plus unmap failures per client teardown, ~11,800 lines in 0.3 s on
++    // 2026-09-30 01:10:30 before the host hard-locked. The GPU and its page
++    // tables are gone; report the range as written so the walker's host-side
++    // bookkeeping completes and its levels are released normally.
++    //
++    if (pGpu->getProperty(pGpu, PDB_PROP_GPU_IS_LOST))
++    {
++        NV_GPU_LOST_LOG_ONCE(LEVEL_ERROR,
++                             "GPU lost: skipping PTE writes during page-table teardown\n");
++        *pProgress = entryIndexHi - entryIndexLo + 1;
++        return;
++    }
++
+     pMemDesc[GMMU_USER_PAGE_DIR_INDEX] = (MEMORY_DESCRIPTOR*)pLevelMem;
+ 
+     // FABRIC_VASPACE object of pGpu.
+@@ -993,7 +1024,9 @@ _gmmuWalkCBCopyEntries
+     dest.offset = entryIndexLo * pLevelFmt->entrySize;
+ 
+     // Only copy if different source and destination memory.
+-    if (!memdescDescIsEqual(pSrcDesc, pDstDesc))
++    // C8: and only while the GPU (and the memory being copied) still exists.
++    if (!memdescDescIsEqual(pSrcDesc, pDstDesc) &&
++        !pGpu->getProperty(pGpu, PDB_PROP_GPU_IS_LOST))
+     {
+         OBJGPU *pGpu = pUserCtx->pGpu;
+         NvU32   sizeOfEntries = (entryIndexHi - entryIndexLo + 1) *
+diff --git a/src/nvidia/src/kernel/mem_mgr/gpu_vaspace.c b/src/nvidia/src/kernel/mem_mgr/gpu_vaspace.c
+index c700aae9..554b8ca6 100644
+--- a/src/nvidia/src/kernel/mem_mgr/gpu_vaspace.c
++++ b/src/nvidia/src/kernel/mem_mgr/gpu_vaspace.c
+@@ -30,6 +30,7 @@
+ 
+ #include "gpu/mmu/kern_gmmu.h"
+ #include "mem_mgr/gpu_vaspace.h"
++#include "gpu/nv-gpu-lost.h"            // C8: NV_GPU_LOST_LOG_ONCE on lost-GPU teardown
+ #include "mem_mgr/fabric_vaspace.h"
+ #include "gpu/mem_mgr/virt_mem_allocator_common.h"
+ #include "gpu/mem_mgr/virt_mem_allocator.h"
+@@ -1557,8 +1558,12 @@ _gvaspaceInternalFree
+         FOR_EACH_GPU_IN_MASK_UC(32, pSys, pGpu, pVAS->gpuMask)
+         {
+             KernelBus *pKernelBus = GPU_GET_KERNEL_BUS(pGpu);
+-            kbusFlush_HAL(pGpu, pKernelBus, BUS_FLUSH_VIDEO_MEMORY  |
+-                                            BUS_FLUSH_SYSTEM_MEMORY);
++            // C8: nothing to flush on a GPU that has left the bus.
++            if (!pGpu->getProperty(pGpu, PDB_PROP_GPU_IS_LOST))
++            {
++                kbusFlush_HAL(pGpu, pKernelBus, BUS_FLUSH_VIDEO_MEMORY  |
++                                                BUS_FLUSH_SYSTEM_MEMORY);
++            }
+         }
+         FOR_EACH_GPU_IN_MASK_UC_END
+     }
+@@ -1612,9 +1617,13 @@ _gvaspaceInternalFree
+         FOR_EACH_GPU_IN_MASK_UC(32, pSys, pGpu, pVAS->gpuMask)
+         {
+             KernelBus *pKernelBus = GPU_GET_KERNEL_BUS(pGpu);
+-            kbusFlush_HAL(pGpu, pKernelBus, BUS_FLUSH_VIDEO_MEMORY  |
+-                                            BUS_FLUSH_SYSTEM_MEMORY);
+-            gvaspaceInvalidateTlb(pGVAS, pGpu, PTE_DOWNGRADE);
++            // C8: no flush and no TLB to invalidate on a lost GPU.
++            if (!pGpu->getProperty(pGpu, PDB_PROP_GPU_IS_LOST))
++            {
++                kbusFlush_HAL(pGpu, pKernelBus, BUS_FLUSH_VIDEO_MEMORY  |
++                                                BUS_FLUSH_SYSTEM_MEMORY);
++                gvaspaceInvalidateTlb(pGVAS, pGpu, PTE_DOWNGRADE);
++            }
+         }
+         FOR_EACH_GPU_IN_MASK_UC_END
+     }
+@@ -2110,6 +2119,18 @@ gvaspaceInvalidateTlb_IMPL
+     NV_ASSERT_OR_RETURN(!gpumgrGetBcEnabledStatus(pGpu), NV_ERR_INVALID_STATE);
+     NV_ASSERT_OR_RETURN(0 != (NVBIT(pGpu->gpuInstance) & pVAS->gpuMask), NV_ERR_INVALID_ARGUMENT);
+ 
++    //
++    // C8: a lost GPU has no TLB left to invalidate. kgmmuInvalidateTlb would
++    // fail with NV_ERR_GPU_IS_LOST and print once per call -- 1,432 times in
++    // 0.3 s on 2026-09-30. Report success so teardown callers carry on.
++    //
++    if (pGpu->getProperty(pGpu, PDB_PROP_GPU_IS_LOST))
++    {
++        NV_GPU_LOST_LOG_ONCE(LEVEL_ERROR,
++                             "GPU lost: skipping TLB invalidates during teardown\n");
++        return NV_OK;
++    }
++
+     GVAS_GPU_STATE    *pGpuState = gvaspaceGetGpuState(pGVAS, pGpu);
+     MEMORY_DESCRIPTOR *pRootMem  = NULL;
+     NvU32              rootSize  = 0;
+-- 
+2.55.0
+
