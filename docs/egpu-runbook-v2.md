@@ -2966,3 +2966,31 @@ no PCI device, so nothing to probe, and the same happened on Oct 7 with 615.71.0
   link state, so the host's USB4 link falls back to USB3. Unproven; it needs a cold-boot sample on
   7.2.9 to separate "warm reboot" from "kernel 7.2.9".
 
+**Online check, Oct 8 (since the Aug 25 verdict).** Nothing fixes this machine's failure mode, which
+is `usb4_port link=none`: the USB4 link is never negotiated at boot.
+
+- **AceLan "thunderbolt: Fix PCIe device enumeration with delayed rescan" (Jan-Feb 2026): not merged**,
+  and not in 7.2.9. Westerberg: "This is not a TB issue, it's a PCIe issue", meaning PME/GPE handling
+  on AMD. AMD (Limonciello) said they would keep digging. The workaround found in that thread,
+  runtime PM off on the tunnel root ports, is what our `99-usb4-tunnel-ports-awake.rules` already
+  does. It also targets a different failure: link up, but pciehp misses the device.
+- **"thunderbolt: Assert downstream port reset on shutdown" v4 (Jun 2026):** applied to
+  `thunderbolt.git/next`, not yet in a CachyOS kernel. At shutdown it sends DPR so attached devices
+  see a disconnect at once. It is restricted to **TB3 devices; USB4 routers are excluded**, and boltd
+  reports the Core X V2 as generation USB4. So it does not apply as-is, though it is the
+  closest thing yet to the warm-reboot hypothesis: the device is never told the host went away.
+- **"thunderbolt: Quiesce AMD NHI during suspend" RFC (Jul 2026):** an s2idle resume hang with a dock
+  on AMD Phoenix. A different problem; not merged.
+- **kernel bugzilla 221822, `tb-retry.patch` (Aug 2026):** retry with backoff on CL/TMU/USB3/PCIe tunnel
+  setup, for Strix Point + CalDigit TB5. Out of tree, with no maintainer reply. It acts after the
+  router exists; our failure has no router, so it does not apply.
+- **linux-usb, Jul 2026: "ucsi_acpi ... PPM init failed" on another Strix Halo box:** maintainers called
+  it OEM EC/PD firmware. This machine shows only the benign `GET_CURRENT_CAM command failed`, not a
+  PPM init failure.
+- **CachyOS #1021 (Sep 2026):** same laptop (GZ302EA, BIOS 311) with a GPD TBT5 (JHL9480) and an RTX 4090.
+  The bridge becomes inaccessible after enumeration. A different symptom; open, no fix.
+- **ASUS BIOS:** 314 (2026-08-31) is still the newest for the GZ302EA; there is no 315.
+
+Conclusion: still "live with the replug". Worth testing locally: whether a **cold power-on** succeeds
+where warm reboots fail, since all four Oct 7-8 failures were warm reboots.
+
