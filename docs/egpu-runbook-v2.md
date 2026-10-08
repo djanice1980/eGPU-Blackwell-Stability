@@ -2927,3 +2927,42 @@ transaction, and prints what to run by hand if a build fails.
 
 The root half is exercised by the install test below or by the next kernel update.
 
+## Oct 8 — first update through both hooks; the eGPU needed a replug (cold-boot tunnel, not the driver)
+
+The Oct 8 15:51 update installed `nvidia-utils` 615.71.09 -> 615.78.08 and `linux-cachyos`
+7.2.9-1 -> 7.2.9-2. Both hooks worked unattended:
+
+- **`nvidia-egpu-rebuild`:**
+  - ported the tree to 615.78.08 with `patches-615.78.08` (prepared on Oct 7);
+  - applied all 8 patches and built and installed in 38 s;
+  - its `git fetch` failed, but the tag was already local.
+- **`zy-amdgpu-frl-rebuild`:** its first real run built and installed the TV fix for 7.2.9-2 in 74 s.
+
+After the reboot the eGPU did not appear until David replugged the cable at +212 s. Then the router
+showed, along with `external GPU detected` and `NVRM 615.78.08`. This is the documented **cold-boot
+USB4 tunnel** fingerprint: the enclosure's USB HID enumerated at boot, but no `thunderbolt 1-2`
+router, and `usb4_port link=none` until the replug. The new driver is not involved: no tunnel means
+no PCI device, so nothing to probe, and the same happened on Oct 7 with 615.71.09.
+
+**Tally rows** (enclosure attached; "warm" = a reboot that started seconds after a clean shutdown):
+
+| Date | Kernel | BIOS | Boot | Result |
+|---|---|---|---|---|
+| Oct 1 22:09 | 7.2.8-2 | 314 | ? | **success** (NVRM loaded ~6 s into boot; seen in that boot's log on Oct 2) |
+| Oct 7 15:50 | 7.2.9-1 | 314 | after a hard power-off / crash | FAIL (USB HID only, no router, whole boot) |
+| Oct 7 15:52 | 7.2.9-1 | 314 | warm | FAIL |
+| Oct 7 16:06 | 7.2.9-1 | 314 | warm | FAIL |
+| Oct 8 15:56 | 7.2.9-2 | 314 | warm (post-update) | FAIL, replug at +212 s fixed it |
+| (Oct 7 15:02) | 7.2.9-1 | 314 | | excluded: no enclosure USB at boot, so not attached or off |
+
+**What was checked:**
+
+- **Still in place:** the root-port wake pin (`00:01.1/.2` `control=on`, `active`); `host_reset` at its
+  default (no `=0` on the cmdline); BIOS 314.
+- **7.2.9 stable changelog:** no thunderbolt/USB4/typec/ucsi/xhci changes. The only USB4 mention is an
+  amdgpu DP-tunnelling assert, so the kernel-version correlation is probably coincidence.
+- **The pattern:** every September success was a **cold power-on**, and every failure here is a **warm
+  reboot**. One hypothesis: on a warm reboot the enclosure stays powered and its router keeps
+  link state, so the host's USB4 link falls back to USB3. Unproven; it needs a cold-boot sample on
+  7.2.9 to separate "warm reboot" from "kernel 7.2.9".
+
