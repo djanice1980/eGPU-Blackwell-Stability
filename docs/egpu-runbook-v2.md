@@ -3093,3 +3093,22 @@ only says the LTP check is satisfied. Reversible at runtime; one more parameter.
 **Practical position:** the new cable is unfit for 4K120 with this source and TV; the certified
 cable is the better of the two but still marginal.
 
+## Oct 15 14:05 — certified cable back: 6 of 6 first links lock in 61-485 ms
+
+Same boot, same `frl_ffe_levels=3` (both runs; the parameter was not reset to 0 between them, so this
+is not a 0-vs-3 comparison, which no longer matters since the TV never requests FFE), only the cable
+swapped back to the certified 48 Gbps one. Two captures, three cycles each:
+
+| run | first-link locks | lock latency after training | re-enables | FFE requests |
+|---|---|---|---|---|
+| 14:05 (`frl-switch-20261015-140542.log`) | 3/3 | 231, 423, 199 ms | 0 | 0 |
+| 14:07 (`frl-switch-20261015-140706.log`) | 3/3 | 61, 485, 455 ms | 0 | 0 |
+
+Against the new cable in the same hour: ~2 locks in ~80 links. The cable is the whole difference,
+and with the certified cable this session is a clean one (compare Sep 28 sessions at ~50% dead).
+Two early-FRL_START links (LTS:P polls 100 and 89) locked in 199 and 61 ms, extending that
+observation to 13 of 13.
+
+New cable: same length as the certified one, no issue at 4K60 or elsewhere; it cannot carry 10G x4
+to this TV reliably. The certified cable is the daily cable.
+
