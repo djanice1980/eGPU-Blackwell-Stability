@@ -3025,3 +3025,34 @@ also explain part of the ~20-50% dead links on the old cable.
 **Proposed experiment:** a runtime-switchable `amdgpu.frl_ffe_levels` parameter (default 0 = stock
 behaviour), then an A/B in one boot with the switch capture at 0 and at 3, on both cables.
 
+## Oct 15 — patch 0004 built: `amdgpu.frl_ffe_levels` (TxFFE A/B)
+
+`kernel-patches/0004-local-amdgpu.frl_ffe_levels-...patch` adds a module parameter that sets the
+number of TxFFE levels advertised in SCDC Config_1 at every link training, in place of the
+never-assigned `dc->debug.limit_ffe`.
+
+- **Default 0 = stock behaviour**, bit for bit the same training as before.
+- **Runtime-writable** (`0644`): `/sys/module/amdgpu/parameters/frl_ffe_levels`, read at each
+  training, so the A/B needs no reboot once the module is installed.
+- **Logs (warning level, only when the value is non-zero):**
+  - `sink requested next TxFFE -> level N (advertised M, rate=R, poll P)` for every 0xE request;
+  - `trained rate=R with TxFFE level N after K request(s) (advertised M)` at each PASSED.
+- **Build:** 7.2.9-2, 0 warnings. `modinfo -p` shows the parameter.
+- The switch capture's timeline now shows the FFE lines too.
+
+**A/B procedure, one boot, both cables:**
+
+1. `cat /sys/module/amdgpu/parameters/frl_ffe_levels` -> 0. Run the switch capture (baseline).
+2. `echo 3 | sudo tee /sys/module/amdgpu/parameters/frl_ffe_levels`. Run the capture again.
+3. Swap to the other cable, repeat 1-2.
+4. `python3 tools/hdmi-frl-links.py ~/frl-switch-*.log` for the per-link table.
+
+Readings:
+
+- **The TV never asks for FFE** (no `sink requested next TxFFE` lines even at 3): the FFE hypothesis
+  is wrong for this sink, and the never-lock state is something else.
+- **It asks, and links at level 1-3 lock where level 0 did not:** the signal margin story holds, and a
+  non-zero default is the fix candidate (with a decision on which level).
+- **It asks, trains at a higher level, and still does not lock:** FFE is not sufficient; back to the
+  sink's post-FRL_START behaviour.
+

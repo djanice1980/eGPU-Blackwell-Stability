@@ -101,3 +101,22 @@ Confirmation is then passive. `journalctl -k` covers **only the current boot**, 
 | `sink locked N ms after the last link training` | lock latency after training (point 7); a link is torn down ~4100 ms after training (3.5 s window + ~0.6 s debounce); values approaching that mean the window is too short |
 | `sink state changed` lines only | transitions happened without meeting the retrain condition; the sink was reporting lock while the panel was dark |
 
+
+## 0004-local-amdgpu.frl_ffe_levels-advertise-TxFFE-levels-to-the-HDMI-FRL-sink.patch (Oct 15, local, experimental)
+
+Adds `amdgpu.frl_ffe_levels` (uint, 0-3, default 0, `0644`): the number of TxFFE (transmitter
+pre-emphasis) levels advertised to the sink in SCDC Config_1 at every FRL link training. On Linux
+`dc->debug.limit_ffe` is declared and never assigned, so amdgpu has always advertised 0 and the TV
+could never ask for equalisation; a 0xE ("next FFE") request was turned into "lower link rate". The
+hardware path exists on DCN 3.5 (`dpcs32_program_eq_setting`, levels 0-3 via the VBIOS table) and the
+training loop already steps the level on 0xE.
+
+- **0 (default):** stock behaviour, unchanged training.
+- **Non-zero:** the sink may request FFE; each request and the level a link trained at are logged at
+  warning level (`sink requested next TxFFE -> level N`, `trained rate=R with TxFFE level N`).
+- **Runtime:** `echo 3 | sudo tee /sys/module/amdgpu/parameters/frl_ffe_levels`; read at each training.
+
+Why: on 2026-10-15 a cable sold as "8K/10K HDMI 2.1" trained 10G x4 39/39 times and the LG C2 locked
+0/39 within the settle window, the same "trains but never locks" signature as the certified cable at
+~20-50%. A cable changing the rate points at signal margin, which TxFFE exists to correct. Unproven
+until the A/B in the runbook (Oct 15) is run.
