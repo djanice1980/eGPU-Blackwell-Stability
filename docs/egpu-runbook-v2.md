@@ -2994,3 +2994,34 @@ is `usb4_port link=none`: the USB4 link is never negotiated at boot.
 Conclusion: still "live with the replug". Worth testing locally: whether a **cold power-on** succeeds
 where warm reboots fail, since all four Oct 7-8 failures were warm reboots.
 
+## Oct 15 — new "8K/10K HDMI 2.1" cable: 4K120 trains every time and never locks; we advertise 0 FFE levels
+
+David swapped in a new cable sold as "8K/10K, VRR, HDR, HDMI 2.1 certified". The old certified
+48 Gbps cable had locked 4K120 at 08:36 and 10:58 the same day. The new one failed at 12:59-13:00,
+16 links with 0 locks, while 4K60 (6G x4) locked at once. The switch capture
+(`~/frl-switch-20261015-130502.log`, 3 cycles, ~39 links at rate 5) shows:
+
+- **Every training PASSED:** LTP 5/6/7/8 -> 0, then FRL_START after 33-34 LTS:P polls (~205 ms).
+- **0 locks within the ~4 s settle window, on every link.** One lock came 38.7 s after the last
+  training (cycle 2), with no source action in between.
+
+That is the same "trains but never locks" signature tallied since Sep 28, but at 100% instead of
+~20-50%. A cable swap changing the rate of that failure ties it to **signal margin**. LTP patterns pass
+while the TV fails to lock to the real FRL stream when the eye is marginal.
+
+**Lead: `Max FFE_Levels = 0` in every training log.** In HDMI 2.1 FRL training the source declares
+how many TxFFE (pre-emphasis) levels it supports, and the sink may request "next FFE" (LTP 0xE) when
+the channel needs equalization. In 7.2.9 amdgpu, `dc->debug.limit_ffe` is declared in `dc.h`
+and **never assigned anywhere**, so Linux always advertises 0 levels. If the sink asks anyway, the
+training code turns it into LINK_RESULT_LOWER_LINKRATE. The hardware path exists: DCN 3.5's
+link encoder has `prog_eq_setting = dpcs32_program_eq_setting`, which programs FFE levels 0-3
+through the VBIOS transmitter-control table, the same mechanism the vendor driver uses. The training
+loop already steps `current_FFE` 1-3 on 0xE requests. Nothing turns it on.
+
+**Hypothesis (unproven):** with 0 FFE levels, a lossy channel trains on LTPs but the TV cannot lock
+to live data. Advertising FFE levels would let the TV ask for the pre-emphasis it needs. This could
+also explain part of the ~20-50% dead links on the old cable.
+
+**Proposed experiment:** a runtime-switchable `amdgpu.frl_ffe_levels` parameter (default 0 = stock
+behaviour), then an A/B in one boot with the switch capture at 0 and at 3, on both cables.
+
