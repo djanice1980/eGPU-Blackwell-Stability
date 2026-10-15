@@ -115,6 +115,11 @@ training loop already steps the level on 0xE.
 - **Non-zero:** the sink may request FFE; each request and the level a link trained at are logged at
   warning level (`sink requested next TxFFE -> level N`, `trained rate=R with TxFFE level N`).
 - **Runtime:** `echo 3 | sudo tee /sys/module/amdgpu/parameters/frl_ffe_levels`; read at each training.
+- **`amdgpu.frl_ffe_force` (0-3, default 0, added the same day):** start every training at TxFFE level
+  N instead of 0, whether or not the sink asks. The first A/B showed the LG C2 never requests FFE
+  (0 of 42 at 3 levels), so this is the remaining source-side lever: pre-emphasis the sink did not
+  ask for, tested for its effect on live-stream lock. Runtime-writable the same way; the PASSED log
+  line reports `forced N`.
 
 Why: on 2026-10-15 a cable sold as "8K/10K HDMI 2.1" trained 10G x4 39/39 times and the LG C2 locked
 0/39 within the settle window, the same "trains but never locks" signature as the certified cable at

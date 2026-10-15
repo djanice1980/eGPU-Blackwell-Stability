@@ -3112,3 +3112,26 @@ observation to 13 of 13.
 New cable: same length as the certified one, no issue at 4K60 or elsewhere; it cannot carry 10G x4
 to this TV reliably. The certified cable is the daily cable.
 
+## Oct 15 — patch 0004 extended: `amdgpu.frl_ffe_force` (forced pre-emphasis test)
+
+The TV never requests FFE, so `frl_ffe_levels` is inert for it. `frl_ffe_force` (0-3, default 0,
+runtime-writable) starts every training at TxFFE level N instead of 0: the `prog_eq_setting` call at
+FLT_READY, which the stock code makes with level 0, is made with N. Everything else in training is
+unchanged, and the sink can still step the level if it ever asks. With 0 the call is the stock one.
+
+Each PASSED now logs `trained rate=R with TxFFE level N after K request(s) (advertised M, forced F)`.
+
+**Test, new cable as the test bed** (it fails ~97% at level 0, so any gain is visible at once):
+
+    for L in 1 2 3; do echo $L | sudo tee /sys/module/amdgpu/parameters/frl_ffe_force; bash tools/hdmi-frl-switch-capture.sh; done
+    echo 0 | sudo tee /sys/module/amdgpu/parameters/frl_ffe_force
+
+Readings:
+
+- a level lifts the new cable's first-link lock rate well above ~3%: pre-emphasis helps the live-stream
+  eye; test the same level on the certified cable over a few days against its 20-50% bad-session rate;
+- no level changes anything: the source-side knobs are exhausted; the fault is the sink's receiver
+  margin at 10G and the certified cable plus the watchdog is the answer;
+- training starts failing at a level (FAILED / lower link rate): that level over-drives the link;
+  the lower levels still tell the story.
+
