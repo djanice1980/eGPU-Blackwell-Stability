@@ -3056,3 +3056,40 @@ Readings:
 - **It asks, trains at a higher level, and still does not lock:** FFE is not sufficient; back to the
   sink's post-FRL_START behaviour.
 
+## Oct 15 13:43-13:55 — FFE A/B on the new cable: the TV never asks for FFE. Hypothesis falsified.
+
+Patch 0004 installed (`frl_ffe_levels` readable at 0, then set to 3 at runtime). Switch capture,
+new cable, three cycles each:
+
+| setting | trainings at 10G x4 | PASSED | "next FFE" requests | locks | log |
+|---|---|---|---|---|---|
+| FFE levels = 0 | 29 | 29 | n/a | 1 (first link of cycle 2, 2687 ms) | `frl-switch-20261015-134256.log` |
+| FFE levels = 3 | 42 | 42 | **0** | **0** | `frl-switch-20261015-134847.log` |
+
+With three levels on offer, every training logged `trained rate=5 with TxFFE level 0 after 0
+request(s) (advertised 3)`. The LG C2 passes LTP 5/6/7/8 at level 0 and never requests
+equalisation, so the FFE lever does not exist with this sink. **The FFE hypothesis is wrong.** Patch
+0004 stays in the tree as an inert, documented knob (default 0, identical to stock) and as a record
+of the test; it is not a fix.
+
+**What the day's data does establish:**
+
+- Training at 10G x4 is not the failure point with either cable: 110 of 110 trainings PASSED today.
+- The failure is the sink not locking to the live FRL stream after FRL_START. The new cable raises
+  that from ~20-50% (certified cable, Sep 28-Oct 2 tallies) to ~97% (2 locks in ~80 links today).
+- A late lock is possible after all: cycle 2 of the 13:05 run locked **38.7 s** after the last
+  training, during the once-a-minute phase, with no source action. The September "within 2.7 s or
+  never" rule was a product of tearing links down at ~4-5 s; given long enough, a marginal link
+  sometimes locks on its own. That is the TV's receiver re-acquiring, not the source.
+- LTP passing while live data does not lock means the LTP check is more tolerant than live-stream
+  lock (scrambled, FEC-coded super blocks), i.e. the eye at 10G is marginal on the certified cable
+  and bad on the new one. Nothing on the source side has changed that so far.
+
+**Remaining source-side knob (speculative):** force a non-zero TxFFE level at training start
+regardless of sink requests (`dpcs32_program_eq_setting(level)` where level 0 is programmed at
+FLT_READY). The sink not *asking* does not prove pre-emphasis would not help the live-data eye; it
+only says the LTP check is satisfied. Reversible at runtime; one more parameter. Unproven.
+
+**Practical position:** the new cable is unfit for 4K120 with this source and TV; the certified
+cable is the better of the two but still marginal.
+
