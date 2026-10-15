@@ -3152,3 +3152,34 @@ Readings:
   cable, where level 0 locks ~3%.
 - Early-FRL_START links (LTS:P polls 100, 93, 70) locked in 111, 59 and 19 ms: now 16 of 16.
 
+## Oct 15 14:43-14:57 — forced TxFFE on the new cable: no effect. Source-side knobs exhausted.
+
+New cable, three cycles per level (level 2 skipped; 1 and 3 bracket it):
+
+| forced level | trainings at 10G x4 | PASSED | locks | log |
+|---|---|---|---|---|
+| 0 (earlier today) | 29 + 42 | all | 1 (2687 ms) + 0 | `134256`, `134847` |
+| 1 | 42 | 42 | **0** | `frl-switch-20261015-144303.log` |
+| 3 | 42 | 42 | **0** | `frl-switch-20261015-145104.log` |
+
+Pre-emphasis at the maximum level changes nothing: training still passes, FRL_START still arrives at
+~205 ms, and the TV still never locks to the live stream within ~4 s. On the certified cable the same
+levels locked 9/9, so the knob works and is harmless; it just does not address what this TV needs on
+a marginal cable.
+
+**Verdict for the whole Oct 15 series:**
+
+- Training is never the failure (152 of 152 PASSED today across both cables and all settings).
+- The LG C2's live-stream lock after FRL_START is what fails, and its probability is set by the
+  cable (certified: 0-50% dead per session; the new one: ~97%), not by anything the source can
+  signal: advertised FFE (never requested), forced FFE (no effect), timing (settle window, retry
+  spacing) only change how fast a retry comes.
+- Patch 0004 stays in the series as two inert, default-0 knobs with the experiment recorded in its
+  message; stock behaviour is unchanged with both at 0.
+- Working configuration: the certified 48 Gbps cable + the watchdog (0001-0003). The new cable goes
+  back.
+
+What remains unexplained is why the certified cable has bad sessions at all. The one source-visible
+correlate is still the early-FRL_START pattern (16 of 16 locked fast), which says the TV sometimes
+has the link acquired before FRL_START; what decides that is on the TV side.
+
