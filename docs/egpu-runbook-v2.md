@@ -3135,3 +3135,20 @@ Readings:
 - training starts failing at a level (FAILED / lower link rate): that level over-drives the link;
   the lower levels still tell the story.
 
+## Oct 15 14:34 — forced TxFFE 1/2/3 on the certified cable: safe at every level, 9/9 first-link locks
+
+`frl_ffe_force` installed; certified cable; three captures of three cycles, one per level:
+
+| forced level | first-link locks | lock latency after training | training | log |
+|---|---|---|---|---|
+| 1 | 3/3 | 111, 61, 59 ms | PASSED x3, `TxFFE level 1` | `frl-switch-20261015-143449.log` |
+| 2 | 3/3 | 185, 114, 116 ms | PASSED x3, `TxFFE level 2` | `frl-switch-20261015-143620.log` |
+| 3 | 3/3 | 1542, 19, 266 ms | PASSED x3, `TxFFE level 3` | `frl-switch-20261015-143804.log` |
+
+- No level over-drives the link: training passes at all three, the TV still sends FRL_START on
+  schedule, and lock follows. So forcing pre-emphasis is safe with this TV at every level.
+- No efficacy signal here, as expected: this is a clean session for the certified cable (6/6 at
+  level 0 an hour earlier), so there was nothing to improve. The discriminating run is the new
+  cable, where level 0 locks ~3%.
+- Early-FRL_START links (LTS:P polls 100, 93, 70) locked in 111, 59 and 19 ms: now 16 of 16.
+
