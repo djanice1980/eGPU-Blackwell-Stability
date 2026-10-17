@@ -3183,3 +3183,32 @@ What remains unexplained is why the certified cable has bad sessions at all. The
 correlate is still the early-FRL_START pattern (16 of 16 locked fast), which says the TV sometimes
 has the link acquired before FRL_START; what decides that is on the TV side.
 
+## Oct 16 — 7.2.10-1: the hook lost the network mid-update; build.sh now fetches the release tarball itself
+
+**What happened.** The Oct 15 15:05 update installed `linux-cachyos` 7.2.10-1. The `zy-amdgpu-frl-rebuild`
+hook ran at 15:06:36, its `git pull` of the CachyOS PKGBUILD checkout failed at once
+(`Failed to connect to github.com:443 after 81 ms`), and `build.sh` treated that as fatal. The hook
+printed its failure banner in the pacman output, which was not noticed. Today's 15:08 boot loaded the
+**stock** amdgpu, and 4K120 did not come up: the TV sat unlocked with no watchdog to retrain it.
+
+**A second problem on the rerun.** By Oct 16 the CachyOS PKGBUILD had moved to 7.2.11-1 (no package in
+the repos yet), so `build.sh` refused ("PKGBUILD is at 7.2.11-1 but the running kernel is 7.2.10-1").
+
+**Fixes in `build.sh`:**
+
+- `git pull` is best-effort: three tries 10 s apart, then it carries on with the local history.
+- New `fetch_release_tarball`: when the PKGBUILD's version is not the running kernel's, walk the
+  checkout's PKGBUILD history for the commit whose version matches, read its `_tagrel`, and download
+  `https://github.com/CachyOS/linux/releases/download/cachyos-<ver>-<tagrel>/...tar.gz` directly
+  (254 MB, ~6 s). The tree is equal to what `makepkg --nobuild` produces: their `prepare()` applies
+  only `.patch` entries in `source[]`, the base list has none, and the `.config` it copies in is
+  removed by `make mrproper` anyway.
+- Order: release tarball first, then the pkgrel-rebuild reuse, then refuse.
+
+Verified: 7.2.10-1 built from `cachyos-7.2.10-1`, all four patches applied, 0 warnings, vermagic
+correct, both FFE parameters and the watchdog strings present.
+
+**Still open:** the hook's failure is only a banner in pacman's scroll-back. A boot-time catch-up
+(a oneshot service that runs `amdgpu-frl-rebuild` when the running kernel lacks the override) would
+have repaired this on the next boot without anyone reading the banner. Not built yet.
+

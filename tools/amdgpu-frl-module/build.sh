@@ -164,18 +164,62 @@ fi
 # that version. Its prepare() then fails for lack of `bc`; that does not matter, only the extracted
 # tree and the tarball are used. Refuses when upstream's PKGBUILD is not the running version (for
 # example CachyOS has already moved on), rather than building from the wrong source.
+# CachyOS publishes each kernel's pre-patched source as a GitHub release named by the PKGBUILD's
+# tag (cachyos-<major>.<minor>-<_tagrel>), and their PKGBUILD for a version is one commit in the
+# linux-cachyos checkout. When the checkout has moved past the running kernel (7.2.11-1 while
+# 7.2.10-1 runs, 2026-10-16), find the commit whose PKGBUILD says the running version, take its tag
+# and download that tarball straight from the release. For the kernel tree this equals what
+# `makepkg --nobuild` extracts: their prepare() applies only .patch entries in source[], and the
+# base source list has none (the tarball ships pre-patched); the .config it copies in is removed
+# by the mrproper below anyway.
+fetch_release_tarball() {
+    local want=$1 checkout=$2 pkgdir=$3 c ver tag tarball url
+    for c in $(git -C "$checkout" log --format=%h -40 -- linux-cachyos/PKGBUILD); do
+        ver=$(git -C "$checkout" show "$c:linux-cachyos/PKGBUILD" 2>/dev/null | awk -F= '
+            /^_major=/{a=$2} /^_minor=/{b=$2} /^_tagrel=/{t=$2} /^pkgrel=/{p=$2}
+            END{printf "%s.%s-%s %s.%s-%s\n", a, b, p, a, b, t}')
+        [ "${ver%% *}" = "$want" ] || continue
+        tag="cachyos-${ver##* }"
+        tarball=$pkgdir/$tag.tar.gz
+        url="https://github.com/CachyOS/linux/releases/download/$tag/$tag.tar.gz"
+        say "PKGBUILD for $want is commit $c (tag $tag) -- fetching the release tarball"
+        if [ ! -s "$tarball" ]; then
+            curl -fsSL --retry 3 --retry-delay 10 -o "$tarball.part" "$url" || { say "download failed: $url"; rm -f "$tarball.part"; return 1; }
+            mv "$tarball.part" "$tarball"
+        fi
+        tar tzf "$tarball" >/dev/null 2>&1 || { say "$tarball is not a valid tarball"; return 1; }
+        [ -d "$SRCROOT/$tag" ] || tar xzf "$tarball" -C "$SRCROOT" || { say "extracting $tarball failed"; return 1; }
+        ln -sfn "$tag" "$SRC"
+        [ "$SRCROOT/$tag.tar.gz" -ef "$tarball" ] || ln -sfn "$tarball" "$SRCROOT/$tag.tar.gz"
+        say "source for $want ready from release $tag"
+        return 0
+    done
+    say "no PKGBUILD commit for $want in the last 40 PKGBUILD commits of $checkout"
+    return 1
+}
+
 fetch_source() {
     local checkout=~/kbuild/linux-cachyos pkgdir=~/kbuild/linux-cachyos/linux-cachyos want have log srcname
     want=${KVER%-cachyos}                                   # 7.2.8-1-cachyos -> 7.2.8-1
     log=~/kbuild/prepare-$want.log
     [ -d "$checkout/.git" ] || { say "no CachyOS PKGBUILD checkout at $checkout (see the header)"; exit 1; }
     say "no source for $want yet -- pulling the CachyOS PKGBUILD and fetching it (a few minutes)"
-    git -C "$checkout" pull -q --ff-only || { say "git pull in $checkout failed"; exit 1; }
+    # The pull is best-effort: the pacman hook hit "Could not connect to github.com" mid-update on
+    # 2026-10-15 and gave up, leaving 7.2.10-1 on the stock amdgpu. Retry, then fall back to the
+    # local history, which usually already holds the commit (and the release download below does
+    # not need the checkout to be current, only to contain the version's PKGBUILD).
+    local try
+    for try in 1 2 3; do
+        git -C "$checkout" pull -q --ff-only 2>>"$log" && break
+        [ "$try" -lt 3 ] && { say "git pull in $checkout failed (try $try) -- retrying in 10 s"; sleep 10; }
+    done
+    [ "$try" -lt 3 ] || git -C "$checkout" pull -q --ff-only 2>>"$log" || say "git pull failed -- using the local PKGBUILD history"
     have="$(sed -n 's/^_major=//p' "$pkgdir/PKGBUILD" | head -1).$(sed -n 's/^_minor=//p' "$pkgdir/PKGBUILD" | head -1)-$(sed -n 's/^pkgrel=//p' "$pkgdir/PKGBUILD" | head -1)"
     # The tarball and tree are named by CachyOS's own tag revision (_tagrel), not by pkgrel:
     # linux-cachyos 7.2.9-1 unpacks src/cachyos-7.2.9-2 (_tagrel=2). For 7.2.8-1 the two matched.
     srcname="cachyos-$(sed -n 's/^_major=//p' "$pkgdir/PKGBUILD" | head -1).$(sed -n 's/^_minor=//p' "$pkgdir/PKGBUILD" | head -1)-$(sed -n 's/^_tagrel=//p' "$pkgdir/PKGBUILD" | head -1)"
     if [ "$have" != "$want" ]; then
+        fetch_release_tarball "$want" "$checkout" "$pkgdir" && return 0
         reuse_pkgrel_rebuild "$have" "$want" "$pkgdir" "$srcname" && return 0
         say "the CachyOS PKGBUILD is at $have but the running kernel is $want -- no matching source to fetch"; exit 1
     fi
