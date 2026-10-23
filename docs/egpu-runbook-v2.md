@@ -3369,3 +3369,31 @@ Built for 7.3.0-4 with 0001/0003/0004 (default series): 0 warnings. The AMD test
 Expected after install: at 4K60 the journal shows "HDMI FRL: trained rate=3" (6G x4) and "frl
 status polling starts", and the TV enters HDR at 4K60 again.
 
+## Oct 23 — 0005 installed: 4K60 HDR back; login screen "No signal" on 1 of 2 boots
+
+4K60 in the session: FRL rate 3 (6G x4), 10-bit, TV in HDR mode again. 0005 confirmed.
+
+Login screen (folio closed, so the TV is the only lit output), two boots, same kernel and module:
+
+| | 12:22 boot | 12:31 boot |
+|---|---|---|
+| console link-up, rate 3 | locked | locked |
+| greeter link-up | trained, then unlocked with errors ~0.9 s later | same |
+| second training | +1.12 s | +1.06 s |
+| final state | locked, 0 errors, stable to login | same |
+| TV showed | **"No signal"** until login (4K120 modeset) | **login screen** |
+
+At warning-level logging the two boots are indistinguishable, so the failure is not visible from
+the source: the TV reports all lanes locked while showing "No signal". Before 0005 the greeter's
+4K60 was TMDS 8-bit on 7.3 and came up both times. On 7.2 (FRL greeter) the same symptom was
+reported Sep 30 and Oct 2.
+
+**Correction to the Sep 30 entry:** "a black TV there is what the greeter drew on that output … not
+a link failure" was written without asking what the TV showed. It shows "No signal" with the link
+locked, so the greeter drawing nothing is not the explanation.
+
+Open, by decision: keep 0005 and watch. If it recurs: (A) workaround -- greeter-only 8 bpc in
+/var/lib/plasmalogin's kwinoutputconfig.json so its 4K60 goes TMDS (extend
+`tools/greeter-hdmi-4k60.sh`); or (B) root cause -- one boot with `drm.debug=0x2` on the kernel
+command line to see the full training/stream sequence of the three link-ups.
+
