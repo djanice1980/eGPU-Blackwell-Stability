@@ -3295,3 +3295,23 @@ Procedure (certified cable, 4K120):
     PATCH_SERIES=7.3-amd-lt bash tools/amdgpu-frl-module/build.sh   -> reboot, CYCLES=20 capture
     bash tools/amdgpu-frl-module/build.sh                          -> reboot (back to ours)
 
+## Oct 23 — 7.3 sends 4K60 as TMDS; the switch capture waited forever at 4K60. Fixed.
+
+First A/B attempt: `cycle 1: TV not locked at 4K60 after 60s -- skipping this cycle`, every cycle.
+7.3 marks a stream FRL only above the 600 MHz TMDS limit (`dc_stream.c`: `pix_clk <
+HDMI2_TMDS_MAX_PIXEL_CLOCK` -> `SIGNAL_TYPE_HDMI_TYPE_A`), so 4K60 8-bit (594 MHz) is TMDS; on 7.2
+it trained FRL at 6G x4. No FRL stream means no watchdog polling and no "sink state changed" line,
+which the capture used as its 4K60 lock signal. The picture was fine.
+
+Confirmed on 7.3.0-4 (11:34:13): switching to 4K120 trained rate 5, "frl status polling starts",
+sink locked 2909 ms after training -- the watchdog runs as on 7.2 whenever an FRL stream exists.
+The `rate=6` training at boot (11:27:10) is the detection-time max-rate probe, not the picture.
+
+Also on 7.3: stock advertises **3** TxFFE levels (the 0004 line says "advertised 3, forced 0" at
+the default), so something in 7.3 now sets `dc->debug.limit_ffe`; the earlier note that 7.3 still
+advertises 0 was wrong. 0004 at 0 leaves the stock value alone, so behaviour is stock either way.
+
+Capture fix: at the FROM mode the tool checks the newest "frl status polling starts/stops" line
+this boot; anything but "starts" means the mode is TMDS and the cycle goes straight on. Each 7.3
+cycle is therefore a TMDS -> FRL 4K120 training, like a cold link-up.
+

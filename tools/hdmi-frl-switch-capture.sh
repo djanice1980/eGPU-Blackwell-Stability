@@ -90,6 +90,13 @@ lock_state() {
     case "$last" in *status=0x5e*) echo locked ;; *) echo unlocked ;; esac
 }
 
+# "starts" when an FRL stream is up (watchdog polling), "stops"/"none" otherwise
+frl_polling() {
+    local last
+    last=$(journalctl -k -b --no-pager -o cat 2>/dev/null | grep -oE "frl status polling (starts|stops)" | tail -1)
+    case "$last" in *starts) echo starts ;; *stops) echo stops ;; *) echo none ;; esac
+}
+
 # Wait until the TV reports lock and holds it for 2 s. Echoes the seconds waited; 1 on timeout.
 wait_lock() {
     local since="$1" limit="$2" t=0
@@ -109,9 +116,17 @@ for c in $(seq 1 "$CYCLES"); do
     T60=$(date '+%Y-%m-%d %H:%M:%S')
     kscreen-doctor "output.$OUTNAME.mode.$FROM" >/dev/null 2>&1
     sleep 3
-    if ! w=$(wait_lock "$T60" 60); then
-        say "cycle $c: TV not locked at 4K60 after ${w}s -- skipping this cycle"
-        continue
+    # From 7.3 a mode under the 600 MHz TMDS limit (4K60 8-bit, 594 MHz) is sent as TMDS, not FRL:
+    # no FRL link, no watchdog polling, so no lock line will ever come. The watchdog logs
+    # "frl status polling starts/stops" at each commit that adds/removes the last FRL stream; if
+    # the newest one this boot is not "starts", the FROM mode is TMDS and is ready as it is.
+    if [ "$(frl_polling)" = starts ]; then
+        if ! w=$(wait_lock "$T60" 60); then
+            say "cycle $c: TV not locked at 4K60 after ${w}s -- skipping this cycle"
+            continue
+        fi
+    else
+        [ "$c" -eq 1 ] && say "4K60 is TMDS on this kernel (no FRL link at 4K60) -- each cycle trains FRL from TMDS"
     fi
     sleep 3
 
