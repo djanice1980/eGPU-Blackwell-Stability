@@ -1,0 +1,55 @@
+From d00f3f05b9ab4168b583cd203b877864ae850559 Mon Sep 17 00:00:00 2001
+From: David Janice <djanice1980@gmail.com>
+Date: Fri, 23 Oct 2026 12:16:18 -0500
+Subject: [PATCH] drm/amd/display: local -- do not clamp HDMI FRL colour depth
+ to the max TMDS clock
+
+7.3 moved the HDMI colour-depth clamp into fill_stream_properties_from_drm_display_mode() and
+applies it to every HDMI endpoint (is_hdmi_ep). v7.2 applied it only to
+SIGNAL_TYPE_HDMI_TYPE_A streams. For an FRL-capable sink this caps the depth at what fits
+max_tmds_clock even though the stream would go out over FRL.
+
+Measured on the LG C2 (max TMDS 600 MHz), 7.3.0-4, 2026-10-23: 4K60 10-bit RGB needs 742.5 MHz,
+so the clamp lowers it to 8-bit (594 MHz), update_stream_signal() then demotes the stream to
+TMDS, and the TV gets an 8-bit picture without HDR. On 7.2 the same mode trained FRL at 6G x4,
+10-bit, HDR on. 4K120 is unaffected only because no depth fits under 600 MHz, so the clamp
+gives up and leaves 10-bit.
+
+Skip the clamp when the stream's signal is HDMI_FRL. At this point stream->signal is still the
+sink's signal (dc_create_stream_for_sink() ran update_stream_signal() before the timing was
+filled), so an FRL-capable sink reads HDMI_FRL; update_stream_signal() runs again after the
+fill and demotes to TMDS whatever genuinely fits under the TMDS limit at the chosen depth.
+dc_validate_stream() still checks the FRL link bandwidth, and
+amdgpu_dm_create_validate_stream_for_sink() falls back to the next depth if it fails. TMDS
+HDMI sinks and DP-to-HDMI dongles keep 7.3's clamp.
+---
+ .../drm/amd/display/amdgpu_dm/amdgpu_dm_connector.c | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_connector.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_connector.c
+index fd0c719..4e04a79 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_connector.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_connector.c
+@@ -985,7 +985,18 @@ STATIC_IFN_KUNIT void fill_stream_properties_from_drm_display_mode(
+ 	 * candidate, so silently switching to it would hide an enumeration
+ 	 * bug and produce a stream the caller never asked to validate.
+ 	 */
+-	if (is_hdmi_ep)
++	/*
++	 * Local: not for an HDMI FRL stream. Its depth is bounded by the FRL link
++	 * (dc_validate_stream() checks it, and the caller falls back to the next
++	 * depth if it does not fit), not by max_tmds_clock. Clamping it made 4K60
++	 * 10-bit (742.5 MHz > the LG C2's 600 MHz) drop to 8-bit, which
++	 * update_stream_signal() then demotes to TMDS: no HDR at 4K60 on 7.3,
++	 * where 7.2 trained FRL at 10-bit. v7.2 clamped only
++	 * SIGNAL_TYPE_HDMI_TYPE_A. Here stream->signal is still the sink's signal
++	 * (dc_create_stream_for_sink() ran update_stream_signal() before the
++	 * timing was filled in), so an FRL-capable sink reads HDMI_FRL.
++	 */
++	if (is_hdmi_ep && stream->signal != SIGNAL_TYPE_HDMI_FRL)
+ 		adjust_colour_depth_from_display_info(timing_out, info);
+ 
+ 	stream->output_color_space = amdgpu_dm_get_output_color_space(timing_out, connector_state);
+-- 
+2.56.0
+

@@ -3348,3 +3348,24 @@ and `dc_stream.c` then demotes the stream to TMDS. 4K120 fits no depth under 600
 gives up and leaves 10-bit, so 4K120 stays FRL 10-bit with HDR. This also explains the capture
 finding that 4K60 has no FRL link on 7.3. Not caused by the local patches (none touch this).
 
+## Oct 23 — 0005 (7.3 series): no TMDS colour-depth clamp for HDMI FRL streams
+
+`kernel-patches/7.3/0005-local-do-not-clamp-HDMI-FRL-colour-depth-to-the-max-TMDS-clock.patch`:
+`if (is_hdmi_ep)` -> `if (is_hdmi_ep && stream->signal != SIGNAL_TYPE_HDMI_FRL)` in
+`fill_stream_properties_from_drm_display_mode()`. Why it is safe:
+
+- ordering: `dc_create_stream_for_sink()` runs `update_stream_signal()` before the timing exists,
+  so at the clamp `stream->signal` is the sink's signal (HDMI_FRL for the LG; 4K120 could not be
+  FRL otherwise). `update_stream_signal()` runs again after the fill and still demotes to TMDS
+  anything that fits under 600 MHz at the chosen depth;
+- bandwidth: `dc_validate_stream()` checks the FRL link, and
+  `amdgpu_dm_create_validate_stream_for_sink()` walks depths best-first, so a depth that does not
+  fit FRL falls back to the next one;
+- TMDS-only HDMI sinks and DP-to-HDMI dongles keep 7.3's clamp.
+
+Built for 7.3.0-4 with 0001/0003/0004 (default series): 0 warnings. The AMD test series stays in
+`kernel-patches/7.3-amd-lt/` (DPMS-wake test skipped by decision: the warm-TV result was enough).
+
+Expected after install: at 4K60 the journal shows "HDMI FRL: trained rate=3" (6G x4) and "frl
+status polling starts", and the TV enters HDR at 4K60 again.
+
