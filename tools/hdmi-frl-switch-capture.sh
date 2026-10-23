@@ -90,11 +90,10 @@ lock_state() {
     case "$last" in *status=0x5e*) echo locked ;; *) echo unlocked ;; esac
 }
 
-# "starts" when an FRL stream is up (watchdog polling), "stops"/"none" otherwise
-frl_polling() {
-    local last
-    last=$(journalctl -k -b --no-pager -o cat 2>/dev/null | grep -oE "frl status polling (starts|stops)" | tail -1)
-    case "$last" in *starts) echo starts ;; *stops) echo stops ;; *) echo none ;; esac
+# "yes" if an FRL link was set up since $1 (a training or a fresh polling start), else "no"
+frl_since() {
+    journalctl -k --since "$1" --no-pager -o cat 2>/dev/null \
+        | grep -qE "HDMI FRL: trained rate=|frl status polling starts" && echo yes || echo no
 }
 
 # Wait until the TV reports lock and holds it for 2 s. Echoes the seconds waited; 1 on timeout.
@@ -117,10 +116,12 @@ for c in $(seq 1 "$CYCLES"); do
     kscreen-doctor "output.$OUTNAME.mode.$FROM" >/dev/null 2>&1
     sleep 3
     # From 7.3 a mode under the 600 MHz TMDS limit (4K60 8-bit, 594 MHz) is sent as TMDS, not FRL:
-    # no FRL link, no watchdog polling, so no lock line will ever come. The watchdog logs
-    # "frl status polling starts/stops" at each commit that adds/removes the last FRL stream; if
-    # the newest one this boot is not "starts", the FROM mode is TMDS and is ready as it is.
-    if [ "$(frl_polling)" = starts ]; then
+    # no FRL link, no watchdog polling, so no lock line will ever come. FRL at the FROM mode shows
+    # as a training ("HDMI FRL: trained rate=", logged at every training on 7.3, where stock
+    # advertises FFE levels) or a fresh "frl status polling starts" after the switch. The newest
+    # starts/stops line alone is not enough: "stops" is printed only if the polling work was
+    # pending at that instant (missed at 2026-10-23 11:54:12, two cycles stalled 60 s).
+    if [ "$(frl_since "$T60")" = yes ]; then
         if ! w=$(wait_lock "$T60" 60); then
             say "cycle $c: TV not locked at 4K60 after ${w}s -- skipping this cycle"
             continue
