@@ -54,6 +54,14 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SERIES=$REPO/kernel-patches
 KMM=$(printf '%s' "$KVER" | cut -d. -f1,2)
 [ -d "$SERIES/$KMM" ] && SERIES=$SERIES/$KMM
+# PATCH_SERIES=<dir under kernel-patches/> picks a test series by hand, e.g.
+#   PATCH_SERIES=7.3-amd-lt bash build.sh     (AMD's LT timing in place of our 0001)
+# A plain `bash build.sh` (and the pacman hook) goes back to the default series.
+if [ -n "${PATCH_SERIES:-}" ]; then
+    SERIES=$REPO/kernel-patches/$PATCH_SERIES
+    [ -d "$SERIES" ] || { echo "[amdgpu-frl] PATCH_SERIES: no such series: $SERIES"; exit 1; }
+    echo "[amdgpu-frl] TEST series: $SERIES"
+fi
 mapfile -t PATCHES < <(ls "$SERIES"/0*.patch 2>/dev/null | grep -v "amd-staging-drm-next" | sort)
 DEST=/usr/lib/modules/$KVER/updates/amdgpu-frl-lt
 FRL=drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
@@ -343,7 +351,12 @@ else
     done
     echo "$WANT" > "$STAMP"
 fi
-grep -q "max_polls = 155;" "$FRL" || { say "the 300 ms LT change is not in $FRL"; exit 1; }
+if [ -n "${PATCH_SERIES:-}" ]; then
+    say "TEST series: not requiring our 300 ms LT change; FLT timeouts in the tree:"
+    grep -nE "max_polls = [0-9]+;|poll_timeout_ns = [0-9]+ \* 1000 \* 1000;" "$FRL" | sed 's/^/    /'
+else
+    grep -q "max_polls = 155;" "$FRL" || { say "the 300 ms LT change is not in $FRL"; exit 1; }
+fi
 grep -q "FRL WATCHDOG:" "$FRL" || { say "the watchdog diagnostics are not in $FRL"; exit 1; }
 
 OBJ=$HOME/kbuild/obj-$KVER

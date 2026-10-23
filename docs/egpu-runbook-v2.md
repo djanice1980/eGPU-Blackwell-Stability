@@ -3270,3 +3270,28 @@ So 220 ms still fails about one training in five on the daily cable; 0001 (~300 
 stays. When ae5df7bc reaches a CachyOS kernel, 0001 conflicts (the counted loop is gone) and is
 rebased to a one-line change of `poll_timeout_ns`.
 
+## Oct 23 — test series `kernel-patches/7.3-amd-lt`: AMD's LT timing on the LG before asking for more
+
+Before replying to AMD, measure their fix on this TV. The series replaces our 0001 with AMD's
+code and keeps 0003 (watchdog, diagnostics) and 0004 (inert at 0) on top; neither touches the
+FLT loops' timing.
+
+- 0001-TEST: `link_hdmi_frl.c` = AMD's file as of `ae5df7bc` (loops timed from their start: 200 ms
+  FLT_READY, 300 ms >= 16G, 1 s FLT_no_timeout) + `d6751306`'s one line (220 ms below 16G). It
+  includes the two upstream hunks between 7.3 and ae5df7bc (16G branch, no-timeout restructure);
+  the staging commits that rework the FLT_no_timeout compliance path are left out (need dc_link
+  fields 7.3 lacks; only a compliance tester sets FLT_no_timeout).
+- `build.sh`: `PATCH_SERIES=7.3-amd-lt` picks it; the 300 ms sanity check is skipped only then
+  and the tree's timeouts are printed instead. Plain `build.sh` and the pacman hook keep the
+  default series.
+
+Prediction from the captures (time first poll -> PASSED, certified cable): ~20% of 4K120
+trainings exceed 220 ms, so expect `FAILED - Timeout waiting for FLT_UPDATE` followed by a retry
+in about one training in five.
+
+Procedure (certified cable, 4K120):
+
+    # A: ours (installed)  -> reboot, CYCLES=20 bash tools/hdmi-frl-switch-capture.sh
+    PATCH_SERIES=7.3-amd-lt bash tools/amdgpu-frl-module/build.sh   -> reboot, CYCLES=20 capture
+    bash tools/amdgpu-frl-module/build.sh                          -> reboot (back to ours)
+
