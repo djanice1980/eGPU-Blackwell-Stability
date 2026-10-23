@@ -3397,3 +3397,11 @@ Open, by decision: keep 0005 and watch. If it recurs: (A) workaround -- greeter-
 `tools/greeter-hdmi-4k60.sh`); or (B) root cause -- one boot with `drm.debug=0x2` on the kernel
 command line to see the full training/stream sequence of the three link-ups.
 
+## Oct 23 — reply sent to AMD (Jerry Zuo), on-list (amd-gfx, dri-devel)
+
+Contents: the A/B of AMD's 220 ms (4/28 timeouts, each retried ~0.4 s later) against our ~300 ms
+(0/29; max 257 ms over ~270 trainings), asking for 300 ms at every rate; plus the 7.3 colour-depth
+clamp regression with the 0005 one-line fix, offered as a proper patch. TV: LG C2, firmware
+43.21.74. If AMD takes the offer: rebase 0005 onto amd-staging-drm-next and send it with
+git send-email.
+
