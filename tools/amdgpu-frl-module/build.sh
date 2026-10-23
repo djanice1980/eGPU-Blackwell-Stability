@@ -48,8 +48,13 @@ SRCROOT=~/kbuild/linux-cachyos/linux-cachyos/src
 SRC="${SRC:-$SRCROOT/cachyos-${KVER%-cachyos}}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # every numbered patch in kernel-patches/, in order; *.amd-staging-drm-next.patch is the
-# upstream rebase of 0001 and must NOT be applied to this tree
-mapfile -t PATCHES < <(ls "$REPO"/kernel-patches/0*.patch 2>/dev/null | grep -v "amd-staging-drm-next" | sort)
+# upstream rebase of 0001 and must NOT be applied to this tree. A kernel series with its own
+# port (kernel-patches/<major>.<minor>/, e.g. 7.3/: 0002 is upstream there and the FRL polling
+# worker moved to amdgpu_dm_connector.c) uses that directory instead.
+SERIES=$REPO/kernel-patches
+KMM=$(printf '%s' "$KVER" | cut -d. -f1,2)
+[ -d "$SERIES/$KMM" ] && SERIES=$SERIES/$KMM
+mapfile -t PATCHES < <(ls "$SERIES"/0*.patch 2>/dev/null | grep -v "amd-staging-drm-next" | sort)
 DEST=/usr/lib/modules/$KVER/updates/amdgpu-frl-lt
 FRL=drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
 say() { echo "[amdgpu-frl] $*"; }
@@ -172,28 +177,58 @@ fi
 # `makepkg --nobuild` extracts: their prepare() applies only .patch entries in source[], and the
 # base source list has none (the tarball ships pre-patched); the .config it copies in is removed
 # by the mrproper below anyway.
+# "<major>.<minor>-<pkgrel> <major>.<minor>-<_tagrel>" for the PKGBUILD at commit $2
+pkgbuild_versions() {
+    git -C "$1" show "$2:linux-cachyos/PKGBUILD" 2>/dev/null | awk -F= '
+        /^_major=/{a=$2} /^_minor=/{b=$2} /^_tagrel=/{t=$2} /^pkgrel=/{p=$2}
+        END{printf "%s.%s-%s %s.%s-%s\n", a, b, p, a, b, t}'
+}
+
+# download + extract release $1 (cachyos-<ver>-<tagrel>) for kernel $2 into the source root
+use_release_tag() {
+    local tag=$1 want=$2 pkgdir=$3 tarball url
+    tarball=$pkgdir/$tag.tar.gz
+    url="https://github.com/CachyOS/linux/releases/download/$tag/$tag.tar.gz"
+    if [ ! -s "$tarball" ]; then
+        curl -fsSL --retry 3 --retry-delay 10 -o "$tarball.part" "$url" || { say "download failed: $url"; rm -f "$tarball.part"; return 1; }
+        mv "$tarball.part" "$tarball"
+    fi
+    tar tzf "$tarball" >/dev/null 2>&1 || { say "$tarball is not a valid tarball"; return 1; }
+    [ -d "$SRCROOT/$tag" ] || tar xzf "$tarball" -C "$SRCROOT" || { say "extracting $tarball failed"; return 1; }
+    ln -sfn "$tag" "$SRC"
+    [ "$SRCROOT/$tag.tar.gz" -ef "$tarball" ] || ln -sfn "$tarball" "$SRCROOT/$tag.tar.gz"
+    say "source for $want ready from release $tag"
+}
+
 fetch_release_tarball() {
-    local want=$1 checkout=$2 pkgdir=$3 c ver tag tarball url
+    local want=$1 checkout=$2 pkgdir=$3 c ver tag newest latest
     for c in $(git -C "$checkout" log --format=%h -40 -- linux-cachyos/PKGBUILD); do
-        ver=$(git -C "$checkout" show "$c:linux-cachyos/PKGBUILD" 2>/dev/null | awk -F= '
-            /^_major=/{a=$2} /^_minor=/{b=$2} /^_tagrel=/{t=$2} /^pkgrel=/{p=$2}
-            END{printf "%s.%s-%s %s.%s-%s\n", a, b, p, a, b, t}')
+        ver=$(pkgbuild_versions "$checkout" "$c")
         [ "${ver%% *}" = "$want" ] || continue
         tag="cachyos-${ver##* }"
-        tarball=$pkgdir/$tag.tar.gz
-        url="https://github.com/CachyOS/linux/releases/download/$tag/$tag.tar.gz"
         say "PKGBUILD for $want is commit $c (tag $tag) -- fetching the release tarball"
-        if [ ! -s "$tarball" ]; then
-            curl -fsSL --retry 3 --retry-delay 10 -o "$tarball.part" "$url" || { say "download failed: $url"; rm -f "$tarball.part"; return 1; }
-            mv "$tarball.part" "$tarball"
-        fi
-        tar tzf "$tarball" >/dev/null 2>&1 || { say "$tarball is not a valid tarball"; return 1; }
-        [ -d "$SRCROOT/$tag" ] || tar xzf "$tarball" -C "$SRCROOT" || { say "extracting $tarball failed"; return 1; }
-        ln -sfn "$tag" "$SRC"
-        [ "$SRCROOT/$tag.tar.gz" -ef "$tarball" ] || ln -sfn "$tarball" "$SRCROOT/$tag.tar.gz"
-        say "source for $want ready from release $tag"
-        return 0
+        use_release_tag "$tag" "$want" "$pkgdir"; return
     done
+    # A repo-only rebuild: CachyOS can publish pkgrel N+1 (a toolchain or NVIDIA rebuild) before
+    # their git has its PKGBUILD (7.3.0-4 installed while git said 7.3.0-3, 2026-10-23). Its source
+    # tag cannot be older than the newest PKGBUILD's for the same version, and if that tag is also
+    # the newest release CachyOS has published for the version, no other tag is possible. This
+    # kernel has no CONFIG_MODVERSIONS, so the tag is the only guard: refuse whenever it is unproven.
+    c=$(git -C "$checkout" log --format=%h -1 -- linux-cachyos/PKGBUILD)
+    newest=$(pkgbuild_versions "$checkout" "$c")
+    if [ "${newest%%-*}" = "${want%-*}" ] && [ "${newest%% *}" != "$want" ] \
+       && [ "$(printf '%s\n%s\n' "${newest%% *}" "$want" | sort -V | tail -1)" = "$want" ]; then
+        tag="cachyos-${newest##* }"
+        latest=$(git ls-remote --tags --refs https://github.com/CachyOS/linux "cachyos-${want%-*}-*" 2>>"$log" \
+                 | sed 's|.*refs/tags/||' | grep -E "^cachyos-${want%-*}-[0-9]+$" | sort -V | tail -1)
+        if [ -n "$latest" ] && [ "$latest" = "$tag" ]; then
+            say "$want is newer than every PKGBUILD in git (newest: ${newest%% *}, tag $tag), and $tag is the newest"
+            say "  ${want%-*} source release CachyOS has published -- so $want can only be built from $tag"
+            use_release_tag "$tag" "$want" "$pkgdir"; return
+        fi
+        say "$want is ahead of the PKGBUILD git (${newest%% *}), but its source tag is unproven (git: $tag, newest release: ${latest:-unknown})"
+        return 1
+    fi
     say "no PKGBUILD commit for $want in the last 40 PKGBUILD commits of $checkout"
     return 1
 }

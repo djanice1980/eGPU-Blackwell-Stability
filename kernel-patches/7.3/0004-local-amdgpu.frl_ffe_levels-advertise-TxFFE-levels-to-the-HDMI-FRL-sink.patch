@@ -1,0 +1,214 @@
+From fb6a2d131cdbedae2e4cc63d3c38ca272cab2bac Mon Sep 17 00:00:00 2001
+From: David Janice <djanice1980@gmail.com>
+Date: Fri, 23 Oct 2026 11:03:39 -0500
+Subject: [PATCH] drm/amd/display: local -- amdgpu.frl_ffe_levels,
+ advertise  TxFFE levels to the HDMI FRL sink
+
+Experimental, local. During HDMI 2.1 FRL link training the source tells the sink
+how many TxFFE (transmitter pre-emphasis) levels it supports in SCDC Config_1
+bits 4-7, and the sink may answer an LTP request with 0xE ("next FFE") when the
+channel needs equalisation. On Linux dc->debug.limit_ffe is declared and never
+assigned, so amdgpu has always advertised 0 levels: the sink cannot ask, and if
+it does the training code returns LINK_RESULT_LOWER_LINKRATE. The hardware path
+is present and unused: DCN 3.5's link encoder has prog_eq_setting =
+dpcs32_program_eq_setting (levels 0-3 through the VBIOS transmitter-control
+table) and the training loop already steps current_FFE on 0xE.
+
+Measured 2026-10-15 on a GZ302EA + LG C2 with a cable sold as "8K/10K HDMI 2.1":
+39 trainings at 10G x4 all PASSED (LTP 5/6/7/8 -> 0, FRL_START ~205 ms), and the
+sink locked to the live stream on 0 of them within ~4 s. The previous certified
+48 Gbps cable showed the same signature at ~20-50%. A cable swap changing the
+rate of "trains but never locks" points at signal margin, which TxFFE exists for.
+
+This adds amdgpu.frl_ffe_levels (uint, 0-3, default 0, 0644 so it is writable
+at runtime through /sys/module/amdgpu/parameters/frl_ffe_levels) and reads it at
+every training in place of dc->debug.limit_ffe. With 0 nothing changes. With it
+set, each "next FFE" request and the level a link finally trained at are logged
+at warning level, so an A/B with tools/hdmi-frl-switch-capture.sh shows whether
+the sink asks for equalisation at all and whether a link with it locks.
+
+Unproven: that FFE is what the sink needs. The log lines are the measurement.
+
+Second knob, same experiment: amdgpu.frl_ffe_force (uint, 0-3, default 0, 0644).
+The first A/B (2026-10-15, frl_ffe_levels=3, 42 trainings) showed the LG C2 passes
+the LTPs at TxFFE level 0 and never requests "next FFE", so advertising levels
+changes nothing for this sink. frl_ffe_force starts every training at level N
+instead of 0 (the prog_eq_setting call at FLT_READY), whether or not the sink
+asks: a sink that is satisfied by level 0 on the LTPs may still get a better
+live-stream eye from pre-emphasis. With 0 the call is the stock one. The PASSED
+log line now also reports the forced level.
+
+7.3 port: hdmi_frl_get_max_ffe_level() replaced the raw dc->debug.limit_ffe read; it
+still caps at limit_ffe (0 on Linux), so stock still advertises 0 levels. With
+frl_ffe_levels=0 this keeps that call, so 0 is still exactly stock.
+---
+ drivers/gpu/drm/amd/amdgpu/amdgpu.h           |  2 +
+ drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c       | 24 +++++++++
+ .../display/dc/link/protocols/link_hdmi_frl.c | 49 +++++++++++++++++--
+ 3 files changed, 71 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu.h b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
+index 0e53a02..e4d54bf 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu.h
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
+@@ -203,6 +203,8 @@ extern int amdgpu_smu_pptable_id;
+ extern uint amdgpu_dc_feature_mask;
+ extern uint amdgpu_freesync_vid_mode;
+ extern uint amdgpu_dc_debug_mask;
++extern uint amdgpu_frl_ffe_levels;
++extern uint amdgpu_frl_ffe_force;
+ extern uint amdgpu_dc_visual_confirm;
+ extern int amdgpu_dm_abm_level;
+ extern int amdgpu_backlight;
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+index 04b4f1e..1255440 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+@@ -220,6 +220,8 @@ int amdgpu_smu_pptable_id = -1;
+  */
+ uint amdgpu_dc_feature_mask = 2;
+ uint amdgpu_dc_debug_mask;
++uint amdgpu_frl_ffe_levels;
++uint amdgpu_frl_ffe_force;
+ uint amdgpu_dc_visual_confirm;
+ int amdgpu_async_gfx_ring = 1;
+ int amdgpu_mcbp = -1;
+@@ -879,6 +881,28 @@ module_param_named(dcfeaturemask, amdgpu_dc_feature_mask, uint, 0444);
+ MODULE_PARM_DESC(dcdebugmask, "all debug options disabled (default))");
+ module_param_named(dcdebugmask, amdgpu_dc_debug_mask, uint, 0444);
+ 
++/**
++ * DOC: frl_ffe_levels (uint)
++ * Number of TxFFE (transmitter pre-emphasis) levels advertised to an HDMI 2.1 FRL
++ * sink during link training, 0-3. With 0 (default, the stock behaviour) the sink
++ * can never request equalisation and a marginal cable trains on the LTP patterns
++ * but may fail to lock to the live stream. Read at every training, so it can be
++ * changed at runtime through /sys/module/amdgpu/parameters/frl_ffe_levels.
++ */
++MODULE_PARM_DESC(frl_ffe_levels, "TxFFE levels advertised to an HDMI FRL sink, 0-3 (0 = none (default))");
++module_param_named(frl_ffe_levels, amdgpu_frl_ffe_levels, uint, 0644);
++
++/**
++ * DOC: frl_ffe_force (uint)
++ * Transmit at this TxFFE (pre-emphasis) level, 0-3, from the start of every HDMI 2.1
++ * FRL link training instead of level 0, whether or not the sink requests it. Stock
++ * behaviour is 0. Levels are the ones the link encoder already programs through the
++ * VBIOS transmitter-control table when a sink asks for them. Read at every training;
++ * runtime-writable through /sys/module/amdgpu/parameters/frl_ffe_force.
++ */
++MODULE_PARM_DESC(frl_ffe_force, "Force this TxFFE level from training start, 0-3 (0 = level 0 (default))");
++module_param_named(frl_ffe_force, amdgpu_frl_ffe_force, uint, 0644);
++
+ MODULE_PARM_DESC(visualconfirm, "Visual confirm (0 = off (default), 1 = MPO, 5 = PSR)");
+ module_param_named(visualconfirm, amdgpu_dc_visual_confirm, uint, 0444);
+ 
+diff --git a/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c b/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
+index 1684397..f479e10 100644
+--- a/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
++++ b/drivers/gpu/drm/amd/display/dc/link/protocols/link_hdmi_frl.c
+@@ -704,7 +704,20 @@ static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_s
+ 	struct hpo_frl_link_encoder *hpo_frl_link_enc = ddc_service->link->hpo_frl_link_enc;
+ 	struct link_encoder *dio_link_enc = ddc_service->link->link_enc;
+ 	uint8_t sink_version = 0;
+-	uint8_t FFE_Levels = hdmi_frl_get_max_ffe_level(ddc_service->link, link_settings);
++	/*
++	 * Local: hdmi_frl_get_max_ffe_level() caps the advertised TxFFE levels at
++	 * dc->debug.limit_ffe, which is never set on Linux, so the source always
++	 * advertises 0 levels and the sink can never request equalisation.
++	 * amdgpu.frl_ffe_levels (0-3, runtime-writable) overrides it for an A/B on
++	 * a marginal cable; 0 keeps the stock value exactly.
++	 */
++	extern unsigned int amdgpu_frl_ffe_levels;
++	extern unsigned int amdgpu_frl_ffe_force;
++	uint8_t FFE_Levels = amdgpu_frl_ffe_levels ?
++		(amdgpu_frl_ffe_levels > 3 ? 3 : (uint8_t)amdgpu_frl_ffe_levels) :
++		hdmi_frl_get_max_ffe_level(ddc_service->link, link_settings);
++	uint8_t ffe_force = amdgpu_frl_ffe_force > 3 ? 3 : (uint8_t)amdgpu_frl_ffe_force;
++	uint8_t ffe_requests = 0;
+ 	uint8_t current_FFE = 0;
+ 	bool override_FFE = false;
+ 	bool flt_no_timeout = false;
+@@ -756,7 +769,15 @@ static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_s
+ 		if (status_data.fields.FLT_READY) {
+ 			/* Spec recommends to clear update flag, but QD980 has problem */
+ 			hdmi_frl_LTS_clear_Update_flag(ddc_service);
+-			dio_link_enc->funcs->prog_eq_setting(dio_link_enc, 0,
++			/*
++			 * Local: amdgpu.frl_ffe_force starts the training at TxFFE level
++			 * N instead of 0. The LG C2 passes the LTPs at level 0 and never
++			 * requests FFE, yet on a marginal cable it fails to lock to the
++			 * live stream; this tests whether pre-emphasis it did not ask for
++			 * helps that. 0 (default) is the stock call.
++			 */
++			current_FFE = ffe_force;
++			dio_link_enc->funcs->prog_eq_setting(dio_link_enc, current_FFE,
+ 					test_req.fields.TXFFE_DEEMPHASIS,
+ 					test_req.fields.TXFFE_PRESHOOT,
+ 					test_req.fields.TXFFE_NOFFE,
+@@ -880,6 +901,11 @@ static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_s
+ 					if (!ln0_pattern && !ln1_pattern && !ln2_pattern) {
+ 						/*Link Training is done*/
+ 						FRL_INFO("FRL LINK TRAINING:  PASSED\n");
++						if (FFE_Levels || ffe_force)
++							DC_LOG_WARNING("HDMI FRL: trained rate=%d with TxFFE level %u"
++									" after %u request(s) (advertised %u, forced %u)\n",
++									link_settings->frl_link_rate, current_FFE,
++									ffe_requests, FFE_Levels, ffe_force);
+ 						return LINK_RESULT_SUCCESS;
+ 					}
+ 					if (ln0_pattern == 0x0F || ln1_pattern == 0x0F || ln2_pattern == 0x0F) {
+@@ -890,7 +916,7 @@ static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_s
+ 					if (ln0_pattern == 0x0E || ln1_pattern == 0x0E || ln2_pattern == 0x0E) {
+ 						/*sink requesting to next FFE*/
+ 						FRL_INFO("FRL LINK TRAINING:  Sink requesting next FFE.\n");
+-						if (ddc_service->link->dc->debug.limit_ffe == 0) {
++						if (FFE_Levels == 0) {
+ 							return LINK_RESULT_LOWER_LINKRATE;
+ 						}
+ 						current_FFE++;
+@@ -899,11 +925,21 @@ static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_s
+ 							current_FFE = 0;
+ 						if (flt_no_timeout)
+ 							current_FFE = 0;
++						ffe_requests++;
++						DC_LOG_WARNING("HDMI FRL: sink requested next TxFFE -> level %u"
++								" (advertised %u, rate=%d, poll %u)\n",
++								current_FFE, FFE_Levels,
++								link_settings->frl_link_rate, num_polls);
+ 					}
+ 				} else {
+ 					if (!ln0_pattern && !ln1_pattern && !ln2_pattern && !ln3_pattern) {
+ 						/*Link Training is done*/
+ 						FRL_INFO("FRL LINK TRAINING:  PASSED\n");
++						if (FFE_Levels || ffe_force)
++							DC_LOG_WARNING("HDMI FRL: trained rate=%d with TxFFE level %u"
++									" after %u request(s) (advertised %u, forced %u)\n",
++									link_settings->frl_link_rate, current_FFE,
++									ffe_requests, FFE_Levels, ffe_force);
+ 						return LINK_RESULT_SUCCESS;
+ 					}
+ 					if (ln0_pattern == 0x0F || ln1_pattern == 0x0F ||
+@@ -916,7 +952,7 @@ static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_s
+ 						ln2_pattern == 0x0E  || ln3_pattern == 0x0E) {
+ 						/*sink requesting to next FFE*/
+ 						FRL_INFO("FRL LINK TRAINING:  Sink requesting next FFE.\n");
+-						if (ddc_service->link->dc->debug.limit_ffe == 0) {
++						if (FFE_Levels == 0) {
+ 							return LINK_RESULT_LOWER_LINKRATE;
+ 						}
+ 						current_FFE++;
+@@ -925,6 +961,11 @@ static enum link_result hdmi_frl_perform_link_training(struct ddc_service *ddc_s
+ 							current_FFE = 0;
+ 						if (flt_no_timeout)
+ 							current_FFE = 0;
++						ffe_requests++;
++						DC_LOG_WARNING("HDMI FRL: sink requested next TxFFE -> level %u"
++								" (advertised %u, rate=%d, poll %u)\n",
++								current_FFE, FFE_Levels,
++								link_settings->frl_link_rate, num_polls);
+ 					}
+ 				}
+ 
+-- 
+2.56.0
+

@@ -3212,3 +3212,61 @@ correct, both FFE parameters and the watchdog strings present.
 (a oneshot service that runs `amdgpu-frl-rebuild` when the running kernel lacks the override) would
 have repaired this on the next boot without anyone reading the banner. Not built yet.
 
+## Oct 23 — 7.3.0-4 booted on the stock amdgpu: the hook has never had network. Fixed; 7.3 series ported.
+
+**Root cause (my bug).** pacman 7.1 runs every hook in a fresh network namespace with only loopback
+unless the hook declares `NetworkAccess = allowed` (alpm-hooks(5); `DisableSandboxNetwork` in
+pacman.conf is the global switch). The `zy-amdgpu-frl-rebuild` hook never declared it, so its
+`git pull` failed in 1 ms ("Failed to connect to github.com:443 after 1 ms") on Oct 15 (7.2.10-1)
+and again on Oct 22 (7.3.0-4), while the rest of the machine was online. The Oct 8 run that
+"worked" never touched the network (the source was already on disk), so the download path had
+never once succeeded inside pacman. The Oct 16 retry logic could not help. The NVIDIA hook has the
+same flaw; its `git fetch` falls back to local tags, which is enough until a new driver version.
+
+**Fixes:**
+
+- `NetworkAccess = allowed` in both `pacman-hook/*.hook` files (install below).
+- `build.sh`: a CachyOS repo-only pkgrel rebuild ahead of their PKGBUILD git (7.3.0-4 installed,
+  git at 7.3.0-3) is built from the newest PKGBUILD's source tag **only when** that tag is also
+  the newest release CachyOS has published for the version (`git ls-remote` on CachyOS/linux); no
+  other tag is then possible. This kernel has no `CONFIG_MODVERSIONS`, so the tag proof is the
+  only guard and an unproven tag refuses.
+- `build.sh`: per-kernel patch series. `kernel-patches/<major>.<minor>/` replaces the default set
+  when it exists.
+- **`kernel-patches/7.3/`** (0001, 0003, 0004):
+  - 0002 dropped: upstream in 7.3 (the polling gate now tests `frl_link_rate == 0`).
+  - 0003: the polling worker moved to `amdgpu_dm_connector.c` in 7.3; the trylock +
+    `dc_link_dp_handle_link_loss` hunk is retargeted there, unchanged. Everything else applies
+    with zero fuzz.
+  - 0004: 7.3 reads the FFE level through the new `hdmi_frl_get_max_ffe_level()`, which still
+    caps at `dc->debug.limit_ffe` (0 on Linux). `frl_ffe_levels=0` keeps that call, so 0 is
+    still exactly stock.
+  - Built for 7.3.0-4: 0 warnings, vermagic correct, watchdog and FFE strings present.
+
+Install (once): copy the two hooks, then install the built module and reboot:
+
+    sudo install -m 644 pacman-hook/zy-amdgpu-frl-rebuild.hook /usr/share/libalpm/hooks/zy-amdgpu-frl-rebuild.hook
+    sudo install -m 644 pacman-hook/nvidia-egpu-rebuild.hook /etc/pacman.d/hooks/nvidia-egpu-rebuild.hook
+    bash tools/amdgpu-frl-module/build.sh
+
+## Oct 23 — AMD's reply to 0001: superseded by d6751306 (220 ms), which this LG still overruns
+
+Jerry Zuo (AMD) answered the Sep 19 submission of 0001: covered by two AMD changes:
+
+- `ae5df7bc` "Fix HDMI2.2 LT timeout duration" (in torvalds/linux after v7.3): the FLT loops are
+  timed from their start instead of counted, so 200 ms (300 ms >= 16G) is now exact.
+- `d6751306` "Adjust HDMI FRL LT timeout" (agd5f amd-staging-drm-next, Oct 16): the < 16G
+  timeout goes 200 -> **220 ms**.
+
+Measured against every capture (`frl-switch-*.log`; time from the first FLT_UPDATE poll to
+PASSED, which is what the new code times), LG C2, 10G x4:
+
+| cable | trainings | median | p90 | max | > 220 ms | > 250 ms |
+|---|---|---|---|---|---|---|
+| certified 48G | 79 | 207 ms | 250 ms | 257 ms | 20% | 10% |
+| uncertified "8K" | 193 | 227 ms | 240 ms | 247 ms | 50% | 0% |
+
+So 220 ms still fails about one training in five on the daily cable; 0001 (~300 ms at every rate)
+stays. When ae5df7bc reaches a CachyOS kernel, 0001 conflicts (the counted loop is gone) and is
+rebased to a one-line change of `poll_timeout_ns`.
+

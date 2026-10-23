@@ -9,7 +9,12 @@ Target = linux-cachyos-headers
 # of surfacing later as a broken driver reload.
 Target = nvidia-utils
 
+# NetworkAccess: pacman 7.1 runs hooks in a fresh network namespace with only loopback unless the
+# hook allows the network (alpm-hooks(5)). Without it the git pull / source download this hook
+# needs fails in ~1 ms ("Failed to connect to github.com:443 ... Could not connect to server") --
+# what left 7.2.10-1 (2026-10-15) and 7.3.0-4 (2026-10-22) on the stock module.
 [Action]
 Description = Rebuilding patched NVIDIA eGPU modules for the new kernel...
 When = PostTransaction
 Exec = /usr/local/bin/nvidia-egpu-rebuild
+NetworkAccess = allowed
