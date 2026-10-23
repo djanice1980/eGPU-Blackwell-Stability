@@ -3315,3 +3315,36 @@ Capture fix: at the FROM mode the tool checks the newest "frl status polling sta
 this boot; anything but "starts" means the mode is TMDS and the cycle goes straight on. Each 7.3
 cycle is therefore a TMDS -> FRL 4K120 training, like a cold link-up.
 
+## Oct 23 — A/B on 7.3.0-4, certified cable, warm TV: ours (~300 ms) vs AMD (220 ms)
+
+Switch captures, 20 cycles each, 4K60 (TMDS on 7.3) -> 4K120; `tools/hdmi-frl-flt-time.py`
+(FLT_UPDATE loop time from "Poll for FLT_UPDATE" to PASSED/FAILED, what AMD's code times):
+
+| build | log | trainings | FAILED-timeout | PASSED loop time |
+|---|---|---|---|---|
+| ours, 0001 ~300 ms | `frl-switch-20261023-114202.log` | 29 | 0 | 196-244 ms, median 208; 9 of 29 > 220 ms |
+| AMD ae5df7bc + d6751306 | `frl-switch-20261023-115124.log` | 28 | 4 (14%), all at 221 ms | 181-221 ms, median 203 |
+
+Every AMD timeout was followed by the driver's own retry ("Retry count = 2 out of 3"), which
+passed ~0.4 s later; no lower-rate fallback, no dark screen. So on a warm TV AMD's 220 ms works,
+at the cost of a ~0.4 s retry on one link-up in three to seven. Not yet tested: DPMS wake with
+AMD's build (the case 0001 was written for; the TV was measured slower there).
+
+Two AMD cycles needed a manual switch: the capture's TMDS check read the newest "frl status
+polling starts/stops" line, and the stop line is only printed when the work was pending at that
+instant (cancel_delayed_work_sync returned false at 11:54:12). Those cycles have 0 trainings.
+
+## Oct 23 — 7.3 regression: 4K60 drops from 10-bit FRL to 8-bit TMDS (no HDR at 4K60)
+
+Seen by eye: at 4K60 the TV no longer enters HDR mode; at 4K120 it does. Cause, upstream:
+
+- v7.2 `amdgpu_dm.c` clamped the colour depth to the sink's max TMDS clock only for
+  `stream->signal == SIGNAL_TYPE_HDMI_TYPE_A`.
+- v7.3 `amdgpu_dm_connector.c` clamps for every HDMI endpoint (`if (is_hdmi_ep)
+  adjust_colour_depth_from_display_info(...)`), FRL-capable sinks included.
+
+The LG reports 600 MHz max TMDS. 4K60 10-bit needs 742 MHz, so 7.3 lowers it to 8-bit (594 MHz),
+and `dc_stream.c` then demotes the stream to TMDS. 4K120 fits no depth under 600 MHz, the clamp
+gives up and leaves 10-bit, so 4K120 stays FRL 10-bit with HDR. This also explains the capture
+finding that 4K60 has no FRL link on 7.3. Not caused by the local patches (none touch this).
+
