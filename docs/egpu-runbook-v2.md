@@ -3405,3 +3405,30 @@ clamp regression with the 0005 one-line fix, offered as a proper patch. TV: LG C
 43.21.74. If AMD takes the offer: rebase 0005 onto amd-staging-drm-next and send it with
 git send-email.
 
+## Nov 9 — 7.3.3: a wake left the TV dark until a cable replug (detection's rate-6 test mid-recovery)
+
+12:39:23 wake: rate 6 training, then rate 5 (picture), sink unlocked, watchdog re-enable 1 at
+12:39:28 trained rate 5. At 12:39:30.27 another rate 6 training, then the sink raised FRL_START
+and the FRL_START handler retrained at rate 6. From there every watchdog line says "rate=6
+active", re-enables 2-13 (12:39:34-12:41:05) logged NO training at all, and the TV stayed dark
+until the cable was replugged at 12:41:18 (rate 6, rate 5, six re-enables, locked at +28 s).
+
+Reading of the source (link_detection.c, identical in 7.3.0, 7.3.1 and 7.3.3 apart from an eDP
+hunk): every link_detect() runs verify_link_capability(); for an FRL sink with fewer than two
+HDMI connectors it is always destructive -- link_set_all_streams_dpms_off_for_link(), then
+hdmi_frl_verify_link_cap() trains at the sink's max (the C2's HF-VSDB says Max_FRL_Rate 6). At a
+normal wake the following commit re-enables the stream at rate 5. At 12:39:30 nothing did, and the
+watchdog's dc_link_dp_handle_link_loss() only cycles pipes that have a live stream, which would
+explain the re-enables that trained nothing. Not yet known: why no stream came back, and why
+rate 6 tests show up at every wake on 7.3.3 (17 in two boots) but never in the Oct 23-24 7.3.0
+logs. Only the one wake got stuck so far.
+
+Decision: evidence first. `tools/frl-wake-debug/install.sh` sets drm.debug=0x6 at every boot and
+raises the journal cap to 3G (the watchdog's per-poll debug line is ~5/s). Rescue meanwhile:
+Meta+Shift+D, then a replug. Candidate fixes after the capture: 0006 skip the destructive FRL test
+when the link has an active stream (the existing skip_frl_pre_training path); watchdog falls back
+to a full re-detect + commit when no stream is enabled.
+
+Also committed: `tools/thermal-logger.sh` (Oct 24 folio-closed power-offs: asus_wmi 0x6d ~1.5 min
+before each, no FCH reset reason -- consistent with an EC power cut; logger never run yet).
+
