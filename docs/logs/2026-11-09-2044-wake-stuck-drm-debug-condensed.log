@@ -1,0 +1,393 @@
+20:44:12.601826 [drm:link_detect] link=1, dc_sink_in=0000000000000000 is now Disconnected prev_sink=00000000ee8fd403 edid same=0
+20:44:12.602197 [drm:link_detect] link_detect: link_index=1 is_local_sink_detect_success=1 pre_link_type=1 link_type=0
+20:44:12.602373 [drm:amdgpu_dm_update_connector_after_detect] DCHPD: connector_id=1: Old sink=00000000ee8fd403 New sink=0000000000000000
+20:44:12.602542 [drm:drm_edid_connector_update] [CONNECTOR:468:HDMI-A-1] EDID changed, epoch counter 35
+20:44:12.602850 [drm:drm_sysfs_connector_hotplug_event] [CONNECTOR:468:HDMI-A-1] generating connector hotplug event
+20:44:12.603000 [drm:drm_client_dev_hotplug] fbdev: ret=0
+20:44:12.646744 [drm:dc_commit_streams] dc_commit_streams: 1 streams
+20:44:12.647965 [drm:link_enc_cfg_link_encs_assign] link_enc_cfg_link_encs_assign: NEW PHY(1) - enc_id(0)
+20:44:12.649648 [drm:link_enc_cfg_set_transient_mode] link_enc_cfg_set_transient_mode: current_state(0000000055e77f3a) mode(1)
+20:44:12.757812 [drm:drm_dp_dpcd_access [drm_display_helper]] AMDGPU DM aux hw bus 0: Too many retries, giving up. First error: -5
+20:44:12.758032 [drm:dcn31_link_encoder_enable_dp_output] dcn31_link_encoder_enable_dp_output: enc_id(0)
+20:44:12.809042 [drm:dc_commit_state_no_check] {2560x1600, 2720x1775@869040Khz}
+20:44:12.810929 [drm:dc_commit_streams] dc_commit_streams Finished.
+20:44:12.827671 [drm:amdgpu_dm_commit_audio] Notify ELD: -1
+20:44:12.827887 [drm:amdgpu_dm_commit_audio] Notify ELD: -1
+20:44:12.839239 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.848672 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.858657 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.864723 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.870644 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.875662 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.881660 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.887647 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.892674 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.898662 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.903722 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.909704 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.914713 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.920743 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.926646 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.931483 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.937688 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.943656 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.948668 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.954645 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.959681 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.965646 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.970670 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.976683 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.981677 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.987705 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.993671 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:12.998674 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.004686 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.009695 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.015656 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.020664 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.026732 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.032650 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.037697 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.043660 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.048669 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.053656 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.059671 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.065675 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.071647 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.082646 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.087682 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.093648 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.098686 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.104786 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.120788 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.131713 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.137825 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.142720 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.148720 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.154647 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.159681 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.165667 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.170696 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.176696 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.181704 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.187697 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.193115 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.198663 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.204660 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.209667 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.215644 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.220696 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.226699 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.231688 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.237701 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.243661 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.248671 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.259662 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.265663 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.270661 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.276668 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.281661 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.287672 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.293655 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.298679 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.304645 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.309673 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.315649 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.320656 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.326660 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.332694 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.337674 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.348705 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.354670 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.359697 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.365674 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.371670 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.376706 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.382661 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.387705 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.392704 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.398700 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.405662 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.415692 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.420690 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.431657 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.437685 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.443645 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.448670 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.454645 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.459719 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.465669 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.471657 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.476657 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.482664 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.493016 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.498705 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.504662 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.509728 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.515680 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.521655 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.532669 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.537675 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.548686 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.554662 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.560668 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.565683 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.576683 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.582661 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.593669 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.598678 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.609837 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.615695 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.621653 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.632657 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.637655 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.643662 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.649662 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.659822 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.665716 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.671647 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.682674 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.687674 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.699669 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.709677 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.715665 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.720678 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.726654 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.731718 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.737678 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.743818 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.749659 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.759688 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.765667 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.770711 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.776670 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.781688 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.787714 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.793669 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.798702 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.809694 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.815666 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.821658 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.826651 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.832655 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.837670 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.843712 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.848668 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.854652 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.859781 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.865670 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:13.889365 [drm:dm_helpers_parse_edid_caps] dm_helpers_parse_edid_caps: HDMI_FRL [HDMI-A-1] max_frl_rate 6
+20:44:13.889416 [drm:dm_helpers_parse_edid_caps] dm_helpers_parse_edid_caps: HDMI_FRL_DSC [HDMI-A-1] frl_dsc_10bpc 1, frl_dsc_12bpc 1, frl_dsc_all_bpp 0, frl_dsc_native_420 1, frl_dsc_max_slices 3, frl_dsc_max_frl_rate 3
+20:44:13.889469 [drm:drm_edid_to_sad] Found 4 Short Audio Descriptors
+20:44:13.889473 [drm:drm_edid_to_speaker_allocation] Found 0 Speaker Allocation Data Blocks
+20:44:13.890661 [drm:link_detect] LG TV SSCR2: [Block 0] 
+20:44:13.890857 [drm:link_detect] LG TV SSCR2: [Block 1] 
+20:44:13.891020 [drm:link_detect] detect_link_and_local_sink: manufacturer_id = 6D1E, product_id = C0C8, serial_number = 1010101, manufacture_week = 1, manufacture_year = 32, display_name = LG TV SSCR2, speaker_flag = 5,
+20:44:13.891169 [drm:link_detect] detect_link_and_local_sink: mode number = 0, format_code = 1, channel_count = 2, sample_rate = 87, sample_size = 7
+20:44:13.891323 [drm:link_detect] detect_link_and_local_sink: mode number = 1, format_code = 2, channel_count = 6, sample_rate = 7, sample_size = 80
+20:44:13.891468 [drm:link_detect] detect_link_and_local_sink: mode number = 2, format_code = 10, channel_count = 8, sample_rate = 7, sample_size = 1
+20:44:13.891610 [drm:link_detect] detect_link_and_local_sink: mode number = 3, format_code = 12, channel_count = 8, sample_rate = 4, sample_size = 3
+20:44:13.891766 [drm:link_detect] link=1, dc_sink_in=000000002eed0327 is now Connected prev_sink=0000000000000000 edid same=0
+20:44:13.892653 [drm:dcn31_link_encoder_disable_output] dcn31_link_encoder_disable_output: enc_id(1)
+20:44:13.892721 [drm:hdmi_frl_verify_link_cap] FRL LINK TRAINING: Validation
+20:44:14.102801 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Starting FRL Link Training.
+20:44:14.103674 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read Sink Version = 1.
+20:44:14.104661 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Set Source Version = 1.
+20:44:14.104853 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Poll for FLT_READY.
+20:44:14.107757 [drm:hdmi_frl_perform_link_training] FRL TEST REQ:  FLT_no_timeout = 0 
+20:44:14.107984 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Write link rate = 6.  Max FFE_Levels = 3
+20:44:14.108141 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Poll for FLT_UPDATE.
+20:44:14.145934 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN0_LTP_REQ = 5.  LN1_LTP_REQ = 6
+20:44:14.146095 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN2_LTP_REQ = 7.  LN3_LTP_REQ = 8
+20:44:14.146231 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Clear FLT_UPDATE flag.
+20:44:14.146755 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Setting Training Pattern [ln0,ln1,ln2,ln3] = [5,6,7,8].
+20:44:14.198979 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN0_LTP_REQ = 0.  LN1_LTP_REQ = 0
+20:44:14.199125 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN2_LTP_REQ = 0.  LN3_LTP_REQ = 0
+20:44:14.199280 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Clear FLT_UPDATE flag.
+20:44:14.199673 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  PASSED
+20:44:14.199859 [drm] HDMI FRL: trained rate=6 with TxFFE level 0 after 0 request(s) (advertised 3, forced 0)
+20:44:14.200233 [drm:dcn31_link_encoder_disable_output] dcn31_link_encoder_disable_output: enc_id(1)
+20:44:14.201754 [drm:link_detect] link_detect: link_index=1 is_local_sink_detect_success=1 pre_link_type=0 link_type=1
+20:44:14.201951 [drm:amdgpu_dm_update_connector_after_detect] DCHPD: connector_id=1: Old sink=0000000000000000 New sink=000000002eed0327
+20:44:14.205317 [drm:amdgpu_dm_update_connector_after_detect] Panel type: 1
+20:44:14.205400 [drm:drm_sysfs_connector_hotplug_event] [CONNECTOR:468:HDMI-A-1] generating connector hotplug event
+20:44:14.205488 [drm:drm_client_dev_hotplug] fbdev: ret=0
+20:44:14.227820 [drm:drm_mode_prune_invalid] Rejected mode: "1920x1080i": 60 74250 1920 2008 2052 2200 1080 1084 1094 1125 0x40 0x15 (NO_INTERLACE)
+20:44:14.227878 [drm:drm_mode_prune_invalid] Rejected mode: "1920x1080i": 60 74176 1920 2008 2052 2200 1080 1084 1094 1125 0x40 0x15 (NO_INTERLACE)
+20:44:14.227933 [drm:drm_mode_prune_invalid] Rejected mode: "1920x1080i": 50 74250 1920 2448 2492 2640 1080 1084 1094 1125 0x40 0x15 (NO_INTERLACE)
+20:44:14.227988 [drm:drm_mode_prune_invalid] Rejected mode: "720x576i": 50 13500 720 732 795 864 576 580 586 625 0x40 0x101a (NO_INTERLACE)
+20:44:14.231780 [drm:dm_update_crtc_state] Disabling DRM crtc: 438
+20:44:14.231942 HDR SB:e9 02 00 ee 7c 78 40 8e 3a 1c 75 60 1d a3 0b 09
+20:44:14.231951 HDR SB:3d 47 40 00 00 00 00 00 00 00 00 00 00 00 00 00
+20:44:14.242849 [drm:amdgpu_dm_atomic_commit_tail] [PLANE:210] PSR FFU dirty rect size (2560, 1600)
+20:44:14.244648 [drm:dm_update_crtc_state] Disabling DRM crtc: 438
+20:44:14.244994 HDR SB:e9 02 00 ee 7c 78 40 8e 3a 1c 75 60 1d a3 0b 09
+20:44:14.245007 HDR SB:3d 47 40 00 00 00 00 00 00 00 00 00 00 00 00 00
+20:44:14.249673 [drm:dc_commit_streams] dc_commit_streams: 1 streams
+20:44:14.251071 [drm:link_enc_cfg_link_encs_assign] link_enc_cfg_link_encs_assign: CUR PHY(1) - enc_id(0)
+20:44:14.280742 [drm:dcn31_link_encoder_disable_output] dcn31_link_encoder_disable_output: enc_id(0)
+20:44:14.304665 [drm:drm_dp_dpcd_access [drm_display_helper]] AMDGPU DM aux hw bus 0: Too many retries, giving up. First error: -110
+20:44:14.328643 [drm:drm_dp_dpcd_access [drm_display_helper]] AMDGPU DM aux hw bus 0: Too many retries, giving up. First error: -5
+20:44:14.352671 [drm:drm_dp_dpcd_access [drm_display_helper]] AMDGPU DM aux hw bus 0: Too many retries, giving up. First error: -5
+20:44:14.375646 [drm:drm_dp_dpcd_access [drm_display_helper]] AMDGPU DM aux hw bus 0: Too many retries, giving up. First error: -5
+20:44:14.399708 [drm:drm_dp_dpcd_access [drm_display_helper]] AMDGPU DM aux hw bus 0: Too many retries, giving up. First error: -5
+20:44:14.399997 [drm:dcn31_reset_hw_ctx_wrap] Reset back end for pipe 0, tg:0
+20:44:14.408341 [drm:link_set_dpms_on] FRL LINK TRAINING:  LTS:P Start
+20:44:14.410661 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Starting FRL Link Training.
+20:44:14.411670 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING: LTS:L - Clear FRL_Rate.
+20:44:14.412662 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read Sink Version = 1.
+20:44:14.413673 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Set Source Version = 1.
+20:44:14.413851 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Poll for FLT_READY.
+20:44:14.415672 [drm:hdmi_frl_perform_link_training] FRL TEST REQ:  FLT_no_timeout = 0 
+20:44:14.416665 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Write link rate = 5.  Max FFE_Levels = 3
+20:44:14.416848 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Poll for FLT_UPDATE.
+20:44:14.450671 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN0_LTP_REQ = 5.  LN1_LTP_REQ = 6
+20:44:14.450874 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN2_LTP_REQ = 7.  LN3_LTP_REQ = 8
+20:44:14.451024 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Clear FLT_UPDATE flag.
+20:44:14.451675 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Setting Training Pattern [ln0,ln1,ln2,ln3] = [5,6,7,8].
+20:44:14.631664 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN0_LTP_REQ = 0.  LN1_LTP_REQ = 0
+20:44:14.631846 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN2_LTP_REQ = 0.  LN3_LTP_REQ = 0
+20:44:14.631989 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Clear FLT_UPDATE flag.
+20:44:14.632792 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  PASSED
+20:44:14.632975 [drm] HDMI FRL: trained rate=5 with TxFFE level 0 after 0 request(s) (advertised 3, forced 0)
+20:44:14.633114 [drm:hdmi_frl_perform_link_training_with_retries] FRL LINK TRAINING: Retry count = 1 out of 3
+20:44:14.837443 [drm:link_set_dpms_on] FRL LINK TRAINING:  LTS:P Success
+20:44:14.840458 [drm:dc_commit_state_no_check] {3840x2160, 4400x2250@1188000Khz}
+20:44:14.843367 [drm:dc_commit_streams] dc_commit_streams Finished.
+20:44:14.843489 [drm] 200ms frl status polling starts ...
+20:44:14.861665 [drm:amdgpu_dm_commit_audio] Notify ELD: -1
+20:44:14.861867 [drm:amdgpu_dm_commit_audio] Notify ELD: -1
+20:44:14.861986 [drm:amdgpu_dm_commit_audio] Notify ELD: 1
+20:44:14.862099 [drm:amdgpu_dm_audio_component_get_eld] Get ELD : idx=1 ret=44 en=1
+20:44:14.886656 [drm:amdgpu_dm_audio_component_get_eld] Get ELD : idx=0 ret=0 en=0
+20:44:14.886849 [drm:amdgpu_dm_audio_component_get_eld] Get ELD : idx=1 ret=44 en=1
+20:44:14.886921 [drm:amdgpu_dm_audio_component_get_eld] Get ELD : idx=2 ret=0 en=0
+20:44:14.886992 [drm:amdgpu_dm_audio_component_get_eld] Get ELD : idx=3 ret=0 en=0
+20:44:15.047736 [drm] HDMI FRL: sink state changed -- status=0x40 (clk=0 lanes=0000 flt_ready=1) update0=0x43 rate=5
+20:44:15.049649 [drm] HDMI FRL: t=+0.0s unlocked -- errors ln0=423(-) ln1=4(-) ln2=24(-) ln3=0(-) rs_corr=32767(-)
+20:44:16.088656 [drm] HDMI FRL: t=+1.0s unlocked -- errors ln0=0(-) ln1=0(-) ln2=0(-) ln3=0(-) rs_corr=0(-)
+20:44:18.792659 [drm] HDMI FRL: sink reports loss of lock (status=0x00) with rate=5 active -- re-enabling the link (attempt 1)
+20:44:18.833194 [drm:dcn31_link_encoder_disable_output] dcn31_link_encoder_disable_output: enc_id(1)
+20:44:18.833906 [drm:link_set_dpms_on] FRL LINK TRAINING:  LTS:P Start
+20:44:18.835660 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Starting FRL Link Training.
+20:44:18.837780 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read Sink Version = 1.
+20:44:18.837970 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Set Source Version = 1.
+20:44:18.838126 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Poll for FLT_READY.
+20:44:19.047858 [drm:hdmi_frl_perform_link_training] FRL TEST REQ:  FLT_no_timeout = 0 
+20:44:19.047930 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  FAILED - FLT_READY not set by sink.
+20:44:19.047998 [drm:hdmi_frl_perform_link_training_with_retries] FRL LINK TRAINING: Retry count = 1 out of 3
+20:44:19.252773 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Starting FRL Link Training.
+20:44:19.254668 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read Sink Version = 1.
+20:44:19.254774 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Set Source Version = 1.
+20:44:19.254855 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Poll for FLT_READY.
+20:44:19.463977 [drm:hdmi_frl_perform_link_training] FRL TEST REQ:  FLT_no_timeout = 0 
+20:44:19.464125 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  FAILED - FLT_READY not set by sink.
+20:44:19.464264 [drm:hdmi_frl_perform_link_training_with_retries] FRL LINK TRAINING: Retry count = 2 out of 3
+20:44:19.669700 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Starting FRL Link Training.
+20:44:19.670571 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read Sink Version = 1.
+20:44:19.671666 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Set Source Version = 1.
+20:44:19.671962 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Poll for FLT_READY.
+20:44:19.674699 [drm:hdmi_frl_perform_link_training] FRL TEST REQ:  FLT_no_timeout = 0 
+20:44:19.674891 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Write link rate = 5.  Max FFE_Levels = 3
+20:44:19.675080 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Poll for FLT_UPDATE.
+20:44:19.690880 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN0_LTP_REQ = 5.  LN1_LTP_REQ = 6
+20:44:19.691030 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN2_LTP_REQ = 7.  LN3_LTP_REQ = 8
+20:44:19.691183 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Clear FLT_UPDATE flag.
+20:44:19.691704 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Setting Training Pattern [ln0,ln1,ln2,ln3] = [5,6,7,8].
+20:44:19.869723 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN0_LTP_REQ = 0.  LN1_LTP_REQ = 0
+20:44:19.869826 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN2_LTP_REQ = 0.  LN3_LTP_REQ = 0
+20:44:19.869904 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Clear FLT_UPDATE flag.
+20:44:19.870756 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  PASSED
+20:44:19.870856 [drm] HDMI FRL: trained rate=5 with TxFFE level 0 after 0 request(s) (advertised 3, forced 0)
+20:44:19.870936 [drm:hdmi_frl_perform_link_training_with_retries] FRL LINK TRAINING: Retry count = 3 out of 3
+20:44:20.074661 [drm:link_set_dpms_on] FRL LINK TRAINING:  LTS:P Success
+20:44:20.104629 [drm:dm_helpers_parse_edid_caps] dm_helpers_parse_edid_caps: HDMI_FRL [HDMI-A-1] max_frl_rate 6
+20:44:20.104718 [drm:dm_helpers_parse_edid_caps] dm_helpers_parse_edid_caps: HDMI_FRL_DSC [HDMI-A-1] frl_dsc_10bpc 1, frl_dsc_12bpc 1, frl_dsc_all_bpp 0, frl_dsc_native_420 1, frl_dsc_max_slices 3, frl_dsc_max_frl_rate 3
+20:44:20.104790 [drm:drm_edid_to_sad] Found 4 Short Audio Descriptors
+20:44:20.104801 [drm:drm_edid_to_speaker_allocation] Found 0 Speaker Allocation Data Blocks
+20:44:20.106748 [drm:link_detect] LG TV SSCR2: [Block 0] 
+20:44:20.106817 [drm:link_detect] LG TV SSCR2: [Block 1] 
+20:44:20.106887 [drm:link_detect] detect_link_and_local_sink: manufacturer_id = 6D1E, product_id = C0C8, serial_number = 1010101, manufacture_week = 1, manufacture_year = 32, display_name = LG TV SSCR2, speaker_flag = 5,
+20:44:20.106958 [drm:link_detect] detect_link_and_local_sink: mode number = 0, format_code = 1, channel_count = 2, sample_rate = 87, sample_size = 7
+20:44:20.107028 [drm:link_detect] detect_link_and_local_sink: mode number = 1, format_code = 2, channel_count = 6, sample_rate = 7, sample_size = 80
+20:44:20.107096 [drm:link_detect] detect_link_and_local_sink: mode number = 2, format_code = 10, channel_count = 8, sample_rate = 7, sample_size = 1
+20:44:20.107790 [drm:link_detect] detect_link_and_local_sink: mode number = 3, format_code = 12, channel_count = 8, sample_rate = 4, sample_size = 3
+20:44:20.107859 [drm:link_detect] link=1, dc_sink_in=000000002eed0327 is now Connected prev_sink=0000000000000000 edid same=1
+20:44:20.151663 [drm:hdmi_frl_LTS_clear_Link_Setting] FRL LINK TRAINING: LTS:L - Clear FRL_Rate.
+20:44:20.154038 [drm:dcn31_link_encoder_disable_output] dcn31_link_encoder_disable_output: enc_id(1)
+20:44:20.333796 [drm:dcn31_link_encoder_disable_output] dcn31_link_encoder_disable_output: enc_id(1)
+20:44:20.333901 [drm:hdmi_frl_verify_link_cap] FRL LINK TRAINING: Validation
+20:44:20.541781 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Starting FRL Link Training.
+20:44:20.543671 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read Sink Version = 1.
+20:44:20.544667 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Set Source Version = 1.
+20:44:20.544783 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Poll for FLT_READY.
+20:44:20.546662 [drm:hdmi_frl_perform_link_training] FRL TEST REQ:  FLT_no_timeout = 0 
+20:44:20.547655 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Write link rate = 6.  Max FFE_Levels = 3
+20:44:20.547756 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Poll for FLT_UPDATE.
+20:44:20.569800 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN0_LTP_REQ = 5.  LN1_LTP_REQ = 6
+20:44:20.569907 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN2_LTP_REQ = 7.  LN3_LTP_REQ = 8
+20:44:20.569983 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Clear FLT_UPDATE flag.
+20:44:20.570656 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Setting Training Pattern [ln0,ln1,ln2,ln3] = [5,6,7,8].
+20:44:20.598754 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN0_LTP_REQ = 0.  LN1_LTP_REQ = 0
+20:44:20.598955 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN2_LTP_REQ = 0.  LN3_LTP_REQ = 0
+20:44:20.599110 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Clear FLT_UPDATE flag.
+20:44:20.599654 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  PASSED
+20:44:20.599753 [drm] HDMI FRL: trained rate=6 with TxFFE level 0 after 0 request(s) (advertised 3, forced 0)
+20:44:20.599973 [drm:dcn31_link_encoder_disable_output] dcn31_link_encoder_disable_output: enc_id(1)
+20:44:20.601804 [drm:dcn31_link_encoder_disable_output] dcn31_link_encoder_disable_output: enc_id(1)
+20:44:20.601979 [drm:link_detect] link_detect: link_index=1 is_local_sink_detect_success=1 pre_link_type=1 link_type=1
+20:44:20.602057 [drm:amdgpu_dm_update_connector_after_detect] DCHPD: connector_id=1: dc_sink didn't change.
+20:44:20.602135 [drm:drm_sysfs_connector_hotplug_event] [CONNECTOR:468:HDMI-A-1] generating connector hotplug event
+20:44:20.602207 [drm:drm_client_dev_hotplug] fbdev: ret=0
+20:44:20.630571 [drm:dm_helpers_parse_edid_caps] dm_helpers_parse_edid_caps: HDMI_FRL [HDMI-A-1] max_frl_rate 6
+20:44:20.630640 [drm:dm_helpers_parse_edid_caps] dm_helpers_parse_edid_caps: HDMI_FRL_DSC [HDMI-A-1] frl_dsc_10bpc 1, frl_dsc_12bpc 1, frl_dsc_all_bpp 0, frl_dsc_native_420 1, frl_dsc_max_slices 3, frl_dsc_max_frl_rate 3
+20:44:20.630716 [drm:drm_edid_to_sad] Found 4 Short Audio Descriptors
+20:44:20.630727 [drm:drm_edid_to_speaker_allocation] Found 0 Speaker Allocation Data Blocks
+20:44:20.631747 [drm:link_detect] LG TV SSCR2: [Block 0] 
+20:44:20.631822 [drm:link_detect] LG TV SSCR2: [Block 1] 
+20:44:20.631890 [drm:link_detect] detect_link_and_local_sink: manufacturer_id = 6D1E, product_id = C0C8, serial_number = 1010101, manufacture_week = 1, manufacture_year = 32, display_name = LG TV SSCR2, speaker_flag = 5,
+20:44:20.631962 [drm:link_detect] detect_link_and_local_sink: mode number = 0, format_code = 1, channel_count = 2, sample_rate = 87, sample_size = 7
+20:44:20.632645 [drm:link_detect] detect_link_and_local_sink: mode number = 1, format_code = 2, channel_count = 6, sample_rate = 7, sample_size = 80
+20:44:20.632722 [drm:link_detect] detect_link_and_local_sink: mode number = 2, format_code = 10, channel_count = 8, sample_rate = 7, sample_size = 1
+20:44:20.632790 [drm:link_detect] detect_link_and_local_sink: mode number = 3, format_code = 12, channel_count = 8, sample_rate = 4, sample_size = 3
+20:44:20.632858 [drm:link_detect] link=1, dc_sink_in=000000002eed0327 is now Connected prev_sink=0000000000000000 edid same=1
+20:44:20.634647 [drm:dcn31_link_encoder_disable_output] dcn31_link_encoder_disable_output: enc_id(1)
+20:44:20.634720 [drm:hdmi_frl_verify_link_cap] FRL LINK TRAINING: Validation
+20:44:20.705269 [drm] HDMI FRL: t=+5.6s unlocked -- errors ln0=0(-) ln1=0(-) ln2=0(-) ln3=0(-) rs_corr=32767(-)
+20:44:20.838700 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Starting FRL Link Training.
+20:44:20.839661 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING: LTS:L - Clear FRL_Rate.
+20:44:20.840662 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read Sink Version = 1.
+20:44:20.841669 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Set Source Version = 1.
+20:44:20.841787 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Poll for FLT_READY.
+20:44:20.843669 [drm:hdmi_frl_perform_link_training] FRL TEST REQ:  FLT_no_timeout = 0 
+20:44:20.844661 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Write link rate = 6.  Max FFE_Levels = 3
+20:44:20.844786 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Poll for FLT_UPDATE.
+20:44:20.890501 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN0_LTP_REQ = 5.  LN1_LTP_REQ = 6
+20:44:20.890737 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN2_LTP_REQ = 7.  LN3_LTP_REQ = 8
+20:44:20.891059 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Clear FLT_UPDATE flag.
+20:44:20.891962 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Setting Training Pattern [ln0,ln1,ln2,ln3] = [5,6,7,8].
+20:44:20.943676 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN0_LTP_REQ = 0.  LN1_LTP_REQ = 0
+20:44:20.943781 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Read LN2_LTP_REQ = 0.  LN3_LTP_REQ = 0
+20:44:20.943865 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  Clear FLT_UPDATE flag.
+20:44:20.944716 [drm:hdmi_frl_perform_link_training] FRL LINK TRAINING:  PASSED
+20:44:20.944825 [drm] HDMI FRL: trained rate=6 with TxFFE level 0 after 0 request(s) (advertised 3, forced 0)
+20:44:20.945056 [drm:dcn31_link_encoder_disable_output] dcn31_link_encoder_disable_output: enc_id(1)
+20:44:20.946857 [drm:dcn31_link_encoder_disable_output] dcn31_link_encoder_disable_output: enc_id(1)
+20:44:20.947013 [drm:link_detect] link_detect: link_index=1 is_local_sink_detect_success=1 pre_link_type=1 link_type=1
+20:44:20.947090 [drm:amdgpu_dm_update_connector_after_detect] DCHPD: connector_id=1: dc_sink didn't change.
+20:44:20.977065 [drm:drm_mode_prune_invalid] Rejected mode: "1920x1080i": 60 74250 1920 2008 2052 2200 1080 1084 1094 1125 0x40 0x15 (NO_INTERLACE)
+20:44:20.977139 [drm:drm_mode_prune_invalid] Rejected mode: "1920x1080i": 60 74176 1920 2008 2052 2200 1080 1084 1094 1125 0x40 0x15 (NO_INTERLACE)
+20:44:20.977216 [drm:drm_mode_prune_invalid] Rejected mode: "1920x1080i": 50 74250 1920 2448 2492 2640 1080 1084 1094 1125 0x40 0x15 (NO_INTERLACE)
+20:44:20.977295 [drm:drm_mode_prune_invalid] Rejected mode: "720x576i": 50 13500 720 732 795 864 576 580 586 625 0x40 0x101a (NO_INTERLACE)
+20:44:20.981538 [drm:drm_sysfs_connector_hotplug_event] [CONNECTOR:468:HDMI-A-1] generating connector hotplug event
+20:44:20.981616 [drm:drm_client_dev_hotplug] fbdev: ret=0
+20:44:21.008118 [drm:drm_mode_prune_invalid] Rejected mode: "1920x1080i": 60 74250 1920 2008 2052 2200 1080 1084 1094 1125 0x40 0x15 (NO_INTERLACE)
+20:44:21.008191 [drm:drm_mode_prune_invalid] Rejected mode: "1920x1080i": 60 74176 1920 2008 2052 2200 1080 1084 1094 1125 0x40 0x15 (NO_INTERLACE)
+20:44:21.008275 [drm:drm_mode_prune_invalid] Rejected mode: "1920x1080i": 50 74250 1920 2448 2492 2640 1080 1084 1094 1125 0x40 0x15 (NO_INTERLACE)
+20:44:21.008359 [drm:drm_mode_prune_invalid] Rejected mode: "720x576i": 50 13500 720 732 795 864 576 580 586 625 0x40 0x101a (NO_INTERLACE)
+20:44:21.174881 [drm:dc_commit_streams] dc_commit_streams: 1 streams
+20:44:21.185717 [drm:dc_commit_streams] dc_commit_streams Finished.
+20:44:21.326868 [drm] HDMI FRL: sink state changed -- status=0x40 (clk=0 lanes=0000 flt_ready=1) update0=0x53 rate=6
+20:44:21.328670 [drm] HDMI FRL: sink raised FRL_START -- update0=0x53 ltp_req=0000 test_req=0x00 status=0x40 rate=6
+20:44:21.744661 [drm] HDMI FRL: t=+6.6s unlocked -- errors ln0=0(-) ln1=0(-) ln2=0(-) ln3=0(-) rs_corr=0(-)
+20:44:24.900655 [drm] HDMI FRL: sink reports loss of lock (status=0x40) with rate=6 active -- re-enabling the link (attempt 2)

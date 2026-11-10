@@ -3432,3 +3432,34 @@ to a full re-detect + commit when no stream is enabled.
 Also committed: `tools/thermal-logger.sh` (Oct 24 folio-closed power-offs: asus_wmi 0x6d ~1.5 min
 before each, no FCH reset reason -- consistent with an EC power cut; logger never run yet).
 
+## Nov 9 20:44 — second stuck wake, captured at drm.debug=0x6: root cause found
+
+Condensed trace: `docs/logs/2026-11-09-2044-wake-stuck-drm-debug-condensed.log` (per-poll lines
+dropped). Sequence:
+
+1. 20:44:12 TV drops HPD (powering on), 20:44:14 reconnects: detect, destructive FRL test at
+   rate 6, new stream committed at rate 5 -- the normal wake.
+2. 20:44:18.79 sink status 0x00; watchdog re-enable 1: two trainings fail "FLT_READY not set by
+   sink" (the TV's receiver is still restarting), the third passes at rate 5 (20:44:19.87).
+3. 20:44:20.10 and 20:44:20.63 the TV pulses HPD twice. Each link_detect() runs
+   verify_link_capability_destructive(): link_set_all_streams_dpms_off_for_link() commits
+   dpms_off=true on the live stream, then hdmi_frl_verify_link_cap() trains at rate 6 and
+   disables the encoder output. amdgpu_dm logs "dc_sink didn't change", so
+   dm_restore_drm_connector_state() does nothing (it forces a commit only when the sink pointer
+   changed) and only a hotplug uevent goes out.
+4. 20:44:21.17 KWin answers the uevent with a commit of the same HDMI stream: dc_commit_streams
+   takes 11 ms, no link enable, no training -- the stream stays dpms_off.
+5. Watchdog re-enables 2-12 do nothing at all (dc_link_dp_handle_link_loss() only cycles master
+   pipes with dpms on; there are none), hence "rate=6 active" and no training lines.
+6. 20:45:51 0 streams, 20:48:15 a fresh stream (Meta+Shift+D): rate 5, locked in 2 s.
+
+So the dark screen is a stock DC/DM gap: a destructive FRL capability test on an HPD pulse from
+an unchanged sink turns the active stream off and nothing turns it back on. Our watchdog is not
+the cause (it only provides the re-enable that the TV answers with HPD pulses) but cannot
+recover from it either. Still open: why the 7.3.0 logs (Oct 23-24) show no rate-6 tests.
+
+Proposed real fix (0006, not built yet): in should_verify_link_capability_destructively(), for
+an FRL-capable HDMI sink, skip the destructive test when the link is active with a stream on it
+-- the condition upstream already applies under panel_patch.skip_frl_pre_training, made
+unconditional. The verified cap from the earlier test stays in use.
+
