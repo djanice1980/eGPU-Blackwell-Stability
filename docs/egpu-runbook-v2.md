@@ -3477,3 +3477,22 @@ Expected after install: an HPD pulse during the picture shows "dc_sink didn't ch
 "FRL LINK TRAINING: Validation" / rate 6 training after it; normal wakes keep their rate-6 test
 (the stream was removed while the TV was off). The drm.debug capture stays on to see the next HPD.
 
+## Nov 10 — first day on 0006: two slow locks, no stuck stream
+
+Booted 09:11 with 0006 (installed module == the --build-only build). Two dark periods, both the
+old sink-side slow lock at 10G x4, both ended by the watchdog with no source-side stall:
+
+| | event | re-enables | dark |
+|---|---|---|---|
+| 09:12:27 | login, greeter 4K60 -> session 4K120 | 7 | ~32 s |
+| 15:17:22 | TV back on at the lock screen (HPD low 15:17:15, new sink, edid same=0) | 10 | ~45 s |
+
+15:17:22 was a real reconnect (prev_sink NULL), so the destructive rate-6 test ran as 0006
+intends. No HPD pulse arrived while a stream was live, so 0006 was not exercised yet. Every
+re-enable trained rate 5 (the Nov 9 signature, "rate=6 active" with no trainings, is absent).
+
+The Meta+Shift+D press at the lock screen left no trace: no commit between 15:17:23 and the lock
+at 15:18:08, and display-rescue always commits a mode change. Plasma does not run global
+shortcuts while the screen is locked, so the rescue only works after unlocking; the lock at
+15:18:08 came from watchdog re-enable 10. 45 s is the longest slow lock on record (was 36 s).
+
