@@ -3463,3 +3463,17 @@ an FRL-capable HDMI sink, skip the destructive test when the link is active with
 -- the condition upstream already applies under panel_patch.skip_frl_pre_training, made
 unconditional. The verified cap from the earlier test stays in use.
 
+## Nov 9 — 0006 (7.3 series): no destructive FRL test on a live link with an unchanged sink
+
+`kernel-patches/7.3/0006-local-no-destructive-FRL-link-test-on-a-live-link-with-an-unchanged-sink.patch`,
+in `should_verify_link_capability_destructively()` (link_detection.c): a new `else` after the
+skip_frl_pre_training branch skips the destructive test when a pipe's stream is on this link,
+`stream->sink == link->local_sink` (detection kept the old sink: same EDID, so it still has
+sink_signal HDMI_FRL and the earlier verified cap) and the link is active. Cold plug, a wake after
+the compositor removed the stream, or a changed EDID still get the full test.
+
+Built for 7.3.3-1 (`build.sh --build-only`): all five patches applied to pristine, 0 warnings.
+Expected after install: an HPD pulse during the picture shows "dc_sink didn't change" with no
+"FRL LINK TRAINING: Validation" / rate 6 training after it; normal wakes keep their rate-6 test
+(the stream was removed while the TV was off). The drm.debug capture stays on to see the next HPD.
+

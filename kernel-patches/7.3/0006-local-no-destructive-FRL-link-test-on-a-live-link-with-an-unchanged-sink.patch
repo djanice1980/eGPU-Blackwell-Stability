@@ -1,0 +1,64 @@
+From 9e7ba9c5818a08b49372dda2d2c4eac32096d641 Mon Sep 17 00:00:00 2001
+From: David Janice <djanice1980@gmail.com>
+Date: Mon, 9 Nov 2026 20:56:10 -0600
+Subject: [PATCH] drm/amd/display: local -- no destructive FRL link test on a
+ live link with an unchanged sink
+
+Every link_detect() runs verify_link_capability(). For an FRL-capable HDMI sink the test is
+destructive unless HDMI FRL is in use elsewhere or the sink carries the skip_frl_pre_training
+panel patch: link_set_all_streams_dpms_off_for_link() commits dpms_off on the live stream, then
+hdmi_frl_verify_link_cap() trains at the sink's maximum rate and disables the encoder output.
+
+When the HPD pulse came from the same sink (same EDID), detection keeps the old dc_sink,
+amdgpu_dm logs "dc_sink didn't change", and dm_restore_drm_connector_state() forces no commit
+because the stream's sink still matches. The compositor answers the hotplug uevent with a commit
+of the same mode, which is a fast update and leaves the stream dpms_off. The picture stays off
+until a full modeset.
+
+Measured with drm.debug=0x6 on an LG C2 (Max_FRL_Rate 6), 7.3.3, 2026-11-09 20:44: after a wake
+the TV's receiver restarted (two trainings failed "FLT_READY not set by sink"), the TV then
+pulsed HPD twice, each detection tested at 12G x4 and switched the stream off, KWin's commit
+took 11 ms with no link enable, and the screen stayed dark for 4 minutes until a new modeset,
+which trained 10G x4 and locked in 2 s. Same signature at 12:39 the same day.
+
+Skip the destructive test when a stream on this link was created for the sink detection kept
+and the link is active -- the condition the skip_frl_pre_training path already uses, plus the
+sink check, for every sink. The earlier verified link cap still applies to that sink. A new or
+changed sink, or a link with no active stream (cold plug, wake after the stream was removed),
+still gets the full test.
+---
+ .../drm/amd/display/dc/link/link_detection.c   | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/drivers/gpu/drm/amd/display/dc/link/link_detection.c b/drivers/gpu/drm/amd/display/dc/link/link_detection.c
+index f254f2d..53c6af0 100644
+--- a/drivers/gpu/drm/amd/display/dc/link/link_detection.c
++++ b/drivers/gpu/drm/amd/display/dc/link/link_detection.c
+@@ -995,6 +995,24 @@ static bool should_verify_link_capability_destructively(struct dc_link *link,
+ 					}
+ 				}
+ 			}
++		} else {
++			/*
++			 * Local: the same skip for every sink when the detection kept the
++			 * sink a live stream was created for (same EDID, so the earlier
++			 * test result still holds). The destructive test commits dpms_off
++			 * on that stream and disables the encoder, and with the sink
++			 * unchanged dm_restore_drm_connector_state() forces no commit, so
++			 * nothing turns the stream back on: an HDMI HPD pulse while the
++			 * picture is up (the LG C2 sends two while its receiver restarts
++			 * after a wake) left the screen dark until a full modeset.
++			 */
++			for (i = 0; i < MAX_PIPES; i++) {
++				if (pipes[i].stream != NULL &&
++						pipes[i].stream->link == link &&
++						pipes[i].stream->sink == link->local_sink &&
++						link->link_status.link_active)
++					destrictive = false;
++			}
+ 		}
+ 	}
+ 
+-- 
+2.56.0
+
